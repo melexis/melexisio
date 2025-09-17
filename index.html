@@ -231,7 +231,8 @@
     });
     // Serial
     let port, reader, writer, reading = false;
-    let textDecoder, textEncoder;
+  let textDecoder, textEncoder;
+  let readableStreamClosed, writableStreamClosed;
 
     // History (cookie-backed) — only for input #tx
     const HISTORY_COOKIE = 'mip_cmd_history';
@@ -378,6 +379,7 @@
         return;
       }
       try {
+        // Always request a new port
         port = await navigator.serial.requestPort();
         const opts = {
           baudRate: parseInt($('baud').value, 10) || 115200,
@@ -388,11 +390,12 @@
         };
         await port.open(opts);
 
-        textDecoder = new TextDecoderStream();
-        textEncoder = new TextEncoderStream();
+  textDecoder = new TextDecoderStream();
+  textEncoder = new TextEncoderStream();
 
-        port.readable.pipeTo(textDecoder.writable).catch(() => {});
-        textEncoder.readable.pipeTo(port.writable).catch(() => {});
+  // Keep references to piping promises so we can await them on disconnect
+  readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+  writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 
         reader = textDecoder.readable.getReader();
         writer = textEncoder.writable.getWriter();
@@ -433,12 +436,33 @@
       try {
         setStatus('Disconnecting…');
         reading = false;
-        try { if (reader) await reader.cancel(); } catch {}
-        try { if (writer) await writer.close(); } catch {}
-        try { if (port?.readable) await port.readable.cancel(); } catch {}
-        try { if (port?.writable) await port.writable.close(); } catch {}
+        // Stop reading
+        try {
+          if (reader) {
+            await reader.cancel();
+            try { reader.releaseLock && reader.releaseLock(); } catch {}
+          }
+        } catch {}
+        // Stop writing
+        try {
+          if (writer) {
+            await writer.close();
+            try { writer.releaseLock && writer.releaseLock(); } catch {}
+          }
+        } catch {}
+        // Wait for the piping to finish
+        try { if (readableStreamClosed) await readableStreamClosed.catch(() => {}); } catch {}
+        try { if (writableStreamClosed) await writableStreamClosed.catch(() => {}); } catch {}
+        // Finally close the port
         try { if (port) await port.close(); } catch {}
       } finally {
+        // Do not set port to null, so it can be reused
+        reader = null;
+        writer = null;
+        readableStreamClosed = null;
+        writableStreamClosed = null;
+        textDecoder = null;
+        textEncoder = null;
         $('connect').disabled = false;
         $('disconnect').disabled = true;
         setCommandButtonsEnabled(false);
