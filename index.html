@@ -4,8 +4,19 @@
   <meta charset="utf-8" />
   <title>MIP Terminal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <style>
-    :root { color-scheme: light dark; }
+    :root { 
+      color-scheme: light dark; 
+      --theme-green: #198754; /* accent */
+      --bg-green: #0A3622; /* deeper green background */
+      --text-on-green: #f2f8f4;
+      --panel-bg: rgba(255,255,255,0.06);
+      --panel-bg-solid: #0f3a27;
+      --panel-border: rgba(255,255,255,0.18);
+      --muted-on-green: #c4d8ce;
+    }
     /* Make the page a column flex layout */
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -13,6 +24,8 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      background: var(--bg-green);
+      color: var(--text-on-green);
     }
     /* Header bar */
     #header {
@@ -20,7 +33,9 @@
       align-items: center;
       justify-content: center;
       padding: .75rem 1rem;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(0,0,0,0.18);
+      backdrop-filter: blur(3px);
     }
     #header .title {
       font-size: 1.5rem;
@@ -35,23 +50,17 @@
       min-height: 0;
     }
 
-    #sidebar {
-      width: 220px; padding: 1rem; border-right: 1px solid #ccc;
-      display: flex; flex-direction: column; gap: .5rem;
-    }
-    #sidebar h2 { margin: .25rem 0; font-size: 1.05rem; }
-    #sidebar button { width: 100%; padding: .5rem; cursor: pointer; }
-    .muted { opacity: .7; font-size: .9em; }
+  #sidebar h2 { margin: .25rem 0; font-size: 1.05rem; }
+  .muted { opacity: 1; font-size: .8em; color: var(--muted-on-green); }
     #historyList {
       display: flex; flex-direction: column; gap: .25rem; max-height: 40vh; overflow: auto; margin-top: .25rem;
     }
     .hist-item {
-      text-align: left; padding: .35rem .5rem; border: 1px solid #8885; background: #f6f6f6;
-      border-radius: .25rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-align: left; padding: .35rem .5rem; border: 1px solid var(--panel-border); background: var(--panel-bg);
+      border-radius: .375rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--text-on-green);
     }
-    @media (prefers-color-scheme: dark) {
-      .hist-item { background: #1e1e1e; border-color: #555; color: #ddd; }
-    }
+    .hist-item:hover { background: rgba(255,255,255,0.12); }
 
     #main {
       flex: 1 1 auto;
@@ -60,53 +69,65 @@
       flex-direction: column;
       min-height: 0;
     }
-    .tab-bar {
-      display: flex;
-      border-bottom: 1px solid #ccc;
-      margin-bottom: 0.5rem;
-    }
-    .tab-btn {
-      background: none;
-      border: none;
-      padding: 0.5rem 1.2rem;
-      font-size: 1rem;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: border 0.2s;
-    }
-    .tab-btn.active {
-      border-bottom: 2px solid #3399ee;
-      font-weight: bold;
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+  fieldset { margin: 0 0 6px 0; background: var(--panel-bg); border:1px solid var(--panel-border); border-radius: .75rem; }
+  legend { padding: 0 .5rem; font-weight:600; }
+    .bootstrap-tabs { margin-top: 6px; }
+    /* Remove custom tab styling (handled by Bootstrap) */
+  .bootstrap-tabs .nav-link { cursor: pointer; }
 
     /* Fixed-height log with scrollbars */
     #log {
       width: 100%;
-      height: 65vh;      /* set to 65% of viewport height */
+      height: 50vh;      /* reduced to 50% viewport height */
+      max-height: calc(100vh - 260px); /* safeguard relative to other UI */
       box-sizing: border-box;
       white-space: pre-wrap;
       overflow: auto;    /* scrollbars when content expands */
-      border: 1px solid #ccc;
+      border: 1px solid var(--panel-border);
       padding: .5rem;
-      background: #000;
-      color: #bbb;       /* default: response (RX) gray */
+      background: #112d21; /* adjusted to harmonize with deeper bg */
+      color: #d9dedc;       /* default: response (RX) gray */
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
     /* Color coding for log entries */
-    .log-echo { color: #3399ee; }    /* blue for local echo (TX) */
-    .log-rx   { color: #bbb; }       /* gray for device response (RX) */
-    .log-okprompt { color: #60ee60; }/* light green for "(OK)>" prompts */
-    .log-badprompt { color: #ff3333; }/* red for "(... )>" non-OK prompts */
-    .log-error { color: #ff3333; }   /* red for errors */
+  .log-echo { color: #4db2ff; }    /* brighter blue for local echo (TX) */
+  .log-rx   { color: #d9dedc; }    /* light gray for device response (RX) */
+  .log-okprompt { color: #59ffb0; }/* bright mint for "(OK)>" prompts */
+  .log-badprompt { color: #ff7a7a; }/* softer red for non-OK prompts */
+  .log-error { color: #ff5252; }   /* vivid error red */
     
     #row { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
     input[type="text"] { flex: 1 1 320px; }
     .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
     .spacer { flex: 1 1 auto; }
     button { cursor: pointer; }
+    button { cursor: pointer; }
+    /* Themed elements */
+  .btn-primary { background-color: #125f3d; border-color: #0f5235; }
+  .btn-primary:hover, .btn-primary:focus { background-color: #0f5235; border-color: #0c452c; }
+  .btn-secondary { background-color: #355846; border-color: #2b4638; color:#e6fff2; }
+  .btn-secondary:hover { background-color: #2b4638; }
+  .btn-success { background:#1e9d62; border-color:#198754; }
+  .btn-success:hover { background:#198754; }
+  .btn-outline-primary { color: #e6fff2; border-color: #59ffb0; }
+  .btn-outline-primary:hover { background:#59ffb0; color:#08301f; }
+  .btn-outline-danger { color: #ffc8c8; border-color: #ff7a7a; }
+  .btn-outline-danger:hover { background:#ff7a7a; color:#300; }
+  .btn-outline-secondary { color:#e2efe7; border-color:#88b6a1; }
+  .btn-outline-secondary:hover { background:#88b6a1; color:#10241b; }
+  .btn-outline-warning { color:#ffe8a6; border-color:#ffda6a; }
+  .btn-outline-warning:hover { background:#ffda6a; color:#3a2d00; }
+  .btn-outline-info { color:#c2ecff; border-color:#74d2ff; }
+  .btn-outline-info:hover { background:#74d2ff; color:#002a38; }
+  .nav-tabs { border-color: var(--panel-border); }
+  .nav-tabs .nav-link { color: var(--text-on-green); }
+  .nav-tabs .nav-link.active { background: rgba(0,0,0,0.35); color: #fff; border-color: var(--panel-border) var(--panel-border) transparent; }
+  .tab-content { background: var(--panel-bg); border:1px solid var(--panel-border); border-top: none; padding: .75rem .75rem; border-radius: 0 0 .75rem .75rem; }
+  .form-control, .form-select { background:#123d2a; border:1px solid #1d5a3d; color:#e6fff2; }
+  .form-control:focus, .form-select:focus { background:#14452f; color:#fff; border-color:#59ffb0; box-shadow:0 0 0 .15rem rgba(89,255,176,0.25); }
+  input::placeholder { color:#b7d5c6; }
+  hr { border-color: var(--panel-border); }
     select, input[type="number"] { width: 8rem; }
     @media (max-width: 800px) {
       #sidebar { width: 180px; }
@@ -126,87 +147,98 @@
 
     <main id="main">
       <fieldset>
-        <legend>Serial Connection</legend>
-        <div class="controls">
-          <label>Baud:
-            <input id="baud" type="number" value="115200" min="50" step="50" />
+        <div class="controls d-flex flex-wrap align-items-end gap-2">
+          <label class="form-label mb-0">Baud:
+            <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
           </label>
-          <label>Data bits:
-            <select id="databits">
+          <label class="form-label mb-0">Data bits:
+            <select id="databits" class="form-select form-select-sm">
               <option>8</option>
               <option selected>7</option>
             </select>
           </label>
-          <label>Parity:
-            <select id="parity">
+          <label class="form-label mb-0">Parity:
+            <select id="parity" class="form-select form-select-sm">
               <option value="none">none</option>
               <option value="even">even</option>
               <option value="odd" selected>odd</option>
             </select>
           </label>
-          <label>Stop bits:
-            <select id="stopbits">
+          <label class="form-label mb-0">Stop bits:
+            <select id="stopbits" class="form-select form-select-sm">
               <option>1</option>
               <option selected>2</option>
             </select>
           </label>
-          <label>Flow:
-            <select id="flow">
-              <option value="none" selected>none</option>
-              <option value="hardware">hardware (RTS/CTS)</option>
-            </select>
-          </label>
-          <button id="connect">Connect…</button>
-          <button id="disconnect" disabled>Disconnect</button>
-          <span id="status" class="muted"></span>
+            <label class="form-label mb-0">Flow:
+              <select id="flow" class="form-select form-select-sm">
+                <option value="none" selected>none</option>
+                <option value="hardware">hardware (RTS/CTS)</option>
+              </select>
+            </label>
+          <button id="connect" class="btn btn-primary btn-sm">Connect…</button>
+          <button id="disconnect" class="btn btn-secondary btn-sm" disabled>Disconnect</button>
+          <span id="status" class="muted small"></span>
         </div>
       </fieldset>
 
-      <div class="tab-bar">
-        <button class="tab-btn active" data-tab="tab1">Terminal</button>
-        <button class="tab-btn" data-tab="tab2">Settings</button>
-        <button class="tab-btn" data-tab="tab3">Scan</button>
-      </div>
-      <div class="tab-content active" id="tab1">
+      <ul class="nav nav-tabs bootstrap-tabs" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="terminal-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button" role="tab" aria-controls="tab1" aria-selected="true">Terminal</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button" role="tab" aria-controls="tab2" aria-selected="false">Settings</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="scan-tab" data-bs-toggle="tab" data-bs-target="#tab3" type="button" role="tab" aria-controls="tab3" aria-selected="false">Scan</button>
+        </li>
+      </ul>
+      <div class="tab-content pt-3" id="mainTabsContent">
+      <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="terminal-tab">
         <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start;">
-          <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0.5rem 0 0;border:0;">
+          <div style="flex:1 1 0;min-width:320px;">
+            <div id="log" aria-live="polite"></div>
+            <div id="row" class="d-flex flex-column gap-2">
+              <div class="d-flex flex-nowrap align-items-stretch gap-1 w-100">
+                <input id="tx" class="form-control form-control-sm" type="text" placeholder="Type text to send" />
+                <button id="send" class="btn btn-success btn-sm">Send</button>
+              </div>
+              <div class="d-flex flex-wrap align-items-center gap-2 w-100">
+                <select id="eol" class="form-select form-select-sm" title="End-of-line to append on send" style="max-width:90px;">
+                  <option value="">No EOL</option>
+                  <option value="\n" selected>LF</option>
+                  <option value="\r">CR</option>
+                  <option value="\r\n">CRLF</option>
+                </select>
+                <label class="form-check form-check-inline mb-0"><input id="echo" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Local echo</span></label>
+                <label class="form-check form-check-inline mb-0"><input id="enterSend" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Enter sends</span></label>
+                <label class="form-check form-check-inline mb-0"><input id="autoScroll" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Auto-scroll</span></label>
+                <span class="spacer" style="flex:1 1 auto;"></span>
+                <button id="clear" class="btn btn-outline-warning btn-sm">Clear</button>
+                <button id="save" class="btn btn-outline-info btn-sm">Save log</button>
+              </div>
+            </div>
+          </div>
+          <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0 0 0.5rem;border:0;">
             <h2>Commands</h2>
-            <button id="cmd-id" title='Send "*IDN?"' disabled>ID</button>
-            <button id="cmd-info" title='Send ":SYST:INFO"' disabled>INFO</button>
-            <button id="cmd-rst" title='Send "*RST"' disabled>Reset</button>
+            <button id="cmd-id" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
+            <button id="cmd-info" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
+            <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
             <hr />
             <h2>History</h2>
             <div class="muted">History records only text input (tx). Click to resend. Up/Down to recall.</div>
             <div id="historyList" aria-live="polite"></div>
-            <button id="clearHistory">Clear history</button>
+            <button id="clearHistory" class="btn btn-outline-secondary btn-sm w-100">Clear history</button>
             <div class="muted">Buttons enable when connected.</div>
-          </div>
-          <div style="flex:1 1 0;min-width:320px;">
-            <div id="log" aria-live="polite"></div>
-            <div id="row">
-              <input id="tx" type="text" placeholder="Type text to send" />
-              <select id="eol" title="End-of-line to append on send">
-                <option value="">No EOL</option>
-                <option value="\n" selected>LF</option>
-                <option value="\r">CR</option>
-                <option value="\r\n">CRLF</option>
-              </select>
-              <button id="send">Send</button>
-              <label><input id="echo" type="checkbox" checked /> Local echo</label>
-              <label><input id="enterSend" type="checkbox" checked /> Enter sends</label>
-              <label><input id="autoScroll" type="checkbox" checked /> Auto-scroll</label>
-              <span class="spacer"></span>
-              <button id="clear">Clear</button>
-              <button id="save">Save log</button>
-            </div>
           </div>
         </div>
       </div>
-      <div class="tab-content" id="tab2">
-        <div style="padding:1rem;">Tab 2 content goes here.</div>
+      <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="settings-tab">
+        <div class="p-3">Tab 2 content goes here.</div>
       </div>
-      <div class="tab-content" id="tab3">
-        <div style="padding:1rem;">Tab 3 content goes here.</div>
+      <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="scan-tab">
+        <div class="p-3">Tab 3 content goes here.</div>
+      </div>
       </div>
       <p class="muted">
         Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
@@ -214,21 +246,8 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script>
-    // Tab switching logic
-    document.addEventListener('DOMContentLoaded', function() {
-      const tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
-      const tabContents = Array.from(document.querySelectorAll('.tab-content'));
-      tabBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-          tabBtns.forEach(b => b.classList.remove('active'));
-          tabContents.forEach(tc => tc.classList.remove('active'));
-          btn.classList.add('active');
-          const tabId = btn.getAttribute('data-tab');
-          document.getElementById(tabId).classList.add('active');
-        });
-      });
-    });
     // Serial
     let port, reader, writer, reading = false;
   let textDecoder, textEncoder;
