@@ -5,10 +5,11 @@ Single‑page serial terminal that runs in your browser using the Web Serial API
 ## What’s inside
 
 `index.html` contains everything:
-- UI with a sidebar (quick commands + history) and a main pane (connection controls, log, input row)
-- Web Serial logic for connect/disconnect, read/write streams, and error handling
+- UI with a right‑hand sidebar (quick commands + history) and a main pane (connection controls, log, input area)
+- Split input area: first row = TX field + Send button; second row = EOL selector + toggles + Clear/Save
+- Web Serial logic (connect / disconnect with robust stream teardown, read/write piping)
 - Command history persisted in a cookie (newest first)
-- Color‑coded log rendering
+- Color‑coded log rendering (customizable via CSS variables)
 
 ## Features
 
@@ -20,11 +21,12 @@ Single‑page serial terminal that runs in your browser using the Web Serial API
   - Flow control: none or hardware (RTS/CTS)
 - Quick commands (enabled when connected):
   - `*IDN?`, `:SYST:INFO`, `*RST`
-- Log viewer with colors:
-  - Local echo (TX): blue
-  - Device responses (RX): gray
-  - Prompts like `(OK)>`: light green; any other prompt `(…)>`: red
-  - Errors: red
+- Log viewer with colors (dark theme):
+  - Local echo (TX): bright blue (#4db2ff)
+  - Device responses (RX): light gray
+  - `(OK)>` prompt: mint green (#59ffb0)
+  - Non‑OK prompts: soft red
+  - Errors: vivid red
 - Input options:
   - End‑of‑line: No EOL, LF, CR, or CRLF
   - Local echo toggle; “Enter sends” toggle; Auto‑scroll toggle
@@ -85,8 +87,61 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 
 ## Privacy & data
 
+## Layout & UI specifics
+
+| Region | Description |
+|--------|-------------|
+| Connection controls | Top fieldset with serial settings + Connect / Disconnect + status line. |
+| Tabs | "Terminal" (active), plus placeholder "Settings" and "Scan" panes. |
+| Log | Monospaced scrollback (`#log`) at fixed height (50vh; capped by viewport calc). |
+| Input rows | Row 1: TX + Send. Row 2: EOL selector, three option checkboxes, Clear, Save. |
+| Sidebar (right) | Quick command buttons + history list + clear history. |
+
+On very narrow screens, wrapping will stack controls; the TX + Send pair stays together while secondary controls wrap.
+
+## Theming & customization
+
+Theme is implemented with CSS custom properties near the top of `index.html`:
+
+```css
+:root {
+  --theme-green: #198754; /* accent */
+  --bg-green: #0A3622;    /* page background */
+  --text-on-green: #f2f8f4;
+  --panel-bg: rgba(255,255,255,0.06);
+  --panel-border: rgba(255,255,255,0.18);
+}
+```
+
+You can adjust:
+- Background: change `--bg-green`.
+- Accent color: update `--theme-green` (used in prompts, some buttons before overrides).
+- Log height: edit `#log { height: 50vh; ... }`.
+- Prompt colors: modify `.log-okprompt`, `.log-badprompt`, `.log-error`.
+
+## Connection behavior
+
+- The app always requests a new port selection on Connect (simplifies stale handle issues).
+- Disconnect waits for stream piping promises (readable/writable) before closing the port to avoid `InvalidStateError` / "port already open" problems.
+- Auto query (`*idn?`) sent immediately after successful open (not added to history).
+
+## Accessibility & UX notes
+
+- High contrast dark palette with sufficient differentiation for prompts and errors.
+- Auto‑scroll can be disabled for manual review.
+- History buttons are regular `<button>` elements; keyboard users can tab through and press Enter/Space to resend.
+
+## Future ideas (not implemented yet)
+
+- Light/dark theme toggle
+- Search/filter within the log
+- Export/import history
+- Settings tab functionality (persisted baud & format)
+
+Contributions or suggestions welcome via issues / pull requests.
+
 - Command history is stored locally in a browser cookie for this site; you can clear it from the UI.
 
 ---
 
-This project is intentionally minimal: a single `index.html` with inline CSS/JS for easy drop‑in use.
+This project is intentionally minimal: a single `index.html` with inline CSS/JS for easy drop‑in use. Customize by editing that one file.
