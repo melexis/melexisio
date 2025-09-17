@@ -60,6 +60,26 @@
       flex-direction: column;
       min-height: 0;
     }
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 0.5rem;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: border 0.2s;
+    }
+    .tab-btn.active {
+      border-bottom: 2px solid #3399ee;
+      font-weight: bold;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
     /* Fixed-height log with scrollbars */
     #log {
@@ -102,18 +122,7 @@
   </header>
 
   <div id="app">
-    <aside id="sidebar">
-      <h2>Commands</h2>
-      <button id="cmd-id" title='Send "*IDN?"' disabled>ID</button>
-      <button id="cmd-info" title='Send ":SYST:INFO"' disabled>INFO</button>
-      <button id="cmd-rst" title='Send "*RST"' disabled>Reset</button>
-      <hr />
-      <h2>History</h2>
-      <div class="muted">History records only text input (tx). Click to resend. Up/Down to recall.</div>
-      <div id="historyList" aria-live="polite"></div>
-      <button id="clearHistory">Clear history</button>
-      <div class="muted">Buttons enable when connected.</div>
-    </aside>
+    <!-- Sidebar removed: content moved to Terminal tab -->
 
     <main id="main">
       <fieldset>
@@ -153,25 +162,52 @@
         </div>
       </fieldset>
 
-      <div id="log" aria-live="polite"></div>
-
-      <div id="row">
-        <input id="tx" type="text" placeholder="Type text to send" />
-        <select id="eol" title="End-of-line to append on send">
-          <option value="">No EOL</option>
-          <option value="\n" selected>LF</option>
-          <option value="\r">CR</option>
-          <option value="\r\n">CRLF</option>
-        </select>
-        <button id="send">Send</button>
-        <label><input id="echo" type="checkbox" checked /> Local echo</label>
-        <label><input id="enterSend" type="checkbox" checked /> Enter sends</label>
-        <label><input id="autoScroll" type="checkbox" checked /> Auto-scroll</label>
-        <span class="spacer"></span>
-        <button id="clear">Clear</button>
-        <button id="save">Save log</button>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="tab1">Terminal</button>
+        <button class="tab-btn" data-tab="tab2">Settings</button>
+        <button class="tab-btn" data-tab="tab3">Scan</button>
       </div>
-
+      <div class="tab-content active" id="tab1">
+        <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start;">
+          <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0.5rem 0 0;border:0;">
+            <h2>Commands</h2>
+            <button id="cmd-id" title='Send "*IDN?"' disabled>ID</button>
+            <button id="cmd-info" title='Send ":SYST:INFO"' disabled>INFO</button>
+            <button id="cmd-rst" title='Send "*RST"' disabled>Reset</button>
+            <hr />
+            <h2>History</h2>
+            <div class="muted">History records only text input (tx). Click to resend. Up/Down to recall.</div>
+            <div id="historyList" aria-live="polite"></div>
+            <button id="clearHistory">Clear history</button>
+            <div class="muted">Buttons enable when connected.</div>
+          </div>
+          <div style="flex:1 1 0;min-width:320px;">
+            <div id="log" aria-live="polite"></div>
+            <div id="row">
+              <input id="tx" type="text" placeholder="Type text to send" />
+              <select id="eol" title="End-of-line to append on send">
+                <option value="">No EOL</option>
+                <option value="\n" selected>LF</option>
+                <option value="\r">CR</option>
+                <option value="\r\n">CRLF</option>
+              </select>
+              <button id="send">Send</button>
+              <label><input id="echo" type="checkbox" checked /> Local echo</label>
+              <label><input id="enterSend" type="checkbox" checked /> Enter sends</label>
+              <label><input id="autoScroll" type="checkbox" checked /> Auto-scroll</label>
+              <span class="spacer"></span>
+              <button id="clear">Clear</button>
+              <button id="save">Save log</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab2">
+        <div style="padding:1rem;">Tab 2 content goes here.</div>
+      </div>
+      <div class="tab-content" id="tab3">
+        <div style="padding:1rem;">Tab 3 content goes here.</div>
+      </div>
       <p class="muted">
         Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
       </p>
@@ -179,6 +215,20 @@
   </div>
 
   <script>
+    // Tab switching logic
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
+      const tabContents = Array.from(document.querySelectorAll('.tab-content'));
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          tabBtns.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(tc => tc.classList.remove('active'));
+          btn.classList.add('active');
+          const tabId = btn.getAttribute('data-tab');
+          document.getElementById(tabId).classList.add('active');
+        });
+      });
+    });
     // Serial
     let port, reader, writer, reading = false;
     let textDecoder, textEncoder;
