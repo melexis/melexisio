@@ -142,37 +142,9 @@
           </label>
           <button id="connect">Connect…</button>
           <button id="disconnect" disabled>Disconnect</button>
+          <span id="status" class="muted"></span>
         </div>
       </fieldset>
-
-      <fieldset>
-        <legend>TCP Connection (via WebSocket)</legend>
-        <div class="controls">
-          <label>Scheme:
-            <select id="tcpScheme">
-              <option value="ws">ws</option>
-              <option value="wss" selected>wss</option>
-            </select>
-          </label>
-          <label>Host:
-            <input id="tcpHost" type="text" placeholder="example.com or 192.168.1.10" value="" />
-          </label>
-          <label>Port:
-            <input id="tcpPort" type="number" min="1" max="65535" value="443" />
-          </label>
-          <label>Path:
-            <input id="tcpPath" type="text" placeholder="/tcp" value="/tcp" />
-          </label>
-          <button id="tcpConnect">Connect</button>
-          <button id="tcpDisconnect" disabled>Disconnect</button>
-        </div>
-        <div class="muted">
-          Browsers cannot open raw TCP sockets. This connects to a WebSocket endpoint that relays to TCP.
-          Example proxy: websocat ws-l:0.0.0.0:8080 tcp:127.0.0.1:5025 then use ws://host:8080/
-        </div>
-      </fieldset>
-
-      <div id="status" class="muted" aria-live="polite"></div>
 
       <div id="log" aria-live="polite"></div>
 
@@ -194,21 +166,15 @@
       </div>
 
       <p class="muted">
-        Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold a serial port at a time.
+        Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
       </p>
     </main>
   </div>
 
   <script>
-    // Transport: serial or tcp (websocket proxy)
-    let transport = 'none'; // 'none' | 'serial' | 'tcp'
-
     // Serial
     let port, reader, writer, reading = false;
     let textDecoder, textEncoder;
-
-    // TCP/WebSocket
-    let ws = null;
 
     // History (cookie-backed) — only for input #tx
     const HISTORY_COOKIE = 'mip_cmd_history';
@@ -292,24 +258,19 @@
       if ($('autoScroll').checked) logEl.scrollTop = logEl.scrollHeight;
     }
     function eolValue() {
-      return $('eol').value.replaceAll('\\r', '\r').replaceAll('\\n', '\n');
+      return $('eol').value.replaceAll('\r', '\r').replaceAll('\n', '\n');
     }
     function setCommandButtonsEnabled(enabled) {
       $('cmd-id').disabled = !enabled;
       $('cmd-info').disabled = !enabled;
       $('cmd-rst').disabled = !enabled;
     }
-    function isConnected() {
-      return transport !== 'none';
-    }
 
-    // SERIAL
-    async function connectSerial() {
+    async function connect() {
       if (!('serial' in navigator)) {
         alert('Web Serial API not supported in this browser. Use Chrome or Edge (desktop).');
         return;
       }
-      if (isConnected()) await disconnectAny();
       try {
         port = await navigator.serial.requestPort();
         const opts = {
@@ -332,12 +293,8 @@
 
         $('connect').disabled = true;
         $('disconnect').disabled = false;
-        $('tcpConnect').disabled = true;
-        $('tcpDisconnect').disabled = true;
-
-        transport = 'serial';
         setCommandButtonsEnabled(true);
-        setStatus('Connected (Serial)');
+        setStatus('Connected');
 
         // Auto query on connect (not recorded in history)
         await sendCommand('*idn?');
@@ -363,16 +320,12 @@
         alert('Failed to connect: ' + err.message);
         setStatus('Disconnected');
         setCommandButtonsEnabled(false);
-        transport = 'none';
-        $('connect').disabled = false;
-        $('disconnect').disabled = true;
-        $('tcpConnect').disabled = false;
       }
     }
 
-    async function disconnectSerial() {
+    async function disconnect() {
       try {
-        setStatus('Disconnecting serial…');
+        setStatus('Disconnecting…');
         reading = false;
         try { if (reader) await reader.cancel(); } catch {}
         try { if (writer) await writer.close(); } catch {}
@@ -382,129 +335,17 @@
       } finally {
         $('connect').disabled = false;
         $('disconnect').disabled = true;
-        $('tcpConnect').disabled = false;
-        transport = 'none';
         setCommandButtonsEnabled(false);
         setStatus('Disconnected');
-      }
-    }
-
-    // TCP (WebSocket proxy)
-    function tcpUrlFromInputs() {
-      const scheme = $('tcpScheme').value || 'wss';
-      const host = ($('tcpHost').value || '').trim();
-      const port = parseInt($('tcpPort').value, 10) || (scheme === 'wss' ? 443 : 80);
-      let path = $('tcpPath').value || '/';
-      if (!path.startsWith('/')) path = '/' + path;
-      if (!host) return '';
-      return `${scheme}://${host}:${port}${path}`;
-    }
-
-    async function connectTCP() {
-      if (isConnected()) await disconnectAny();
-      const url = tcpUrlFromInputs();
-      if (!url) { alert('Please enter host, port, and path for the WebSocket.'); return; }
-      try {
-        setStatus('Connecting (TCP via WebSocket)…');
-        ws = new WebSocket(url);
-        ws.binaryType = 'arraybuffer';
-
-        ws.addEventListener('open', async () => {
-          transport = 'tcp';
-          $('tcpConnect').disabled = true;
-          $('tcpDisconnect').disabled = false;
-          $('connect').disabled = true;
-          $('disconnect').disabled = true;
-          setCommandButtonsEnabled(true);
-          setStatus('Connected (TCP via WebSocket)');
-
-          // Auto query on connect (not recorded in history)
-          await sendCommand('*idn?');
-        });
-
-        ws.addEventListener('message', (e) => {
-          if (typeof e.data === 'string') {
-            log(e.data);
-          } else if (e.data instanceof ArrayBuffer) {
-            try {
-              log(new TextDecoder().decode(e.data));
-            } catch {
-              // Fallback: show as hex
-              const bytes = new Uint8Array(e.data);
-              log(Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(' ') + '\n');
-            }
-          } else if (e.data instanceof Blob) {
-            e.data.text().then(t => log(t)).catch(() => {});
-          }
-        });
-
-        ws.addEventListener('error', (e) => {
-          console.error('WebSocket error', e);
-          setStatus('TCP/WebSocket error');
-        });
-
-        ws.addEventListener('close', () => {
-          if (transport === 'tcp') {
-            $('tcpConnect').disabled = false;
-            $('tcpDisconnect').disabled = true;
-            $('connect').disabled = false;
-            setCommandButtonsEnabled(false);
-            transport = 'none';
-            setStatus('Disconnected (TCP)');
-          }
-        });
-      } catch (err) {
-        console.error('TCP connect failed:', err);
-        alert('TCP connect failed: ' + err.message);
-        setStatus('Disconnected');
-        transport = 'none';
-        $('tcpConnect').disabled = false;
-        $('tcpDisconnect').disabled = true;
-      }
-    }
-
-    async function disconnectTCP() {
-      try {
-        setStatus('Disconnecting TCP…');
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close(1000, 'client closing');
-        } else if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.CLOSING)) {
-          try { ws.close(); } catch {}
-        }
-      } finally {
-        ws = null;
-        $('tcpConnect').disabled = false;
-        $('tcpDisconnect').disabled = true;
-        $('connect').disabled = false;
-        setCommandButtonsEnabled(false);
-        transport = 'none';
-        setStatus('Disconnected');
-      }
-    }
-
-    async function disconnectAny() {
-      if (transport === 'serial') return disconnectSerial();
-      if (transport === 'tcp') return disconnectTCP();
-    }
-
-    // Send helpers use current transport
-    async function sendCore(text) {
-      if (transport === 'serial' && writer) {
-        await writer.write(text);
-      } else if (transport === 'tcp' && ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(text);
-      } else {
-        setStatus('Not connected');
-        throw new Error('Not connected');
       }
     }
 
     async function send() {
-      if (!isConnected()) { setStatus('Not connected'); return; }
+      if (!writer) { setStatus('Not connected'); return; }
       const raw = $('tx').value;
       const text = raw + eolValue();
       try {
-        await sendCore(text);
+        await writer.write(text);
         addToHistory(raw); // only add from input tx
         if ($('echo').checked) log(text);
         $('tx').value = '';
@@ -517,10 +358,10 @@
     }
 
     async function sendCommand(cmd) {
-      if (!isConnected()) { setStatus('Not connected'); return; }
+      if (!writer) { setStatus('Not connected'); return; }
       const text = cmd + eolValue();
       try {
-        await sendCore(text);
+        await writer.write(text);
         // Do NOT add to history here (buttons and auto commands excluded)
         if ($('echo').checked) log(text);
       } catch (err) {
@@ -545,12 +386,8 @@
     }
 
     // Events
-    $('connect').addEventListener('click', connectSerial);
-    $('disconnect').addEventListener('click', disconnectSerial);
-
-    $('tcpConnect').addEventListener('click', connectTCP);
-    $('tcpDisconnect').addEventListener('click', disconnectTCP);
-
+    $('connect').addEventListener('click', connect);
+    $('disconnect').addEventListener('click', disconnect);
     $('send').addEventListener('click', send);
     $('clear').addEventListener('click', clearLog);
     $('save').addEventListener('click', saveLog);
@@ -598,9 +435,7 @@
 
     $('clearHistory').addEventListener('click', clearHistory);
 
-    window.addEventListener('beforeunload', () => {
-      disconnectAny();
-    });
+    window.addEventListener('beforeunload', disconnect);
 
     // Init history on load
     history = loadHistory();
