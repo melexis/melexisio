@@ -71,10 +71,17 @@
       border: 1px solid #ccc;
       padding: .5rem;
       background: #000;
-      color: #0f0;
+      color: #bbb;       /* default: response (RX) gray */
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
+    /* Color coding for log entries */
+    .log-echo { color: #3399ee; }    /* blue for local echo (TX) */
+    .log-rx   { color: #bbb; }       /* gray for device response (RX) */
+    .log-okprompt { color: #60ee60; }/* light green for "(OK)>" prompts */
+    .log-badprompt { color: #ff3333; }/* red for "(... )>" non-OK prompts */
+    .log-error { color: #ff3333; }   /* red for errors */
+    
     #row { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
     input[type="text"] { flex: 1 1 320px; }
     .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
@@ -180,6 +187,7 @@
     const HISTORY_COOKIE = 'mip_cmd_history';
     const HISTORY_MAX = 100;
     const HISTORY_SHOW = 20;
+    // Newest-first order: history[0] is most recent
     let history = [];
     let historyIndex = -1;       // -1 = not navigating
     let draftBeforeNav = '';
@@ -216,19 +224,21 @@
       } catch { return []; }
     }
     function saveHistory() {
-      while (history.length > HISTORY_MAX) history.shift();
+      // Trim oldest items (at the end) to cap size
+      while (history.length > HISTORY_MAX) history.pop();
       try {
         writeCookie(HISTORY_COOKIE, JSON.stringify(history), 60 * 60 * 24 * 365);
       } catch {
-        while (history.length > Math.min(25, HISTORY_MAX)) history.shift();
+        while (history.length > Math.min(25, HISTORY_MAX)) history.pop();
         try { writeCookie(HISTORY_COOKIE, JSON.stringify(history), 60 * 60 * 24 * 365); } catch {}
       }
     }
     function addToHistory(cmd) {
       const c = (cmd ?? '').trim();
       if (!c) return;
-      if (history[history.length - 1] === c) return; // avoid immediate dup
-      history.push(c);
+      if (history[0] === c) return; // avoid immediate dup (top)
+      // Newest-first: add to the top
+      history.unshift(c);
       saveHistory();
       renderHistory();
     }
@@ -240,8 +250,8 @@
     function renderHistory() {
       const list = $('historyList');
       list.innerHTML = '';
-      const start = Math.max(0, history.length - HISTORY_SHOW);
-      for (let i = history.length - 1; i >= start; i--) {
+      const end = Math.min(history.length, HISTORY_SHOW);
+      for (let i = 0; i < end; i++) {
         const cmd = history[i];
         const btn = document.createElement('button');
         btn.className = 'hist-item';
@@ -253,12 +263,58 @@
     }
 
     function setStatus(msg) { $('status').textContent = msg || ''; }
-    function log(text) {
-      logEl.textContent += text;
+
+    // Logging helpers (span-based to support colors)
+    function appendLog(text, cls) {
+      if (!text) return;
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = text; // preserves newlines safely
+      logEl.appendChild(span);
       if ($('autoScroll').checked) logEl.scrollTop = logEl.scrollHeight;
     }
+    function logEcho(text) { appendLog(text, 'log-echo'); }
+    function logError(text) { appendLog(text, 'log-error'); }
+
+    // Stream RX processing: color prompts only at real start-of-line,
+    // do not inject any markers. Works across chunk boundaries.
+    let atLineStart = true;
+    function processRx(text) {
+      let i = 0;
+      while (i < text.length) {
+        // If at start of a line, check for prompt "(...)>"
+        if (atLineStart) {
+          const slice = text.slice(i);
+          const m = slice.match(/^\(([^)]+)\)>/);
+          if (m) {
+            const cls = m[1] === 'OK' ? 'log-okprompt' : 'log-badprompt';
+            appendLog(m[0], cls);
+            i += m[0].length;
+            atLineStart = false;
+            continue;
+          }
+        }
+        // Append up to and including next newline (if any)
+        const nl = text.indexOf('\n', i);
+        if (nl === -1) {
+          appendLog(text.slice(i), 'log-rx');
+          // atLineStart unchanged
+          break;
+        } else {
+          appendLog(text.slice(i, nl + 1), 'log-rx'); // includes the newline
+          i = nl + 1;
+          atLineStart = true;
+        }
+      }
+    }
+
+    // Decode literal option values ("\n", "\r", "\r\n") into actual control chars
     function eolValue() {
-      return $('eol').value.replaceAll('\r', '\r').replaceAll('\n', '\n');
+      const v = $('eol').value;
+      if (v === '\\n') return '\n';
+      if (v === '\\r') return '\r';
+      if (v === '\\r\\n') return '\r\n';
+      return '';
     }
     function setCommandButtonsEnabled(enabled) {
       $('cmd-id').disabled = !enabled;
@@ -305,7 +361,7 @@
             while (reading) {
               const { value, done } = await reader.read();
               if (done) break;
-              if (value) log(value);
+              if (value) processRx(value);
             }
           } catch (err) {
             console.error('Read error:', err);
@@ -347,7 +403,7 @@
       try {
         await writer.write(text);
         addToHistory(raw); // only add from input tx
-        if ($('echo').checked) log(text);
+        if ($('echo').checked) logEcho(text);
         $('tx').value = '';
         historyIndex = -1; draftBeforeNav = '';
         $('tx').focus();
@@ -363,7 +419,7 @@
       try {
         await writer.write(text);
         // Do NOT add to history here (buttons and auto commands excluded)
-        if ($('echo').checked) log(text);
+        if ($('echo').checked) logEcho(text);
       } catch (err) {
         console.error('Write error:', err);
         setStatus('Write error: ' + err.message);
@@ -396,7 +452,7 @@
     $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
     $('cmd-rst').addEventListener('click', () => sendCommand('*RST'));
 
-    // Arrow Up/Down history navigation in input
+    // Arrow Up/Down history navigation in input (newest-first order)
     $('tx').addEventListener('keydown', (e) => {
       if ($('enterSend').checked && e.key === 'Enter') {
         e.preventDefault();
@@ -408,9 +464,9 @@
         if (history.length === 0) return;
         if (historyIndex === -1) {
           draftBeforeNav = $('tx').value;
-          historyIndex = history.length - 1;
+          historyIndex = 0; // most recent
         } else {
-          historyIndex = Math.max(0, historyIndex - 1);
+          historyIndex = Math.min(history.length - 1, historyIndex + 1); // go to older
         }
         $('tx').value = history[historyIndex] ?? '';
         $('tx').setSelectionRange($('tx').value.length, $('tx').value.length);
@@ -419,8 +475,8 @@
         if (history.length === 0) return;
         if (historyIndex === -1) {
           // nothing
-        } else if (historyIndex < history.length - 1) {
-          historyIndex++;
+        } else if (historyIndex > 0) {
+          historyIndex--;
           $('tx').value = history[historyIndex] ?? '';
         } else {
           historyIndex = -1;
