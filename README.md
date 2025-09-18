@@ -50,12 +50,14 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Legend & export automatically reflect current scale and value range
  - Hover tooltip shows raw cell (row/col) value and interpolated value under the cursor (updates in real time)
 
-**Settings tab (serial persistence)**
+**Settings tab**
 
-- Automatically persists the connection format selections (baud, data bits, parity, stop bits, flow control) to `localStorage`.
-- Values restore on page load before you connect; adjust them in the top connection bar.
-- A Reset to defaults button reverts to: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
-- Shows a live summary of the currently staged settings (mirrors the inputs above). These are the parameters that will be used for the next Connect.
+- Contains all connection format controls (baud, data bits, parity, stop bits, flow control) instead of the top bar.
+- Automatically persists selections to `localStorage`; values restore on page load.
+- Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
+- Live summary of staged parameters (applied on next Connect).
+ - Export settings button: downloads a JSON bundle (version 3) containing command history (newest‑first), connection parameters, and IR scale.
+ - Import settings button: load a previously exported bundle to restore commands, connection parameters, and IR scale (older v1/v2 history files still accepted—history only or history + partial settings).
 
 ## Requirements
 
@@ -112,7 +114,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 
 | Region | Description |
 |--------|-------------|
-| Connection controls | Top fieldset with serial settings + Connect / Disconnect + status line. |
+| Connection controls | Top fieldset with only Connect / Disconnect + status line. |
 | Tabs | "Terminal" (active), plus placeholder "Settings" and "Scan" panes. |
 | Log | Monospaced scrollback (`#log`) at fixed height (50vh; capped by viewport calc). |
 | Input rows | Row 1: TX + Send. Row 2: EOL selector, three option checkboxes, Clear, Save. |
@@ -163,8 +165,6 @@ Locate `randomizeIrData()` in `index.html` and substitute logic that copies real
 
 - Light/dark theme toggle
 - Search/filter within the log
-- Export/import history
-- Settings tab functionality (persisted baud & format)
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
 - Optional grid overlay / numeric cell values at low scales

@@ -148,34 +148,6 @@
     <main id="main">
       <fieldset>
         <div class="controls d-flex flex-wrap align-items-end gap-2">
-          <label class="form-label mb-0">Baud:
-            <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
-          </label>
-          <label class="form-label mb-0">Data bits:
-            <select id="databits" class="form-select form-select-sm">
-              <option>8</option>
-              <option selected>7</option>
-            </select>
-          </label>
-          <label class="form-label mb-0">Parity:
-            <select id="parity" class="form-select form-select-sm">
-              <option value="none">none</option>
-              <option value="even">even</option>
-              <option value="odd" selected>odd</option>
-            </select>
-          </label>
-          <label class="form-label mb-0">Stop bits:
-            <select id="stopbits" class="form-select form-select-sm">
-              <option>1</option>
-              <option selected>2</option>
-            </select>
-          </label>
-            <label class="form-label mb-0">Flow:
-              <select id="flow" class="form-select form-select-sm">
-                <option value="none" selected>none</option>
-                <option value="hardware">hardware (RTS/CTS)</option>
-              </select>
-            </label>
           <button id="connect" class="btn btn-primary btn-sm">Connect…</button>
           <button id="disconnect" class="btn btn-secondary btn-sm" disabled>Disconnect</button>
           <span id="status" class="muted small"></span>
@@ -238,10 +210,43 @@
       </div>
       <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="settings-tab">
         <div class="p-3">
-          <h5 class="mb-2">Serial Settings Persistence</h5>
-          <p class="small mb-2">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved in your browser (localStorage) and restored the next time you open this page. Adjust them in the connection bar above; changes save instantly.</p>
+          <h5 class="mb-2">Settings</h5>
+          <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+            <label class="form-label mb-0">Baud:
+              <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
+            </label>
+            <label class="form-label mb-0">Data bits:
+              <select id="databits" class="form-select form-select-sm">
+                <option>8</option>
+                <option selected>7</option>
+              </select>
+            </label>
+            <label class="form-label mb-0">Parity:
+              <select id="parity" class="form-select form-select-sm">
+                <option value="none">none</option>
+                <option value="even">even</option>
+                <option value="odd" selected>odd</option>
+              </select>
+            </label>
+            <label class="form-label mb-0">Stop bits:
+              <select id="stopbits" class="form-select form-select-sm">
+                <option>1</option>
+                <option selected>2</option>
+              </select>
+            </label>
+            <label class="form-label mb-0">Flow:
+              <select id="flow" class="form-select form-select-sm">
+                <option value="none" selected>none</option>
+                <option value="hardware">hardware (RTS/CTS)</option>
+              </select>
+            </label>
+          </div>
+          <p class="small mb-2">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved (localStorage) and restored next visit. Adjust them here; changes save instantly.</p>
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
+            <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
+            <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
+            <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
           </div>
           <div id="currentSerialSettings" class="small text-muted" style="white-space:pre-line;"></div>
         </div>
@@ -366,6 +371,18 @@
         applySerialSettings(SERIAL_DEFAULTS);
         persistAndDisplay();
       });
+      const expBtn = $('exportSettings');
+      if (expBtn) expBtn.addEventListener('click', exportSettingsJson);
+      const impBtn = $('importSettings');
+      const impFile = $('importSettingsFile');
+      if (impBtn && impFile) {
+        impBtn.addEventListener('click', () => impFile.click());
+        impFile.addEventListener('change', () => {
+          const f = impFile.files && impFile.files[0];
+          if (f) importSettingsJsonFile(f);
+          impFile.value = '';
+        });
+      }
       updateSerialSettingsDisplay();
     });
 
@@ -435,6 +452,66 @@
         list.appendChild(btn);
       }
     }
+
+    /* ===== Settings Export / Import (commands + connection + IR) ===== */
+    function exportSettingsJson() {
+      const payload = {
+        type: 'melexis.io-settings',
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        history: [...history],
+        historyCount: history.length,
+        serialSettings: currentSerialSettings(),
+        ir: { scale: irScale }
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      a.download = `settings-${ts}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+    function importSettingsJsonFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const obj = JSON.parse(text);
+          if (!obj || !(obj.type === 'melexis.io-settings' || obj.type === 'melexis.io-history') || !Array.isArray(obj.history)) {
+            alert('Invalid settings file.');
+            return;
+          }
+          const arr = obj.history.filter(s => typeof s === 'string' && s.trim().length > 0);
+          history = arr.slice(0, HISTORY_MAX);
+          saveHistory();
+          renderHistory();
+          if (obj.serialSettings && typeof obj.serialSettings === 'object') {
+            try {
+              const merged = { ...SERIAL_DEFAULTS, ...obj.serialSettings };
+              applySerialSettings(merged);
+              persistAndDisplay();
+            } catch {}
+          }
+          if (obj.ir && (obj.ir.scale === 1 || obj.ir.scale === 2 || obj.ir.scale === 4)) {
+            irScale = obj.ir.scale;
+            const sel = document.getElementById('irScaleSelect');
+            if (sel) sel.value = String(irScale);
+            if (irInitialized) renderIr();
+          }
+          alert('Imported settings. Commands: ' + history.length + (obj.serialSettings ? ', connection parameters applied' : '') + (obj.ir ? ', IR scale applied' : ''));
+        } catch (err) {
+          console.error('Import failed', err);
+          alert('Failed to import: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    // Legacy wrappers (if any old references remain)
+    function exportHistoryJson(){ exportSettingsJson(); }
+    function importHistoryJsonFile(f){ importSettingsJsonFile(f); }
 
     function setStatus(msg) { $('status').textContent = msg || ''; }
 
