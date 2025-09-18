@@ -192,6 +192,9 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="scan-tab" data-bs-toggle="tab" data-bs-target="#tab3" type="button" role="tab" aria-controls="tab3" aria-selected="false">Scan</button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
+        </li>
       </ul>
       <div class="tab-content pt-3" id="mainTabsContent">
       <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="terminal-tab">
@@ -238,6 +241,29 @@
       </div>
       <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="scan-tab">
         <div class="p-3">Tab 3 content goes here.</div>
+      </div>
+      <div class="tab-pane fade" id="tab4" role="tabpanel" aria-labelledby="ir-tab">
+        <div class="p-3" id="irContainer">
+          <div class="d-flex flex-wrap align-items-start gap-3">
+            <div>
+              <canvas id="irCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
+            </div>
+            <div class="d-flex flex-column align-items-center" style="min-width:60px;">
+              <canvas id="irLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
+              <div class="w-100 small mt-2" style="text-align:center;line-height:1.1;">
+                <div id="irMax">40.0</div>
+                <div style="height:4px;"></div>
+                <div id="irMin">0.10</div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
+            <span>Grid: <span id="irGridSize">32×24</span></span>
+            <button id="irRefresh" class="btn btn-outline-primary btn-sm">Randomize</button>
+            <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
+            <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
+          </div>
+        </div>
       </div>
       </div>
       <p class="muted">
@@ -589,6 +615,217 @@
     // Init history on load
     history = loadHistory();
     renderHistory();
+
+    /* ================= IR IMAGE (Heatmap) TAB ================= */
+    const IR_ROWS = 24;
+    const IR_COLS = 32;
+    const IR_MIN = 0.10;
+    const IR_MAX = 40.0;
+    let irData = null; // Float32Array length IR_ROWS*IR_COLS
+    let irInitialized = false;
+
+    function initIrData() {
+      irData = new Float32Array(IR_ROWS * IR_COLS);
+      randomizeIrData();
+    }
+
+    function randomizeIrData() {
+      if (!irData) return;
+      const span = IR_MAX - IR_MIN;
+      for (let i = 0; i < irData.length; i++) {
+        // Bias slightly toward middle for a more interesting distribution
+        const r = (Math.random() + Math.random()) / 2; // triangular dist
+        irData[i] = IR_MIN + span * r;
+      }
+    }
+
+    // Piecewise thermal gradient stops
+    const GRADIENT_STOPS = [
+      [0.00, 0,   0,  64],
+      [0.20, 0,   0, 255],
+      [0.40, 0, 255, 255],
+      [0.60, 255,255,   0],
+      [0.80, 255,128,   0],
+      [1.00, 255,255, 255]
+    ];
+
+    function lerp(a,b,t){return a + (b-a)*t;}
+    function valueToColor(v) {
+      let n = (v - IR_MIN) / (IR_MAX - IR_MIN);
+      if (n < 0) n = 0; else if (n > 1) n = 1;
+      // Find surrounding stops
+      for (let i=0;i<GRADIENT_STOPS.length-1;i++) {
+        const a = GRADIENT_STOPS[i];
+        const b = GRADIENT_STOPS[i+1];
+        if (n >= a[0] && n <= b[0]) {
+          const t = (n - a[0])/(b[0]-a[0] || 1);
+          const r = Math.round(lerp(a[1], b[1], t));
+          const g = Math.round(lerp(a[2], b[2], t));
+          const bC = Math.round(lerp(a[3], b[3], t));
+          return [r,g,bC];
+        }
+      }
+      const last = GRADIENT_STOPS[GRADIENT_STOPS.length-1];
+      return [last[1], last[2], last[3]];
+    }
+
+    function drawIrHeatmap() {
+      const canvas = $('irCanvas');
+      if (!canvas || !irData) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const cellW = w / IR_COLS;
+      const cellH = h / IR_ROWS;
+      // Use ImageData for performance
+      const img = ctx.createImageData(w, h);
+      const data = img.data;
+      for (let row=0; row<IR_ROWS; row++) {
+        for (let col=0; col<IR_COLS; col++) {
+          const v = irData[row*IR_COLS + col];
+          const [r,g,b] = valueToColor(v);
+          // Fill corresponding pixel block
+          const x0 = Math.floor(col * cellW);
+          const y0 = Math.floor(row * cellH);
+          const x1 = Math.floor((col+1) * cellW);
+          const y1 = Math.floor((row+1) * cellH);
+          for (let y=y0; y<y1; y++) {
+            let idxBase = (y * w + x0) * 4;
+            for (let x=x0; x<x1; x++) {
+              data[idxBase++] = r;
+              data[idxBase++] = g;
+              data[idxBase++] = b;
+              data[idxBase++] = 255;
+            }
+          }
+        }
+      }
+      ctx.putImageData(img,0,0);
+    }
+
+    function drawIrLegend() {
+      const canvas = $('irLegend');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      const img = ctx.createImageData(w, h);
+      const data = img.data;
+      for (let y=0; y<h; y++) {
+        const n = 1 - (y / (h-1)); // top = 1 (max), bottom = 0 (min)
+        const v = IR_MIN + (IR_MAX - IR_MIN) * n;
+        const [r,g,b] = valueToColor(v);
+        for (let x=0; x<w; x++) {
+          const i = (y * w + x) * 4;
+          data[i] = r; data[i+1] = g; data[i+2] = b; data[i+3] = 255;
+        }
+      }
+      ctx.putImageData(img,0,0);
+      // Optional ticks (every 20%)
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      for (let p=0; p<=1; p+=0.2) {
+        const y = (1-p)* (h-1);
+        ctx.fillRect(w-8, y, 8, 1);
+      }
+      $('irMax').textContent = IR_MAX.toFixed(1);
+      $('irMin').textContent = IR_MIN.toFixed(2);
+    }
+
+    function renderIr() {
+      drawIrHeatmap();
+      drawIrLegend();
+    }
+
+    function ensureIrInitialized() {
+      if (irInitialized) return;
+      initIrData();
+      renderIr();
+      const refreshBtn = $('irRefresh');
+      if (refreshBtn) refreshBtn.addEventListener('click', () => { randomizeIrData(); renderIr(); });
+      const saveImgBtn = $('irSaveImage');
+      if (saveImgBtn) saveImgBtn.addEventListener('click', saveIrImage);
+      const exportBtn = $('irExportData');
+      if (exportBtn) exportBtn.addEventListener('click', exportIrDataCsv);
+      irInitialized = true;
+    }
+
+    // Render when IR tab is shown first time
+    document.addEventListener('shown.bs.tab', (ev) => {
+      if (ev.target && ev.target.id === 'ir-tab') {
+        ensureIrInitialized();
+      }
+    });
+
+    // If user bookmarked directly with hash #tab4, initialize
+    if (location.hash === '#tab4') {
+      ensureIrInitialized();
+    }
+
+    /* ===== Export Helpers ===== */
+    function exportIrDataCsv() {
+      if (!irData) return;
+      let lines = [];
+      lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+IR_MIN+',max,'+IR_MAX);
+      for (let r=0;r<IR_ROWS;r++) {
+        let rowVals = [];
+        for (let c=0;c<IR_COLS;c++) {
+          rowVals.push(irData[r*IR_COLS + c].toFixed(2));
+        }
+        lines.push(rowVals.join(','));
+      }
+      const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ir-data-'+Date.now()+'.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function saveIrImage() {
+      const heat = $('irCanvas');
+      const legend = $('irLegend');
+      if (!heat || !legend) return;
+      // Create composite canvas: place heatmap left, legend right with small gap + labels
+      const gap = 8;
+      const labelSpace = 30; // space on right for min/max text if desired
+      const outW = heat.width + gap + legend.width + labelSpace;
+      const outH = Math.max(heat.height, legend.height);
+      const cv = document.createElement('canvas');
+      cv.width = outW; cv.height = outH;
+      const ctx = cv.getContext('2d');
+      // Fill background dark
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,outW,outH);
+      ctx.drawImage(heat, 0, 0);
+      // Scale legend vertically if different height
+      ctx.drawImage(legend, heat.width + gap, 0, legend.width, heat.height);
+      // Draw border around legend
+      ctx.strokeStyle = '#ccc';
+      ctx.strokeRect(heat.width + gap + 0.5, 0.5, legend.width-1, heat.height-1);
+      // Labels (Max at top, Min at bottom)
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(IR_MAX.toFixed(1), heat.width + gap + legend.width + 4, 18);
+      ctx.fillText(IR_MIN.toFixed(2), heat.width + gap + legend.width + 4, heat.height - 6);
+      // Title
+      ctx.font = '18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('IR Image ('+IR_COLS+'x'+IR_ROWS+')', heat.width/2, 24);
+      // Download
+      cv.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ir-image-'+Date.now()+'.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    }
   </script>
 </body>
 </html>
