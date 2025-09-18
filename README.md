@@ -65,9 +65,9 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Two-column responsive layout:
   - Left: Connection fieldset (baud, data bits, parity, stop bits, flow control) – persisted automatically.
   - Right: Input options fieldset + Actions fieldset.
-- Input options (persisted): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll.
+- Input options (persisted): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll. Defaults: LF, echo ON, enter sends ON, auto‑scroll ON.
 - Actions fieldset: Reset to defaults, Export settings, Import settings, (future) Save/Load EEPROM.
-- Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
+- Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control, and input options (EOL=LF, Local echo ON, Enter sends ON, Auto‑scroll ON).
 - Export settings button: downloads a JSON bundle (version 4) containing command history (newest‑first), connection parameters, IR scale, and input options.
 - Import settings button: restores history, connection parameters, IR scale, and input options (older v1/v2/v3 files still accepted—history only or history + parameters + IR). 
 

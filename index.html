@@ -420,7 +420,10 @@
     function persistAndDisplay() { saveSerialSettings(currentSerialSettings()); }
     /* ===== Input option persistence ===== */
     const INPUT_OPTIONS_KEY = 'mip_input_options_v1';
-    const INPUT_DEFAULTS = { eol: '\n', echo: true, enterSend: true, autoScroll: true };
+  // Input defaults: use literal escaped sequences ("\\n", "\\r", "\\r\\n")
+  // so they directly match <option value> attributes. Previously this was an
+  // actual newline which failed to select the LF option on load/reset.
+  const INPUT_DEFAULTS = { eol: '\\n', echo: true, enterSend: true, autoScroll: true };
     function loadInputOptions() {
       try {
         const raw = localStorage.getItem(INPUT_OPTIONS_KEY);
@@ -431,7 +434,11 @@
     }
     function applyInputOptions(obj) {
       if (!obj) return;
-      if ($('eol')) $('eol').value = obj.eol ?? INPUT_DEFAULTS.eol;
+      // Normalize legacy stored actual control chars to escaped forms expected by the select.
+      if (obj.eol === '\n') obj.eol = '\\n';
+      else if (obj.eol === '\r') obj.eol = '\\r';
+      else if (obj.eol === '\r\n') obj.eol = '\\r\\n';
+      if ($('eol')) $('eol').value = (obj.eol ?? INPUT_DEFAULTS.eol);
       if ($('echo')) $('echo').checked = !!obj.echo;
       if ($('enterSend')) $('enterSend').checked = !!obj.enterSend;
       if ($('autoScroll')) $('autoScroll').checked = !!obj.autoScroll;
@@ -469,8 +476,12 @@
     document.addEventListener('DOMContentLoaded', () => {
       const resetBtn = $('resetSerialSettings');
       if (resetBtn) resetBtn.addEventListener('click', () => {
+        // Reset serial connection settings
         applySerialSettings(SERIAL_DEFAULTS);
         persistAndDisplay();
+        // Reset input option settings (EOL, echo, enter, auto-scroll) to defaults
+        applyInputOptions({ ...INPUT_DEFAULTS });
+        saveInputOptions();
       });
       const expBtn = $('exportSettings');
       if (expBtn) expBtn.addEventListener('click', exportSettingsJson);
