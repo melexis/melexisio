@@ -35,6 +35,19 @@ Single‑page serial terminal that runs in your browser using the Web Serial API
   - Stores only typed input (not button/auto commands)
   - Newest‑first; up/down arrows to navigate; click a history item to resend
   - Clearable; persisted in a cookie (bounded size)
+  
+**IR Image tab (thermal heatmap sandbox)**
+
+- 32×24 grid (simulated values 0.10–40.0 by default; replace generator with real sensor feed)
+- Color gradient legend (dynamic mapping of min/max, vertical bar plus numeric min/max labels)
+- Scale selector: x1 (nearest / blocky), x2 & x4 (bicubic interpolation for smoothness) – canvas size stays constant; scale refines visual detail only
+- Read button: generates (or would fetch) one new frame
+- Continuous toggle: when active, performs a Read every 500 ms; button turns green and a small glowing status indicator lights up
+- Running indicator: always visible; dim when inactive, mint glow when active
+- Save image: exports composited PNG (heatmap + legend + labels)
+- Export data: CSV with header row (rows, cols, min, max) then one row per heatmap row (values with 2 decimals)
+- Bicubic interpolation implementation: Catmull‑Rom style 4×4 neighborhood sampling per output pixel for smooth upscale
+- Legend & export automatically reflect current scale and value range
 
 ## Requirements
 
@@ -96,6 +109,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 | Log | Monospaced scrollback (`#log`) at fixed height (50vh; capped by viewport calc). |
 | Input rows | Row 1: TX + Send. Row 2: EOL selector, three option checkboxes, Clear, Save. |
 | Sidebar (right) | Quick command buttons + history list + clear history. |
+| IR Image tab | Heatmap canvas, legend, toolbar (Grid size display, Scale selector, Read, Continuous, Save image, Export data, running indicator). |
 
 On very narrow screens, wrapping will stack controls; the TX + Send pair stays together while secondary controls wrap.
 
@@ -118,6 +132,12 @@ You can adjust:
 - Accent color: update `--theme-green` (used in prompts, some buttons before overrides).
 - Log height: edit `#log { height: 50vh; ... }`.
 - Prompt colors: modify `.log-okprompt`, `.log-badprompt`, `.log-error`.
+ - Heatmap size: adjust `IR_BASE_CELL_SIZE` (in `index.html`) and/or grid constants `IR_ROWS`, `IR_COLS` (ensure legend/canvas recalculations match).
+ - Interpolation: modify/replace the bicubic code path inside `drawIrHeatmap()` for performance (WebGL, workers) or alternative filters.
+
+### Replacing simulated IR data with real values
+
+Locate `randomizeIrData()` in `index.html` and substitute logic that copies real sensor values into the `irData` Float32Array (row-major: row * IR_COLS + col). After updating the array, call `renderIr()` (or just `drawIrHeatmap()` + `drawIrLegend()` if min/max might change). Continuous mode will automatically keep repainting as long as it triggers `randomizeIrData()` (rename appropriately).
 
 ## Connection behavior
 
@@ -137,6 +157,11 @@ You can adjust:
 - Search/filter within the log
 - Export/import history
 - Settings tab functionality (persisted baud & format)
+- Live sensor integration for IR data (replace random generator)
+- Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
+- Hover tooltip with raw & interpolated value under cursor
+- Optional grid overlay / numeric cell values at low scales
+- Pause-on-hover for continuous mode
 
 Contributions or suggestions welcome via issues / pull requests.
 
