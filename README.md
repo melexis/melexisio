@@ -48,6 +48,14 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Export data: CSV with header row (rows, cols, min, max) then one row per heatmap row (values with 2 decimals)
 - Bicubic interpolation implementation: Catmull‑Rom style 4×4 neighborhood sampling per output pixel for smooth upscale
 - Legend & export automatically reflect current scale and value range
+ - Hover tooltip shows raw cell (row/col) value and interpolated value under the cursor (updates in real time)
+
+**Settings tab (serial persistence)**
+
+- Automatically persists the connection format selections (baud, data bits, parity, stop bits, flow control) to `localStorage`.
+- Values restore on page load before you connect; adjust them in the top connection bar.
+- A Reset to defaults button reverts to: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
+- Shows a live summary of the currently staged settings (mirrors the inputs above). These are the parameters that will be used for the next Connect.
 
 ## Requirements
 
@@ -159,7 +167,6 @@ Locate `randomizeIrData()` in `index.html` and substitute logic that copies real
 - Settings tab functionality (persisted baud & format)
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
-- Hover tooltip with raw & interpolated value under cursor
 - Optional grid overlay / numeric cell values at low scales
 - Pause-on-hover for continuous mode
 

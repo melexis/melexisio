@@ -237,7 +237,14 @@
         </div>
       </div>
       <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="settings-tab">
-        <div class="p-3">Tab 2 content goes here.</div>
+        <div class="p-3">
+          <h5 class="mb-2">Serial Settings Persistence</h5>
+          <p class="small mb-2">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved in your browser (localStorage) and restored the next time you open this page. Adjust them in the connection bar above; changes save instantly.</p>
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
+          </div>
+          <div id="currentSerialSettings" class="small text-muted" style="white-space:pre-line;"></div>
+        </div>
       </div>
       <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="scan-tab">
         <div class="p-3">Tab 3 content goes here.</div>
@@ -247,6 +254,7 @@
           <div class="d-flex flex-wrap align-items-start gap-3">
             <div>
               <canvas id="irCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
+              <div id="irTooltip" style="position:absolute;pointer-events:none;z-index:20;padding:4px 6px;background:rgba(0,0,0,0.75);color:#fff;font:12px system-ui;border:1px solid #59ffb0;border-radius:4px;display:none;white-space:nowrap;transform:translate(8px,8px);"></div>
             </div>
             <div class="d-flex flex-column align-items-center" style="min-width:60px;">
               <canvas id="irLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
@@ -299,6 +307,67 @@
 
     const $ = (id) => document.getElementById(id);
     const logEl = $('log');
+
+    /* ===== Serial settings persistence ===== */
+    const SERIAL_SETTINGS_KEY = 'mip_serial_settings_v1';
+    const SERIAL_DEFAULTS = { baud: 115200, databits: 7, parity: 'odd', stopbits: 2, flow: 'none' };
+
+    function loadSerialSettings() {
+      try {
+        const raw = localStorage.getItem(SERIAL_SETTINGS_KEY);
+        if (!raw) return { ...SERIAL_DEFAULTS };
+        const obj = JSON.parse(raw);
+        return { ...SERIAL_DEFAULTS, ...(obj && typeof obj === 'object' ? obj : {}) };
+      } catch { return { ...SERIAL_DEFAULTS }; }
+    }
+    function saveSerialSettings(obj) {
+      try { localStorage.setItem(SERIAL_SETTINGS_KEY, JSON.stringify(obj)); } catch {}
+    }
+    function currentSerialSettings() {
+      return {
+        baud: parseInt($('baud').value,10)||SERIAL_DEFAULTS.baud,
+        databits: parseInt($('databits').value,10)||SERIAL_DEFAULTS.databits,
+        parity: $('parity').value || SERIAL_DEFAULTS.parity,
+        stopbits: parseInt($('stopbits').value,10)||SERIAL_DEFAULTS.stopbits,
+        flow: $('flow').value || SERIAL_DEFAULTS.flow,
+      };
+    }
+    function applySerialSettings(obj) {
+      if (!obj) return;
+      $('baud').value = obj.baud;
+      $('databits').value = String(obj.databits);
+      $('parity').value = obj.parity;
+      $('stopbits').value = String(obj.stopbits);
+      $('flow').value = obj.flow;
+    }
+    function updateSerialSettingsDisplay() {
+      const el = $('currentSerialSettings');
+      if (!el) return;
+      const cur = currentSerialSettings();
+      el.textContent = `Baud: ${cur.baud}\nData bits: ${cur.databits}\nParity: ${cur.parity}\nStop bits: ${cur.stopbits}\nFlow: ${cur.flow}`;
+    }
+    function persistAndDisplay() {
+      saveSerialSettings(currentSerialSettings());
+      updateSerialSettingsDisplay();
+    }
+    // Attach change listeners (delegated after DOM ready; elements already exist inline)
+    ['baud','databits','parity','stopbits','flow'].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener('change', persistAndDisplay);
+      if (el && el.tagName === 'INPUT') el.addEventListener('input', persistAndDisplay);
+    });
+    // Load on startup
+    const _loadedSerial = loadSerialSettings();
+    applySerialSettings(_loadedSerial);
+    // Provide reset button logic (in Settings tab)
+    document.addEventListener('DOMContentLoaded', () => {
+      const resetBtn = $('resetSerialSettings');
+      if (resetBtn) resetBtn.addEventListener('click', () => {
+        applySerialSettings(SERIAL_DEFAULTS);
+        persistAndDisplay();
+      });
+      updateSerialSettingsDisplay();
+    });
 
     // Cookie utils (no regex to avoid escaping issues)
     function readCookie(name) {
@@ -624,6 +693,8 @@
     // Init history on load
     history = loadHistory();
     renderHistory();
+  // After history, ensure serial settings display is in sync if Settings tab viewed first
+  updateSerialSettingsDisplay();
 
     /* ================= IR IMAGE (Heatmap) TAB ================= */
     const IR_ROWS = 24;
@@ -755,6 +826,86 @@
       }
       ctx.putImageData(img,0,0);
     }
+
+    /* ===== IR Tooltip (raw + interpolated) ===== */
+    const irTooltip = (() => {
+      const el = document.getElementById('irTooltip');
+      if (!el) return null;
+      // Reuse interpolation helpers consistent with drawIrHeatmap
+      function getVal(ix, iy) {
+        if (ix < 0) ix = 0; else if (ix >= IR_COLS) ix = IR_COLS - 1;
+        if (iy < 0) iy = 0; else if (iy >= IR_ROWS) iy = IR_ROWS - 1;
+        return irData[iy * IR_COLS + ix];
+      }
+      function cubic(p0,p1,p2,p3,t){
+        return 0.5 * (2*p1 + (-p0 + p2)*t + (2*p0 -5*p1 +4*p2 - p3)*t*t + (-p0 +3*p1 -3*p2 + p3)*t*t*t);
+      }
+      function sampleInterpolated(px, py, canvasW, canvasH) {
+        if (!irData) return null;
+        // Map pixel to grid space (same mapping used in bicubic loop)
+        const gx = (px / (canvasW - 1)) * (IR_COLS - 1);
+        const gy = (py / (canvasH - 1)) * (IR_ROWS - 1);
+        const ix = Math.floor(gx);
+        const iy = Math.floor(gy);
+        const tx = gx - ix;
+        const ty = gy - iy;
+        // Raw nearest cell (for raw value display)
+        const rawCol = Math.round(gx);
+        const rawRow = Math.round(gy);
+        let interpVal;
+        if (irScale === 1) {
+          interpVal = getVal(rawCol, rawRow);
+        } else {
+          const colVals = new Array(4);
+          for (let m=-1; m<=2; m++) {
+            const rowVals = [
+              getVal(ix-1, iy+m),
+              getVal(ix,   iy+m),
+              getVal(ix+1, iy+m),
+              getVal(ix+2, iy+m)
+            ];
+            colVals[m+1] = cubic(rowVals[0], rowVals[1], rowVals[2], rowVals[3], tx);
+          }
+            interpVal = cubic(colVals[0], colVals[1], colVals[2], colVals[3], ty);
+        }
+        return { rawRow, rawCol, rawVal: getVal(rawCol, rawRow), interpVal };
+      }
+      function fmt(v) { return v.toFixed(2); }
+      function onMove(ev) {
+        if (!irData) return;
+        const canvas = $('irCanvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) { el.style.display = 'none'; return; }
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const sample = sampleInterpolated(x * scaleX, y * scaleY, canvas.width, canvas.height);
+        if (!sample) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.textContent = `r${sample.rawRow} c${sample.rawCol}\nRaw: ${fmt(sample.rawVal)}\nInterp: ${fmt(sample.interpVal)}`;
+        // Position near cursor but keep inside viewport
+        const padding = 12;
+        let left = ev.clientX + 12;
+        let top = ev.clientY + 12;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const estW = 120; // rough width
+        const estH = 54; // rough height
+        if (left + estW + padding > vw) left = ev.clientX - estW - 12;
+        if (top + estH + padding > vh) top = ev.clientY - estH - 12;
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+      }
+      function onLeave() { el.style.display = 'none'; }
+      const canvas = $('irCanvas');
+      if (canvas) {
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseleave', onLeave);
+      }
+      return { update: ()=>{}, hide:onLeave };
+    })();
 
     function drawIrLegend() {
       const canvas = $('irLegend');
