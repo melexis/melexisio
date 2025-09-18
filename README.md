@@ -27,6 +27,7 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
   - `(OK)>` prompt: mint green (#59ffb0)
   - Non‑OK prompts: soft red
   - Errors: vivid red
+    - Status line shows USB VID:PID (hex), serial (if available) and the first *IDN? response line (device description). (OS COM port name/path isn't exposed by Web Serial.)
 - Input options:
   - End‑of‑line: No EOL, LF, CR, or CRLF
   - Local echo toggle; “Enter sends” toggle; Auto‑scroll toggle
@@ -50,6 +51,17 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Bicubic interpolation implementation: Catmull‑Rom style 4×4 neighborhood sampling per output pixel for smooth upscale
 - Legend & export automatically reflect current scale and value range
  - Hover tooltip shows raw cell (row/col) value and interpolated value under the cursor (updates in real time)
+ - Optional grid overlay (x1/x2 scales) and numeric cell values (x1 only) toggles for inspection
+
+**People Detection tab**
+
+- Mirrors IR Image tab functionality (separate canvas & legend, same 32×24 simulated frame)
+- Independent scale selector (x1/x2/x4) with bicubic interpolation on higher scales
+- Read / Continuous simulated frame generation (500 ms interval) with pause-on-hover behavior
+- Optional grid overlay (x1/x2) and numeric values (x1) just like IR tab
+- Tooltip shows raw and interpolated values (row / column) under cursor
+- Save composite PNG and export CSV (distinct filenames prefixed with people-detection)
+- Overlay + legend rendering parallel to IR implementation (can later plug real people detection / classification data)
 
 **Settings tab**
 
@@ -167,7 +179,7 @@ Locate `randomizeIrData()` in `index.html` and substitute logic that copies real
 - Search/filter within the log
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
-- Optional grid overlay / numeric cell values at low scales
+ - Additional IR visualization enhancements (e.g., adaptive min/max autoscaling)
 
 Contributions or suggestions welcome via issues / pull requests.
 
