@@ -259,7 +259,16 @@
           </div>
           <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
             <span>Grid: <span id="irGridSize">32×24</span></span>
-            <button id="irRefresh" class="btn btn-outline-primary btn-sm">Randomize</button>
+            <label class="form-label mb-0 d-flex align-items-center gap-1">Scale:
+              <select id="irScaleSelect" class="form-select form-select-sm" style="max-width:70px;">
+                <option value="1" selected>x1</option>
+                <option value="2">x2</option>
+                <option value="4">x4</option>
+              </select>
+            </label>
+            <button id="irRead" class="btn btn-outline-primary btn-sm">Read</button>
+            <button id="irContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
+            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
             <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
           </div>
@@ -623,6 +632,9 @@
     const IR_MAX = 40.0;
     let irData = null; // Float32Array length IR_ROWS*IR_COLS
     let irInitialized = false;
+  // Scaling / interpolation
+  let irScale = 1; // allowed: 1 (nearest / block), 2, 4 (bicubic)
+  const IR_BASE_CELL_SIZE = 20; // pixels per cell at scale 1
 
     function initIrData() {
       irData = new Float32Array(IR_ROWS * IR_COLS);
@@ -675,29 +687,70 @@
       const ctx = canvas.getContext('2d');
       const w = canvas.width;
       const h = canvas.height;
-      const cellW = w / IR_COLS;
-      const cellH = h / IR_ROWS;
-      // Use ImageData for performance
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      for (let row=0; row<IR_ROWS; row++) {
-        for (let col=0; col<IR_COLS; col++) {
-          const v = irData[row*IR_COLS + col];
-          const [r,g,b] = valueToColor(v);
-          // Fill corresponding pixel block
-          const x0 = Math.floor(col * cellW);
-          const y0 = Math.floor(row * cellH);
-          const x1 = Math.floor((col+1) * cellW);
-          const y1 = Math.floor((row+1) * cellH);
-          for (let y=y0; y<y1; y++) {
-            let idxBase = (y * w + x0) * 4;
-            for (let x=x0; x<x1; x++) {
-              data[idxBase++] = r;
-              data[idxBase++] = g;
-              data[idxBase++] = b;
-              data[idxBase++] = 255;
+      if (irScale === 1) {
+        const cellW = w / IR_COLS;
+        const cellH = h / IR_ROWS;
+        const img = ctx.createImageData(w, h);
+        const data = img.data;
+        for (let row=0; row<IR_ROWS; row++) {
+          for (let col=0; col<IR_COLS; col++) {
+            const v = irData[row*IR_COLS + col];
+            const [r,g,b] = valueToColor(v);
+            const x0 = Math.floor(col * cellW);
+            const y0 = Math.floor(row * cellH);
+            const x1 = Math.floor((col+1) * cellW);
+            const y1 = Math.floor((row+1) * cellH);
+            for (let py=y0; py<y1; py++) {
+              let idxBase = (py * w + x0) * 4;
+              for (let px=x0; px<x1; px++) {
+                data[idxBase++] = r;
+                data[idxBase++] = g;
+                data[idxBase++] = b;
+                data[idxBase++] = 255;
+              }
             }
           }
+        }
+        ctx.putImageData(img,0,0);
+        canvas.style.imageRendering = 'pixelated';
+        return;
+      }
+      // Bicubic interpolation for irScale > 1
+      canvas.style.imageRendering = 'auto';
+      const img = ctx.createImageData(w, h);
+      const data = img.data;
+      const gridW = IR_COLS;
+      const gridH = IR_ROWS;
+      function getVal(ix, iy) {
+        if (ix < 0) ix = 0; else if (ix >= gridW) ix = gridW - 1;
+        if (iy < 0) iy = 0; else if (iy >= gridH) iy = gridH - 1;
+        return irData[iy * gridW + ix];
+      }
+      function cubic(p0,p1,p2,p3,t) {
+        return 0.5 * (2*p1 + (-p0 + p2)*t + (2*p0 -5*p1 +4*p2 - p3)*t*t + (-p0 +3*p1 -3*p2 + p3)*t*t*t);
+      }
+      for (let y=0; y<h; y++) {
+        const gy = (y / (h - 1)) * (gridH - 1);
+        const iy = Math.floor(gy);
+        const ty = gy - iy;
+        for (let x=0; x<w; x++) {
+          const gx = (x / (w - 1)) * (gridW - 1);
+          const ix = Math.floor(gx);
+          const tx = gx - ix;
+          const colVals = new Array(4);
+          for (let m=-1; m<=2; m++) {
+            const rowVals = [
+              getVal(ix-1, iy+m),
+              getVal(ix,   iy+m),
+              getVal(ix+1, iy+m),
+              getVal(ix+2, iy+m)
+            ];
+            colVals[m+1] = cubic(rowVals[0], rowVals[1], rowVals[2], rowVals[3], tx);
+          }
+          const val = cubic(colVals[0], colVals[1], colVals[2], colVals[3], ty);
+          const [r,g,b] = valueToColor(val);
+          let idx = (y * w + x) * 4;
+          data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 255;
         }
       }
       ctx.putImageData(img,0,0);
@@ -734,22 +787,88 @@
     }
 
     function renderIr() {
+      updateIrCanvasSize();
       drawIrHeatmap();
       drawIrLegend();
+    }
+
+    function updateIrCanvasSize() {
+      const canvas = $('irCanvas');
+      const legend = $('irLegend');
+      if (!canvas || !legend) return;
+      // Keep base size constant; scale affects interpolation detail only
+      const newW = IR_COLS * IR_BASE_CELL_SIZE;
+      const newH = IR_ROWS * IR_BASE_CELL_SIZE;
+      if (canvas.width !== newW || canvas.height !== newH) {
+        canvas.width = newW; canvas.height = newH;
+      }
+      if (legend.height !== newH) legend.height = newH;
     }
 
     function ensureIrInitialized() {
       if (irInitialized) return;
       initIrData();
       renderIr();
-      const refreshBtn = $('irRefresh');
-      if (refreshBtn) refreshBtn.addEventListener('click', () => { randomizeIrData(); renderIr(); });
+  const readBtn = $('irRead');
+  if (readBtn) readBtn.addEventListener('click', () => { randomizeIrData(); renderIr(); });
+  const contBtn = $('irContinuous');
+  if (contBtn) contBtn.addEventListener('click', toggleIrContinuous);
       const saveImgBtn = $('irSaveImage');
       if (saveImgBtn) saveImgBtn.addEventListener('click', saveIrImage);
       const exportBtn = $('irExportData');
       if (exportBtn) exportBtn.addEventListener('click', exportIrDataCsv);
+      const scaleSel = $('irScaleSelect');
+      if (scaleSel) scaleSel.addEventListener('change', () => {
+        const v = parseInt(scaleSel.value, 10) || 1;
+        irScale = (v === 2 || v === 4) ? v : 1;
+        renderIr();
+      });
       irInitialized = true;
     }
+
+    // Continuous read (simulated by randomizeIrData for now)
+    let irContinuousTimer = null;
+    function toggleIrContinuous() {
+      const btn = $('irContinuous');
+      const ind = $('irRunning');
+      if (!btn) return;
+      const active = btn.getAttribute('data-active') === '1';
+      if (active) {
+        // stop
+        btn.setAttribute('data-active','0');
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-secondary');
+        if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
+        if (ind) { ind.style.background = '#0d2219'; ind.style.boxShadow = '0 0 4px #0d2219'; }
+      } else {
+        // start
+        btn.setAttribute('data-active','1');
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-success');
+        // immediate read
+        randomizeIrData(); renderIr();
+        irContinuousTimer = setInterval(() => {
+          randomizeIrData();
+          renderIr();
+        }, 500);
+        if (ind) { ind.style.background = '#59ffb0'; ind.style.boxShadow = '0 0 6px #59ffb0'; }
+      }
+    }
+    // Stop continuous when leaving page or tab hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
+        const btn = $('irContinuous');
+        const ind = $('irRunning');
+        if (btn && btn.getAttribute('data-active') === '1') {
+          btn.setAttribute('data-active','0');
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-secondary');
+          if (ind) { ind.style.background = '#0d2219'; ind.style.boxShadow = '0 0 4px #0d2219'; }
+        }
+      }
+    });
+    window.addEventListener('beforeunload', () => { if (irContinuousTimer) clearInterval(irContinuousTimer); });
 
     // Render when IR tab is shown first time
     document.addEventListener('shown.bs.tab', (ev) => {
@@ -791,6 +910,7 @@
       // Create composite canvas: place heatmap left, legend right with small gap + labels
       const gap = 8;
       const labelSpace = 30; // space on right for min/max text if desired
+      // Use current (possibly scaled) canvas dimensions
       const outW = heat.width + gap + legend.width + labelSpace;
       const outH = Math.max(heat.height, legend.height);
       const cv = document.createElement('canvas');
