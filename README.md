@@ -133,6 +133,10 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 | Sidebar (right) | Quick command buttons + history list + clear history. |
 | IR Image tab | Heatmap canvas, legend, toolbar (Grid size display, Scale selector, Read, Continuous, Save image, Export data, running indicator). |
 
+## Android
+
+See `android/README.md` for the native USB CDC (ACM) prototype, build instructions, limitations, and future task list.
+
 On very narrow screens, wrapping will stack controls; the TX + Send pair stays together while secondary controls wrap.
 
 ## Theming & customization
