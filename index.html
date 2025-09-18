@@ -205,62 +205,73 @@
       <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="settings-tab">
         <div class="p-3">
           <h5 class="mb-2">Settings</h5>
-          <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
-            <label class="form-label mb-0">Baud:
-              <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
-            </label>
-            <label class="form-label mb-0">Data bits:
-              <select id="databits" class="form-select form-select-sm">
-                <option>8</option>
-                <option selected>7</option>
-              </select>
-            </label>
-            <label class="form-label mb-0">Parity:
-              <select id="parity" class="form-select form-select-sm">
-                <option value="none">none</option>
-                <option value="even">even</option>
-                <option value="odd" selected>odd</option>
-              </select>
-            </label>
-            <label class="form-label mb-0">Stop bits:
-              <select id="stopbits" class="form-select form-select-sm">
-                <option>1</option>
-                <option selected>2</option>
-              </select>
-            </label>
-            <label class="form-label mb-0">Flow:
-              <select id="flow" class="form-select form-select-sm">
-                <option value="none" selected>none</option>
-                <option value="hardware">hardware (RTS/CTS)</option>
-              </select>
-            </label>
-          </div>
-          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
-            <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
-            <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
-            <button id="eepromSave" class="btn btn-outline-primary btn-sm" title="Save current settings to device EEPROM" disabled>Save to EEPROM</button>
-            <button id="eepromLoad" class="btn btn-outline-primary btn-sm" title="Load settings from device EEPROM" disabled>Load from EEPROM</button>
-            <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
-          </div>
-          <fieldset class="mt-3 p-2" style="border-radius:.5rem;">
-            <legend class="float-none w-auto px-2 small mb-0">Input options</legend>
-            <div class="d-flex flex-wrap align-items-center gap-3 mt-1">
-              <label class="form-label mb-0">EOL:
-                <select id="eol" class="form-select form-select-sm" title="End-of-line to append on send" style="max-width:100px;">
-                  <option value="">No EOL</option>
-                  <option value="\n" selected>LF</option>
-                  <option value="\r">CR</option>
-                  <option value="\r\n">CRLF</option>
-                </select>
-              </label>
-              <label class="form-check form-check-inline mb-0"><input id="echo" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Local echo</span></label>
-              <label class="form-check form-check-inline mb-0"><input id="enterSend" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Enter sends</span></label>
-              <label class="form-check form-check-inline mb-0"><input id="autoScroll" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Auto-scroll</span></label>
+          <div class="row g-3">
+            <div class="col-12 col-lg-6">
+              <fieldset class="p-2" style="border-radius:.5rem;">
+                <legend class="float-none w-auto px-2 small mb-0">Connection</legend>
+                <div class="d-flex flex-wrap align-items-end gap-3 mb-2 mt-1">
+                  <label class="form-label mb-0">Baud:
+                    <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
+                  </label>
+                  <label class="form-label mb-0">Data bits:
+                    <select id="databits" class="form-select form-select-sm">
+                      <option>8</option>
+                      <option selected>7</option>
+                    </select>
+                  </label>
+                  <label class="form-label mb-0">Parity:
+                    <select id="parity" class="form-select form-select-sm">
+                      <option value="none">none</option>
+                      <option value="even">even</option>
+                      <option value="odd" selected>odd</option>
+                    </select>
+                  </label>
+                  <label class="form-label mb-0">Stop bits:
+                    <select id="stopbits" class="form-select form-select-sm">
+                      <option>1</option>
+                      <option selected>2</option>
+                    </select>
+                  </label>
+                  <label class="form-label mb-0">Flow:
+                    <select id="flow" class="form-select form-select-sm">
+                      <option value="none" selected>none</option>
+                      <option value="hardware">hardware (RTS/CTS)</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+              <p class="small mt-2 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are saved and restored (localStorage).</p>
             </div>
-          </fieldset>
-          <p class="small mt-3 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved (localStorage) and restored next visit. Adjust them here; changes save instantly.</p>
-          <!-- summary removed: controls and values visible directly -->
+            <div class="col-12 col-lg-6">
+              <fieldset class="p-2 mb-3" style="border-radius:.5rem;">
+                <legend class="float-none w-auto px-2 small mb-0">Input options</legend>
+                <div class="d-flex flex-wrap align-items-center gap-3 mt-1">
+                  <label class="form-label mb-0">EOL:
+                    <select id="eol" class="form-select form-select-sm" title="End-of-line to append on send" style="max-width:100px;">
+                      <option value="">No EOL</option>
+                      <option value="\n" selected>LF</option>
+                      <option value="\r">CR</option>
+                      <option value="\r\n">CRLF</option>
+                    </select>
+                  </label>
+                  <label class="form-check form-check-inline mb-0"><input id="echo" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Local echo</span></label>
+                  <label class="form-check form-check-inline mb-0"><input id="enterSend" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Enter sends</span></label>
+                  <label class="form-check form-check-inline mb-0"><input id="autoScroll" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Auto-scroll</span></label>
+                </div>
+              </fieldset>
+              <fieldset class="p-2" style="border-radius:.5rem;">
+                <legend class="float-none w-auto px-2 small mb-0">Actions</legend>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                  <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
+                  <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
+                  <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
+                  <button id="eepromSave" class="btn btn-outline-primary btn-sm" title="Save current settings to device EEPROM" disabled>Save to EEPROM</button>
+                  <button id="eepromLoad" class="btn btn-outline-primary btn-sm" title="Load settings from device EEPROM" disabled>Load from EEPROM</button>
+                  <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
+                </div>
+              </fieldset>
+            </div>
+          </div>
         </div>
       </div>
       <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="scan-tab">
@@ -407,6 +418,44 @@
       $('flow').value = obj.flow;
     }
     function persistAndDisplay() { saveSerialSettings(currentSerialSettings()); }
+    /* ===== Input option persistence ===== */
+    const INPUT_OPTIONS_KEY = 'mip_input_options_v1';
+    const INPUT_DEFAULTS = { eol: '\n', echo: true, enterSend: true, autoScroll: true };
+    function loadInputOptions() {
+      try {
+        const raw = localStorage.getItem(INPUT_OPTIONS_KEY);
+        if (!raw) return { ...INPUT_DEFAULTS };
+        const obj = JSON.parse(raw);
+        return { ...INPUT_DEFAULTS, ...(obj && typeof obj === 'object' ? obj : {}) };
+      } catch { return { ...INPUT_DEFAULTS }; }
+    }
+    function applyInputOptions(obj) {
+      if (!obj) return;
+      if ($('eol')) $('eol').value = obj.eol ?? INPUT_DEFAULTS.eol;
+      if ($('echo')) $('echo').checked = !!obj.echo;
+      if ($('enterSend')) $('enterSend').checked = !!obj.enterSend;
+      if ($('autoScroll')) $('autoScroll').checked = !!obj.autoScroll;
+    }
+    function saveInputOptions() {
+      try {
+        const snap = {
+          eol: $('eol') ? $('eol').value : INPUT_DEFAULTS.eol,
+          echo: $('echo') ? $('echo').checked : INPUT_DEFAULTS.echo,
+          enterSend: $('enterSend') ? $('enterSend').checked : INPUT_DEFAULTS.enterSend,
+          autoScroll: $('autoScroll') ? $('autoScroll').checked : INPUT_DEFAULTS.autoScroll
+        };
+        localStorage.setItem(INPUT_OPTIONS_KEY, JSON.stringify(snap));
+      } catch {}
+    }
+    // Attach listeners for input options
+    ['eol','echo','enterSend','autoScroll'].forEach(id => {
+      const el = $(id); if (!el) return;
+      el.addEventListener('change', saveInputOptions);
+      if (el.tagName === 'SELECT') el.addEventListener('input', saveInputOptions);
+    });
+    // Load stored input options now
+    const _loadedInputOptions = loadInputOptions();
+    applyInputOptions(_loadedInputOptions);
     // Attach change listeners (delegated after DOM ready; elements already exist inline)
     ['baud','databits','parity','stopbits','flow'].forEach(id => {
       const el = $(id);
@@ -509,16 +558,22 @@
       }
     }
 
-    /* ===== Settings Export / Import (commands + connection + IR) ===== */
+    /* ===== Settings Export / Import (commands + connection + IR + input options) ===== */
     function exportSettingsJson() {
       const payload = {
         type: 'melexis.io-settings',
-        version: 3,
+        version: 4,
         exportedAt: new Date().toISOString(),
         history: [...history],
         historyCount: history.length,
         serialSettings: currentSerialSettings(),
-        ir: { scale: irScale }
+        ir: { scale: irScale },
+        input: {
+          eol: $('eol') ? $('eol').value : '',
+          echo: $('echo') ? $('echo').checked : false,
+          enterSend: $('enterSend') ? $('enterSend').checked : false,
+          autoScroll: $('autoScroll') ? $('autoScroll').checked : false
+        }
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
@@ -556,6 +611,10 @@
             const sel = document.getElementById('irScaleSelect');
             if (sel) sel.value = String(irScale);
             if (irInitialized) renderIr();
+          }
+          if (obj.input && typeof obj.input === 'object') {
+            applyInputOptions(obj.input);
+            saveInputOptions();
           }
           alert('Imported settings. Commands: ' + history.length + (obj.serialSettings ? ', connection parameters applied' : '') + (obj.ir ? ', IR scale applied' : ''));
         } catch (err) {

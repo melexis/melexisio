@@ -5,8 +5,8 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 ## What’s inside
 
 `index.html` contains everything:
-- UI with a right‑hand sidebar (quick commands + history) and a main pane (connection controls, log, input area)
-- Split input area: first row = TX field + Send button; second row = EOL selector + toggles + Clear/Save
+- UI with a main pane (connection controls, log, input area) and an integrated right sidebar (quick commands + history)
+- Single compact input row (Clear / Save... / TX field / Send) — input behavior toggles moved to Settings
 - Web Serial logic (connect / disconnect with robust stream teardown, read/write piping)
 - Command history persisted in a cookie (newest first)
 - Color‑coded log rendering (customizable via CSS variables)
@@ -28,7 +28,7 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
   - Non‑OK prompts: soft red
   - Errors: vivid red
     - Status line shows USB VID:PID (hex), serial (if available) and the first *IDN? response line (device description). (OS COM port name/path isn't exposed by Web Serial.)
-- Clear / Save... buttons in Terminal; input behavior options relocated to Settings tab.
+- Clear / Save... buttons in Terminal; input behavior options relocated to Settings tab and persisted.
 - Command history:
   - Stores only typed input (not button/auto commands)
   - Newest‑first; up/down arrows to navigate; click a history item to resend
@@ -62,12 +62,14 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 
 **Settings tab**
 
-- Contains all connection format controls (baud, data bits, parity, stop bits, flow control) instead of the top bar.
-- Automatically persists selections to `localStorage`; values restore on page load.
+- Two-column responsive layout:
+  - Left: Connection fieldset (baud, data bits, parity, stop bits, flow control) – persisted automatically.
+  - Right: Input options fieldset + Actions fieldset.
+- Input options (persisted): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll.
+- Actions fieldset: Reset to defaults, Export settings, Import settings, (future) Save/Load EEPROM.
 - Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
- - Input options section (moved from Terminal): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll.
- - Export settings button: downloads a JSON bundle (version 3) containing command history (newest‑first), connection parameters, and IR scale.
- - Import settings button: load a previously exported bundle to restore commands, connection parameters, and IR scale (older v1/v2 history files still accepted—history only or history + partial settings).
+- Export settings button: downloads a JSON bundle (version 4) containing command history (newest‑first), connection parameters, IR scale, and input options.
+- Import settings button: restores history, connection parameters, IR scale, and input options (older v1/v2/v3 files still accepted—history only or history + parameters + IR). 
 
 ## Requirements
 
@@ -127,7 +129,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 | Connection controls | Top fieldset with only Connect / Disconnect + status line. |
 | Tabs | "Terminal" (active), plus placeholder "Settings" and "Scan" panes. |
 | Log | Monospaced scrollback (`#log`) at fixed height (50vh; capped by viewport calc). |
-| Input rows | Row 1: TX + Send. Row 2: EOL selector, three option checkboxes, Clear, Save. |
+| Input row | Single compact row: Clear, Save..., TX field, Send (behavior options moved to Settings). |
 | Sidebar (right) | Quick command buttons + history list + clear history. |
 | IR Image tab | Heatmap canvas, legend, toolbar (Grid size display, Scale selector, Read, Continuous, Save image, Export data, running indicator). |
 
@@ -177,7 +179,9 @@ Locate `randomizeIrData()` in `index.html` and substitute logic that copies real
 - Search/filter within the log
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
- - Additional IR visualization enhancements (e.g., adaptive min/max autoscaling)
+- Additional IR visualization enhancements (e.g., adaptive min/max autoscaling)
+ - Merge duplicated IR / People Detection rendering code into shared helpers
+ - Persist People Detection scale & overlay preferences (currently only IR scale stored)
 
 Contributions or suggestions welcome via issues / pull requests.
 
