@@ -1,4 +1,4 @@
-# httpterminal — MIP Terminal (Web Serial)
+# Melexis.IO
 
 Single‑page serial terminal that runs in your browser using the Web Serial API. Open `index.html` over HTTPS or `http://localhost` in Chrome/Edge (desktop), connect to a serial device, and send/receive text commands.
 
