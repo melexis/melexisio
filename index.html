@@ -245,6 +245,8 @@
             <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
             <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
             <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
+            <button id="eepromSave" class="btn btn-outline-primary btn-sm" title="Save current settings to device EEPROM" disabled>Save to EEPROM</button>
+            <button id="eepromLoad" class="btn btn-outline-primary btn-sm" title="Load settings from device EEPROM" disabled>Load from EEPROM</button>
             <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
           </div>
           <p class="small mt-3 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved (localStorage) and restored next visit. Adjust them here; changes save instantly.</p>
@@ -374,6 +376,10 @@
           impFile.value = '';
         });
       }
+      const eepromSaveBtn = $('eepromSave');
+      if (eepromSaveBtn) eepromSaveBtn.addEventListener('click', () => alert('TODO: EEPROM save (implement device command)'));
+      const eepromLoadBtn = $('eepromLoad');
+      if (eepromLoadBtn) eepromLoadBtn.addEventListener('click', () => alert('TODO: EEPROM load (implement device command)'));
       // summary removed
     });
 
@@ -562,6 +568,8 @@
       $('cmd-id').disabled = !enabled;
       $('cmd-info').disabled = !enabled;
       $('cmd-rst').disabled = !enabled;
+      const es = $('eepromSave'); if (es) es.disabled = !enabled;
+      const elb = $('eepromLoad'); if (elb) elb.disabled = !enabled;
     }
 
     async function connect() {
@@ -774,6 +782,29 @@
   // Scaling / interpolation
   let irScale = 1; // allowed: 1 (nearest / block), 2, 4 (bicubic)
   const IR_BASE_CELL_SIZE = 20; // pixels per cell at scale 1
+    // Pause state for continuous mode when user hovers heatmap/legend
+    let irPausedByHover = false;
+    function refreshIrRunningIndicator() {
+      const ind = $('irRunning');
+      const btn = $('irContinuous');
+      if (!ind || !btn) return;
+      const running = btn.getAttribute('data-active') === '1';
+      if (!running) {
+        ind.style.background = '#0d2219';
+        ind.style.boxShadow = '0 0 4px #0d2219';
+        ind.title = 'Continuous inactive';
+        return;
+      }
+      if (irPausedByHover) {
+        ind.style.background = '#7a4c00';
+        ind.style.boxShadow = '0 0 6px #ffb347';
+        ind.title = 'Continuous running (paused by hover)';
+      } else {
+        ind.style.background = '#59ffb0';
+        ind.style.boxShadow = '0 0 6px #59ffb0';
+        ind.title = 'Continuous running';
+      }
+    }
 
     function initIrData() {
       irData = new Float32Array(IR_ROWS * IR_COLS);
@@ -1042,6 +1073,13 @@
         irScale = (v === 2 || v === 4) ? v : 1;
         renderIr();
       });
+      // Hover pause listeners for continuous mode (canvas + legend)
+      ['irCanvas','irLegend'].forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        el.addEventListener('mouseenter', () => { if (!irInitialized) return; irPausedByHover = true; refreshIrRunningIndicator(); });
+        el.addEventListener('mouseleave', () => { if (!irInitialized) return; irPausedByHover = false; refreshIrRunningIndicator(); });
+      });
       irInitialized = true;
     }
 
@@ -1058,7 +1096,8 @@
         btn.classList.remove('btn-success');
         btn.classList.add('btn-outline-secondary');
         if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
-        if (ind) { ind.style.background = '#0d2219'; ind.style.boxShadow = '0 0 4px #0d2219'; }
+        irPausedByHover = false;
+        refreshIrRunningIndicator();
       } else {
         // start
         btn.setAttribute('data-active','1');
@@ -1067,10 +1106,11 @@
         // immediate read
         randomizeIrData(); renderIr();
         irContinuousTimer = setInterval(() => {
+          if (irPausedByHover) return; // skip updates during hover pause
           randomizeIrData();
           renderIr();
         }, 500);
-        if (ind) { ind.style.background = '#59ffb0'; ind.style.boxShadow = '0 0 6px #59ffb0'; }
+        refreshIrRunningIndicator();
       }
     }
     // Stop continuous when leaving page or tab hidden
@@ -1083,7 +1123,8 @@
           btn.setAttribute('data-active','0');
           btn.classList.remove('btn-success');
           btn.classList.add('btn-outline-secondary');
-          if (ind) { ind.style.background = '#0d2219'; ind.style.boxShadow = '0 0 4px #0d2219'; }
+          irPausedByHover = false;
+          refreshIrRunningIndicator();
         }
       }
     });

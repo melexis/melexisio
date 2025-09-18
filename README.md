@@ -44,6 +44,7 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Read button: generates (or would fetch) one new frame
 - Continuous toggle: when active, performs a Read every 500 ms; button turns green and a small glowing status indicator lights up
 - Running indicator: always visible; dim when inactive, mint glow when active
+- Pause-on-hover: while continuous mode is active, hovering the heatmap or legend pauses frame updates (indicator shifts to amber); leaving resumes.
 - Save image: exports composited PNG (heatmap + legend + labels)
 - Export data: CSV with header row (rows, cols, min, max) then one row per heatmap row (values with 2 decimals)
 - Bicubic interpolation implementation: Catmull‑Rom style 4×4 neighborhood sampling per output pixel for smooth upscale
@@ -167,7 +168,6 @@ Locate `randomizeIrData()` in `index.html` and substitute logic that copies real
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
 - Optional grid overlay / numeric cell values at low scales
-- Pause-on-hover for continuous mode
 
 Contributions or suggestions welcome via issues / pull requests.
 
