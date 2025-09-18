@@ -28,10 +28,7 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
   - Non‑OK prompts: soft red
   - Errors: vivid red
     - Status line shows USB VID:PID (hex), serial (if available) and the first *IDN? response line (device description). (OS COM port name/path isn't exposed by Web Serial.)
-- Input options:
-  - End‑of‑line: No EOL, LF, CR, or CRLF
-  - Local echo toggle; “Enter sends” toggle; Auto‑scroll toggle
-  - Clear log; Save log to file (`serial-log-YYYY-MM-DDTHH-MM-SS.txt`)
+- Clear / Save... buttons in Terminal; input behavior options relocated to Settings tab.
 - Command history:
   - Stores only typed input (not button/auto commands)
   - Newest‑first; up/down arrows to navigate; click a history item to resend
@@ -68,6 +65,7 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Contains all connection format controls (baud, data bits, parity, stop bits, flow control) instead of the top bar.
 - Automatically persists selections to `localStorage`; values restore on page load.
 - Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
+ - Input options section (moved from Terminal): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll.
  - Export settings button: downloads a JSON bundle (version 3) containing command history (newest‑first), connection parameters, and IR scale.
  - Import settings button: load a previously exported bundle to restore commands, connection parameters, and IR scale (older v1/v2 history files still accepted—history only or history + partial settings).
 
@@ -106,7 +104,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 3. Type in the input box; choose EOL (LF/CR/CRLF) if your device expects it.
 4. Press Enter (when “Enter sends” is checked) or click Send.
 5. Use quick command buttons for `*IDN?`, `:SYST:INFO`, `*RST` (not stored in history).
-6. Toggle Local echo and Auto‑scroll as desired; use Clear/Save to manage the log.
+6. Toggle Local echo and Auto‑scroll as desired; use Clear / Save... to manage the log.
 
 ## Keyboard
 
