@@ -55,7 +55,6 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Contains all connection format controls (baud, data bits, parity, stop bits, flow control) instead of the top bar.
 - Automatically persists selections to `localStorage`; values restore on page load.
 - Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control.
-- Live summary of staged parameters (applied on next Connect).
  - Export settings button: downloads a JSON bundle (version 3) containing command history (newest‑first), connection parameters, and IR scale.
  - Import settings button: load a previously exported bundle to restore commands, connection parameters, and IR scale (older v1/v2 history files still accepted—history only or history + partial settings).
 

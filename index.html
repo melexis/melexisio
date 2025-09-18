@@ -241,14 +241,14 @@
               </select>
             </label>
           </div>
-          <p class="small mb-2">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved (localStorage) and restored next visit. Adjust them here; changes save instantly.</p>
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
             <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
             <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
             <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
           </div>
-          <div id="currentSerialSettings" class="small text-muted" style="white-space:pre-line;"></div>
+          <p class="small mt-3 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are automatically saved (localStorage) and restored next visit. Adjust them here; changes save instantly.</p>
+          <!-- summary removed: controls and values visible directly -->
         </div>
       </div>
       <div class="tab-pane fade" id="tab3" role="tabpanel" aria-labelledby="scan-tab">
@@ -345,16 +345,7 @@
       $('stopbits').value = String(obj.stopbits);
       $('flow').value = obj.flow;
     }
-    function updateSerialSettingsDisplay() {
-      const el = $('currentSerialSettings');
-      if (!el) return;
-      const cur = currentSerialSettings();
-      el.textContent = `Baud: ${cur.baud}\nData bits: ${cur.databits}\nParity: ${cur.parity}\nStop bits: ${cur.stopbits}\nFlow: ${cur.flow}`;
-    }
-    function persistAndDisplay() {
-      saveSerialSettings(currentSerialSettings());
-      updateSerialSettingsDisplay();
-    }
+    function persistAndDisplay() { saveSerialSettings(currentSerialSettings()); }
     // Attach change listeners (delegated after DOM ready; elements already exist inline)
     ['baud','databits','parity','stopbits','flow'].forEach(id => {
       const el = $(id);
@@ -383,7 +374,7 @@
           impFile.value = '';
         });
       }
-      updateSerialSettingsDisplay();
+      // summary removed
     });
 
     // Cookie utils (no regex to avoid escaping issues)
@@ -771,7 +762,7 @@
     history = loadHistory();
     renderHistory();
   // After history, ensure serial settings display is in sync if Settings tab viewed first
-  updateSerialSettingsDisplay();
+  // summary removed
 
     /* ================= IR IMAGE (Heatmap) TAB ================= */
     const IR_ROWS = 24;
