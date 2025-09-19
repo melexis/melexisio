@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Melexis.IO - Help</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    :root { 
+      color-scheme: light dark; 
+      --theme-green: #198754; /* accent */
+      --bg-green: #0A3622; /* deeper green background */
+      --text-on-green: #f2f8f4;
+      --panel-bg: rgba(255,255,255,0.06);
+      --panel-bg-solid: #0f3a27;
+      --panel-border: rgba(255,255,255,0.18);
+      --muted-on-green: #c4d8ce;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      background: var(--bg-green);
+      color: var(--text-on-green);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    
+    .back-link {
+      color: var(--muted-on-green);
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+      color: var(--text-on-green);
+      text-decoration: underline;
+    }
+    
+    h1 {
+      color: var(--theme-green);
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    
+    h2 {
+      color: var(--theme-green);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 0.5rem;
+    }
+    
+    h3 {
+      color: var(--text-on-green);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .help-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .muted {
+      color: var(--muted-on-green);
+      font-size: 0.9rem;
+    }
+    
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+    
+    li {
+      margin-bottom: 0.5rem;
+    }
+    
+    code {
+      background: rgba(0,0,0,0.3);
+      color: #e6fff2;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    
+    .kbd {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-on-green);
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      border: 1px solid var(--panel-border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+    }
+    
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .feature-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--panel-border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    
+    .feature-item h4 {
+      color: var(--theme-green);
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+    
+    .warning {
+      background: rgba(255, 193, 7, 0.1);
+      border: 1px solid rgba(255, 193, 7, 0.3);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .warning h4 {
+      color: #ffc107;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back-link">← Back to app</a>
+    
+    <h1>Melexis.IO User Guide</h1>
+    
+    <div class="help-panel">
+      <h2>Overview & Requirements</h2>
+      <p>Melexis.IO is a browser-based serial terminal application for communicating with Melexis devices. It provides IR imaging, people detection, and comprehensive terminal functionality.</p>
+      
+      <h3>System Requirements</h3>
+      <ul>
+        <li><strong>Browser:</strong> Chrome or Edge desktop (Web Serial API support required)</li>
+        <li><strong>Connection:</strong> HTTPS or localhost (required for Web Serial access)</li>
+        <li><strong>Port Access:</strong> Only one application can hold a serial port at a time</li>
+        <li><strong>Permissions:</strong> Serial port access permission will be requested when connecting</li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2>Quick Start</h2>
+      <ol>
+        <li>Open the app in Chrome/Edge over HTTPS or localhost</li>
+        <li>Click <strong>"Connect…"</strong> button</li>
+        <li>Select your device from the serial port list</li>
+        <li>Grant permission when prompted</li>
+        <li>Start sending commands or explore the various tabs</li>
+        <li>Use <strong>"Disconnect"</strong> when finished</li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Tabs & Features</h2>
+      
+      <div class="feature-list">
+        <div class="feature-item">
+          <h4>Terminal</h4>
+          <ul>
+            <li>Send/receive text commands</li>
+            <li>Command history with <span class="kbd">↑</span>/<span class="kbd">↓</span> navigation</li>
+            <li>Local echo toggle</li>
+            <li>Auto-scroll option</li>
+            <li>Clear and Save log functions</li>
+            <li>Quick command buttons (ID, INFO, Reset)</li>
+          </ul>
+        </div>
+        
+        <div class="feature-item">
+          <h4>Settings</h4>
+          <ul>
+            <li>Serial connection parameters (baud, data bits, parity, stop bits, flow control)</li>
+            <li>Input options (EOL, local echo, enter sends, auto-scroll)</li>
+            <li>Export/import settings as JSON</li>
+            <li>Reset to defaults</li>
+            <li>EEPROM save/load (when connected)</li>
+          </ul>
+        </div>
+        
+        <div class="feature-item">
+          <h4>IR Image</h4>
+          <ul>
+            <li>32×24 thermal imaging display</li>
+            <li>Auto-scale or manual min/max range</li>
+            <li>Scale options: x1, x2, x4 with bicubic interpolation</li>
+            <li>Grid overlay and numeric values (x1 scale)</li>
+            <li>Read single frame or continuous mode</li>
+            <li>Save PNG images and export CSV data</li>
+            <li>Recording functionality</li>
+          </ul>
+        </div>
+        
+        <div class="feature-item">
+          <h4>People Detection</h4>
+          <ul>
+            <li>Parallel IR functionality with people detection overlay</li>
+            <li>Independent scale selector (x1/x2/x4)</li>
+            <li>Grid overlay and numeric values options</li>
+            <li>Tooltip with raw and interpolated values</li>
+            <li>Continuous mode with pause-on-hover</li>
+            <li>Separate export with "people-detection" prefix</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="help-panel">
+      <h2>History & Persistence</h2>
+      
+      <h3>Command History</h3>
+      <ul>
+        <li>Stored in browser cookies for this site</li>
+        <li>Newest commands appear first</li>
+        <li>Click history buttons to resend commands</li>
+        <li>Navigate with <span class="kbd">↑</span>/<span class="kbd">↓</span> arrow keys in input field</li>
+        <li>Clear history button available in sidebar</li>
+      </ul>
+      
+      <h3>Settings Storage</h3>
+      <ul>
+        <li><strong>localStorage:</strong> Connection settings and input options</li>
+        <li><strong>Export/Import:</strong> JSON bundle includes history, settings, IR parameters, and input options</li>
+        <li><strong>Auto-restore:</strong> Settings automatically reload on page refresh</li>
+      </ul>
+      
+      <h3>Export Bundle Contents</h3>
+      <ul>
+        <li>Command history array</li>
+        <li>Serial connection settings</li>
+        <li>IR configuration (auto-scale, min/max, scale)</li>
+        <li>Input options (EOL, echo, enter sends, auto-scroll)</li>
+        <li>Metadata (version, export timestamp)</li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2>Keyboard Shortcuts</h2>
+      <ul>
+        <li><span class="kbd">Enter</span> - Send command (when "Enter sends" is enabled)</li>
+        <li><span class="kbd">↑</span> - Navigate to older command in history</li>
+        <li><span class="kbd">↓</span> - Navigate to newer command in history</li>
+        <li><span class="kbd">Tab</span> - Navigate between UI elements</li>
+        <li><span class="kbd">Space</span> or <span class="kbd">Enter</span> - Activate focused buttons</li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2>Troubleshooting</h2>
+      
+      <div class="warning">
+        <h4>Common Issues</h4>
+        
+        <h3>Port Not Shown</h3>
+        <ul>
+          <li>Ensure device is properly connected</li>
+          <li>Check if another application is using the port</li>
+          <li>Try unplugging and reconnecting the device</li>
+          <li>Verify device drivers are installed</li>
+        </ul>
+        
+        <h3>Failed to Connect</h3>
+        <ul>
+          <li>Grant permission when browser prompts</li>
+          <li>Close other serial applications (Arduino IDE, etc.)</li>
+          <li>Check serial port settings match device requirements</li>
+          <li>Refresh page and try again</li>
+        </ul>
+        
+        <h3>No Output</h3>
+        <ul>
+          <li>Verify correct baud rate and serial parameters</li>
+          <li>Check EOL (End of Line) setting matches device expectations</li>
+          <li>Try enabling local echo to see transmitted commands</li>
+          <li>Send a simple command like <code>*IDN?</code> to test</li>
+        </ul>
+        
+        <h3>Browser Support</h3>
+        <ul>
+          <li>Web Serial API requires Chrome 89+ or Edge 89+</li>
+          <li>Firefox and Safari are not supported</li>
+          <li>Mobile browsers do not support Web Serial API</li>
+          <li>Ensure site is accessed via HTTPS or localhost</li>
+        </ul>
+        
+        <h3>Permissions</h3>
+        <ul>
+          <li>Grant serial port access when prompted</li>
+          <li>Check browser permission settings if blocked</li>
+          <li>Clear site data and try again if permissions are corrupted</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="help-panel">
+      <h2>Privacy & Storage</h2>
+      <p class="muted">Your privacy and data security are important. Here's what the app stores:</p>
+      
+      <h3>Local Storage</h3>
+      <ul>
+        <li><strong>Command History:</strong> Stored in browser cookies, cleared with "Clear history" button</li>
+        <li><strong>Settings:</strong> Connection and input preferences stored in localStorage</li>
+        <li><strong>No Server Communication:</strong> All data remains on your device</li>
+        <li><strong>No Telemetry:</strong> No usage data is collected or transmitted</li>
+      </ul>
+      
+      <h3>Data Control</h3>
+      <ul>
+        <li>Export settings and history to JSON for backup</li>
+        <li>Clear history manually via UI button</li>
+        <li>Clear all data by clearing browser storage for this site</li>
+        <li>Settings reset button restores defaults</li>
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
+      <a href="index.html" class="back-link">← Back to app</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
