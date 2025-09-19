@@ -81,7 +81,9 @@
       height: 50vh;      /* reduced to 50% viewport height */
       max-height: calc(100vh - 260px); /* safeguard relative to other UI */
       box-sizing: border-box;
-      white-space: pre-wrap;
+      white-space: pre-wrap;          /* preserve newlines */
+      overflow-wrap: anywhere;        /* allow breaks inside long tokens */
+      word-break: break-word;         /* fallback for older engines */
       overflow: auto;    /* scrollbars when content expands */
       border: 1px solid var(--panel-border);
       padding: .5rem;
@@ -384,6 +386,66 @@
 
     const $ = (id) => document.getElementById(id);
     const logEl = $('log');
+    // Log performance controls
+    const LOG_MAX_CHARS = 500000;   // hard cap to avoid unbounded DOM/memory (~0.5M chars)
+    const LOG_TRIM_TO  = 400000;    // trim down to this when exceeding cap
+    let logTotalChars = 0;          // running total of chars in #log (approx)
+    let logQueue = [];              // pending entries to append { text, cls }
+    let logFlushScheduled = false;  // RAF scheduled flag
+    function scheduleLogFlush() {
+      if (!logFlushScheduled) {
+        logFlushScheduled = true;
+        requestAnimationFrame(flushLog);
+      }
+    }
+    function flushLog() {
+      logFlushScheduled = false;
+      if (!logQueue.length) return;
+      const frag = document.createDocumentFragment();
+      // Coalesce adjacent same-class chunks to reduce node count
+      let prevCls = null;
+      let buf = '';
+      const commit = () => {
+        if (!buf) return;
+        const span = document.createElement('span');
+        if (prevCls) span.className = prevCls;
+        span.textContent = buf;
+        span.dataset.len = String(buf.length);
+        frag.appendChild(span);
+        logTotalChars += buf.length;
+        buf = '';
+      };
+      for (const it of logQueue) {
+        const cls = it.cls || '';
+        if (cls === prevCls) {
+          buf += it.text;
+        } else {
+          commit();
+          prevCls = cls;
+          buf = it.text;
+        }
+      }
+      commit();
+      logQueue.length = 0;
+      logEl.appendChild(frag);
+      // Trim if beyond cap
+      if (logTotalChars > LOG_MAX_CHARS) {
+        while (logTotalChars > LOG_TRIM_TO && logEl.firstChild) {
+          const n = logEl.firstChild;
+          let len = 0;
+          if (n.dataset && n.dataset.len) {
+            len = parseInt(n.dataset.len, 10) || 0;
+          }
+          if (!len) {
+            // fallback: compute length once
+            len = (n.textContent && n.textContent.length) || 0;
+          }
+          logTotalChars -= len;
+          logEl.removeChild(n);
+        }
+      }
+      if ($('autoScroll').checked) logEl.scrollTop = logEl.scrollHeight;
+    }
 
     /* ===== Serial settings persistence ===== */
     const SERIAL_SETTINGS_KEY = 'mip_serial_settings_v1';
@@ -483,6 +545,9 @@
         applyInputOptions({ ...INPUT_DEFAULTS });
         saveInputOptions();
       });
+      // Start with IR controls disabled until connected
+      const irRead = $('irRead'); if (irRead) irRead.disabled = true;
+      const irCont = $('irContinuous'); if (irCont) irCont.disabled = true;
       const expBtn = $('exportSettings');
       if (expBtn) expBtn.addEventListener('click', exportSettingsJson);
       const impBtn = $('importSettings');
@@ -674,11 +739,9 @@
     // Logging helpers (span-based to support colors)
     function appendLog(text, cls) {
       if (!text) return;
-      const span = document.createElement('span');
-      if (cls) span.className = cls;
-      span.textContent = text; // preserves newlines safely
-      logEl.appendChild(span);
-      if ($('autoScroll').checked) logEl.scrollTop = logEl.scrollHeight;
+      logQueue.push({ text, cls });
+      // Throttle DOM work to animation frame to keep UI responsive
+      scheduleLogFlush();
     }
     function logEcho(text) { appendLog(text, 'log-echo'); }
     function logError(text) { appendLog(text, 'log-error'); }
@@ -686,7 +749,7 @@
     // Stream RX processing: color prompts only at real start-of-line,
     // do not inject any markers. Works across chunk boundaries.
     let atLineStart = true;
-    function processRx(text) {
+  function processRx(text) {
       let i = 0;
       while (i < text.length) {
         // If at start of a line, check for prompt "(...)>"
@@ -710,8 +773,11 @@
         } else {
           const seg = text.slice(i, nl + 1);
           appendLog(seg, 'log-rx');
+          const lineBody = seg.replace(/\r?\n$/, '');
+          // notify any line waiters with the raw line (without trailing EOL)
+          try { _notifyLineWaiters(lineBody); } catch {}
           if (awaitingIdnFirstLine) {
-            const body = seg.replace(/\r?\n$/, '').trim();
+            const body = lineBody.trim();
             if (body && body.toLowerCase() !== '*idn?' && !/^\(.*\)>$/.test(body)) {
               connDescription = body;
               awaitingIdnFirstLine = false;
@@ -738,6 +804,24 @@
       $('cmd-rst').disabled = !enabled;
       const es = $('eepromSave'); if (es) es.disabled = !enabled;
       const elb = $('eepromLoad'); if (elb) elb.disabled = !enabled;
+      // IR tab controls follow connection state
+      const irRead = $('irRead'); if (irRead) irRead.disabled = !enabled;
+      const irCont = $('irContinuous');
+      if (irCont) {
+        irCont.disabled = !enabled;
+        if (!enabled) {
+          // If disabling while continuous is active, stop it and reset UI.
+          // This relies on IR script having initialized; if not, these DOM ops are harmless.
+          if (irCont.getAttribute('data-active') === '1') {
+            irCont.setAttribute('data-active','0');
+            irCont.classList.remove('btn-success');
+            irCont.classList.add('btn-outline-secondary');
+          }
+          // Clear any running timer if available (guarded in try in case IR section not parsed yet)
+          try { if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; } } catch {}
+          try { irPausedByHover = false; refreshIrRunningIndicator(); } catch {}
+        }
+      }
     }
 
   async function connect() {
@@ -873,7 +957,48 @@
       }
     }
 
-    function clearLog() { logEl.textContent = ''; }
+    // Await specific device line responses (normalized without trailing CR/LF)
+    const _lineWaiters = [];
+    function _notifyLineWaiters(line) {
+      // iterate from end to allow safe splice
+      for (let i = _lineWaiters.length - 1; i >= 0; i--) {
+        const w = _lineWaiters[i];
+        try {
+          if (w.predicate(line)) {
+            _lineWaiters.splice(i, 1);
+            try { clearTimeout(w.timeoutId); } catch {}
+            w.resolve(line);
+          }
+        } catch {}
+      }
+    }
+    function waitForLineExact(expected, timeoutMs = 3000) {
+      return new Promise((resolve, reject) => {
+        const predicate = (line) => line === expected;
+        const timeoutId = setTimeout(() => {
+          // remove from array if still present
+          for (let i = _lineWaiters.length - 1; i >= 0; i--) {
+            if (_lineWaiters[i].resolve === resolve) { _lineWaiters.splice(i, 1); }
+          }
+          reject(new Error('Timed out waiting for "' + expected + '"'));
+        }, timeoutMs);
+        _lineWaiters.push({ predicate, resolve, reject, timeoutId });
+      });
+    }
+
+    async function sendRaw(text) {
+      if (!writer) { setStatus('Not connected'); throw new Error('Not connected'); }
+      try {
+        await writer.write(text);
+        if ($('echo').checked) logEcho(text);
+      } catch (err) {
+        console.error('Write error:', err);
+        setStatus('Write error: ' + err.message);
+        throw err;
+      }
+    }
+
+  function clearLog() { logEl.textContent = ''; logTotalChars = 0; logQueue.length = 0; logFlushScheduled = false; }
 
     function saveLog() {
       const blob = new Blob([logEl.textContent], { type: 'text/plain;charset=utf-8' });
@@ -1302,32 +1427,46 @@
 
     // Continuous read (simulated by randomizeIrData for now)
     let irContinuousTimer = null;
-    function toggleIrContinuous() {
+    async function toggleIrContinuous() {
       const btn = $('irContinuous');
       const ind = $('irRunning');
       if (!btn) return;
       const active = btn.getAttribute('data-active') === '1';
       if (active) {
         // stop
-        btn.setAttribute('data-active','0');
-        btn.classList.remove('btn-success');
-        btn.classList.add('btn-outline-secondary');
-        if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
-        irPausedByHover = false;
-        refreshIrRunningIndicator();
+        try {
+          await sendRaw('!\n');
+          await waitForLineExact(':interactive mode');
+        } catch (e) {
+          console.warn('Stop continuous handshake failed:', e.message);
+        } finally {
+          btn.setAttribute('data-active','0');
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-secondary');
+          if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
+          irPausedByHover = false;
+          refreshIrRunningIndicator();
+        }
       } else {
         // start
-        btn.setAttribute('data-active','1');
-        btn.classList.remove('btn-outline-secondary');
-        btn.classList.add('btn-success');
-        // immediate read
-        randomizeIrData(); renderIr();
-        irContinuousTimer = setInterval(() => {
-          if (irPausedByHover) return; // skip updates during hover pause
-          randomizeIrData();
-          renderIr();
-        }, 500);
-        refreshIrRunningIndicator();
+        try {
+          await sendRaw(';\n');
+          await waitForLineExact(';:continuous mode');
+          btn.setAttribute('data-active','1');
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-success');
+          // immediate read
+          randomizeIrData(); renderIr();
+          irContinuousTimer = setInterval(() => {
+            if (irPausedByHover) return; // skip updates during hover pause
+            randomizeIrData();
+            renderIr();
+          }, 500);
+          refreshIrRunningIndicator();
+        } catch (e) {
+          console.warn('Start continuous handshake failed:', e.message);
+          // leave button as not active on failure
+        }
       }
     }
     // Stop continuous when leaving page or tab hidden
