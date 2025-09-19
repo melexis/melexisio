@@ -6,6 +6,7 @@ This directory contains a minimal native Android implementation for devices with
 - `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`: Gradle + Kotlin setup.
 - `app/src/main/AndroidManifest.xml`: USB host feature, device attach intent filter, activity.
 - `app/src/main/res/xml/usb_filter.xml`: Example VID/PID (Arduino Uno) — adjust/add entries for your hardware.
+ - `app/src/main/res/xml/usb_filter.xml`: Device filter for auto-launch. Pre-populated with common USB CDC/serial VID/PIDs (Arduino, FTDI, CP210x, CH34x/CH9102, PL2303). Trim this list to only what you need.
 - `app/src/main/java/com/melexisio/terminal/UsbCdcManager.kt`: Helper (enumerate devices, request permission, open, set line coding 115200 8N1, bulk read/write, callbacks).
 - `app/src/main/java/com/melexisio/terminal/MainActivity.kt`: Simple UI (device list, status, log, send text).
 - `app/src/main/res/layout/activity_main.xml`: Layout with status, devices, log, input.
@@ -26,6 +27,21 @@ This directory contains a minimal native Android implementation for devices with
 ## Security & Permissions
 - Android permission prompt appears per device; once granted, session persists until unplug.
 - Add additional `usb-device` entries in `usb_filter.xml` for auto-launch scenarios.
+
+### USB device filter notes
+- File: `app/src/main/res/xml/usb_filter.xml`
+- Purpose: When a matching device is attached, Android can present your app as a handler and route the attach intent.
+- Keep it narrow: Only keep VID/PID pairs for devices you actually target. A broad list can steal devices from other apps or confuse users.
+- Included examples (from `usb_filter.xml`):
+	- Arduino LLC: `2341:0043` (Uno R3), `2341:0001` (older Uno)
+	- FTDI: `0403:6001` (FT232R)
+	- Silicon Labs: `10C4:EA60` (CP210x)
+	- WCH: `1A86:7523`, `1A86:5523` (CH340/CH341), `1A86:55D4` (CH9102)
+	- Prolific: `067B:2303` (PL2303)
+	- STMicroelectronics (VCP): `0483:5740`, `0483:3754`
+	- Melexis: `03E9:0041` (Melexis.IO USB CDC), `03E9:A100` (PTC‑05 USB CDC)
+- Add/Remove: Edit the XML to add `<usb-device vendor-id="0xVVVV" product-id="0xPPPP" />` lines. Values are hex.
+- Testing: Plug/unplug your device; if multiple apps match, Android shows a chooser. If none match, use the app's Refresh button to enumerate and request permission manually.
 
 ## Future Tasks
 - UI for serial parameters (invoke updated `setLineCoding`).

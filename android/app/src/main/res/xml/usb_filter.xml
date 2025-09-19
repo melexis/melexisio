@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Example Arduino Uno (replace with your VID/PID or add multiples) -->
-    <usb-device vendor-id="0x2341" product-id="0x0043" />
+        <!--
+            Add vendor/product pairs for devices you want Android to match and auto-offer your app on attach.
+            Keep this list as narrow as practical to avoid intercepting other apps' devices.
+            Common USB CDC/serial adapters below (uncomment/edit as needed).
+        -->
+
+        <!-- Arduino LLC / Genuino (Uno R3, Mega, etc.) -->
+        <usb-device vendor-id="0x2341" product-id="0x0043" /> <!-- Uno R3 -->
+        <usb-device vendor-id="0x2341" product-id="0x0001" /> <!-- older Uno -->
+
+        <!-- FTDI FT232R/FT232 -->
+        <usb-device vendor-id="0x0403" product-id="0x6001" />
+
+        <!-- Silicon Labs CP210x -->
+        <usb-device vendor-id="0x10C4" product-id="0xEA60" />
+
+        <!-- WCH CH340/CH341 -->
+        <usb-device vendor-id="0x1A86" product-id="0x7523" />
+        <usb-device vendor-id="0x1A86" product-id="0x5523" />
+        <!-- WCH CH9102/CH9102F -->
+        <usb-device vendor-id="0x1A86" product-id="0x55D4" />
+
+        <!-- Prolific PL2303 -->
+        <usb-device vendor-id="0x067B" product-id="0x2303" />
+
+        <!-- STM32 virtual COM port (STMicroelectronics) -->
+        <usb-device vendor-id="0x0483" product-id="0x5740" />
+        <usb-device vendor-id="0x0483" product-id="0x3754" />
+
+        <!-- Melexis.IO USB CDC -->
+        <usb-device vendor-id="0x3e9" product-id="0x41" />
+
+        <!-- Melexis PTC-05 USB CDC -->
+        <usb-device vendor-id="0x3e9" product-id="0xa100" />
+
 </resources>
