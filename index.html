@@ -793,6 +793,7 @@
           _rxLineBuffer = '';
           // notify any line waiters with the raw line (without trailing EOL)
           try { _notifyLineWaiters(lineBody); } catch {}
+          try { maybeHandleIrContinuousFrame(lineBody); } catch {}
           if (awaitingIdnFirstLine) {
             const body = lineBody.trim();
             if (body && body.toLowerCase() !== '*idn?' && !/^\(.*\)>$/.test(body)) {
@@ -1554,8 +1555,8 @@
       irInitialized = true;
     }
 
-    // Continuous read (simulated by randomizeIrData for now)
-    let irContinuousTimer = null;
+  // Continuous read driven by device frames (handled in maybeHandleIrContinuousFrame)
+  let irContinuousTimer = null; // no longer used; kept for safe clearing on stop/visibility
     async function toggleIrContinuous() {
       const btn = $('irContinuous');
       const ind = $('irRunning');
@@ -1564,8 +1565,8 @@
       if (active) {
         // stop
         try {
-          await sendRaw(';\n');
-          await waitForLineExact('!:interactive mode');
+          await sendRaw('!\n');
+          await waitForLineExact(':interactive mode');
         } catch (e) {
           console.warn('Stop continuous handshake failed:', e.message);
         } finally {
@@ -1580,18 +1581,12 @@
       } else {
         // start
         try {
-          await sendRaw('!\n');
+          await sendRaw(';\n');
           await waitForLineExact(';:continuous mode');
           btn.setAttribute('data-active','1');
           btn.classList.remove('btn-outline-secondary');
           btn.classList.add('btn-success');
-          // immediate read
-          randomizeIrData(); renderIr();
-          irContinuousTimer = setInterval(() => {
-            if (irPausedByHover) return; // skip updates during hover pause
-            randomizeIrData();
-            renderIr();
-          }, 500);
+          // Device will stream frames; UI updates are triggered in RX handler
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = true;
         } catch (e) {
@@ -1693,6 +1688,32 @@
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       }, 'image/png');
+    }
+    // Handle continuous IR frames from device when continuous is active.
+    // Expected line formats:
+    //   mv:66:... (unwrapped)
+    //   "mv:66:..." (quoted)
+    //   @66:01:mv:66:... (prefixed channel)
+    //   "@66:01:mv:66:..." (quoted prefix)
+    function maybeHandleIrContinuousFrame(line) {
+      const contBtn = $('irContinuous');
+      if (!contBtn || contBtn.getAttribute('data-active') !== '1') return;
+      if (!line) return;
+      let s = line.trim();
+      if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1);
+      // Strip optional channel prefix
+      if (s.startsWith('@66:01:')) s = s.slice('@66:01:'.length);
+      if (!/^mv:66:[0-9]+:/.test(s)) return;
+      if (irPausedByHover) return;
+      try {
+        const { frame } = parseMvLineToFrame(s);
+        if (!irData || irData.length !== frame.length) irData = new Float32Array(IR_ROWS * IR_COLS);
+        irData.set(frame);
+        renderIr();
+      } catch (e) {
+        // Do not spam log on occasional parse errors during stream
+        // Uncomment to debug: logError('IR continuous parse failed: ' + e.message + '\n');
+      }
     }
     /* ================= PEOPLE DETECTION TAB (duplicate IR logic, beautified) ================= */
     // Grid & value range (mirrors IR constants)
