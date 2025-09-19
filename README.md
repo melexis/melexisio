@@ -34,21 +34,23 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
   - Newest‑first; up/down arrows to navigate; click a history item to resend
   - Clearable; persisted in a cookie (bounded size)
   
-**IR Image tab (thermal heatmap sandbox)**
+**IR Image tab (thermal heatmap)**
 
-- 32×24 grid (simulated values 0.10–40.0 by default; replace generator with real sensor feed)
+- 32×24 grid fed by device frames (or single reads). Read sends `mv:66` and parses 769 floats (first ignored + 768 cell values) into a 32×24 frame. Continuous uses device mode (see Protocol below).
 - Color gradient legend (dynamic mapping of min/max, vertical bar plus numeric min/max labels)
 - Scale selector: x1 (nearest / blocky), x2 & x4 (bicubic interpolation for smoothness) – canvas size stays constant; scale refines visual detail only
-- Read button: generates (or would fetch) one new frame
-- Continuous toggle: when active, performs a Read every 500 ms; button turns green and a small glowing status indicator lights up
+- Read button: requests one new frame from the device via `mv:66`
+- Continuous toggle: engages device continuous mode; UI auto-syncs with device mode lines. Button turns green and a small glowing status indicator lights up
 - Running indicator: always visible; dim when inactive, mint glow when active
 - Pause-on-hover: while continuous mode is active, hovering the heatmap or legend pauses frame updates (indicator shifts to amber); leaving resumes.
 - Save image: exports composited PNG (heatmap + legend + labels)
 - Export data: CSV with header row (rows, cols, min, max) then one row per heatmap row (values with 2 decimals)
+- Video recording: Start/Stop recording buttons capture a WebM video (composite: heatmap + legend + labels) using MediaRecorder. Recording is enabled only while Continuous mode is active.
 - Bicubic interpolation implementation: Catmull‑Rom style 4×4 neighborhood sampling per output pixel for smooth upscale
 - Legend & export automatically reflect current scale and value range
  - Hover tooltip shows raw cell (row/col) value and interpolated value under the cursor (updates in real time)
  - Optional grid overlay (x1/x2 scales) and numeric cell values (x1 only) toggles for inspection
+ - Scaling controls: Auto‑scale (fit to current frame) and manual Min/Max inputs (0.0–50.0). Manual inputs are disabled when Auto‑scale is on. Settings are persisted.
 
 **People Detection tab**
 
@@ -68,14 +70,21 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Input options (persisted): End‑of‑line (No EOL / LF / CR / CRLF), Local echo, Enter sends, Auto‑scroll. Defaults: LF, echo ON, enter sends ON, auto‑scroll ON.
 - Actions fieldset: Reset to defaults, Export settings, Import settings, (future) Save/Load EEPROM.
 - Reset to defaults button: 115200 baud, 7 data bits, odd parity, 2 stop bits, no flow control, and input options (EOL=LF, Local echo ON, Enter sends ON, Auto‑scroll ON).
-- Export settings button: downloads a JSON bundle (version 4) containing command history (newest‑first), connection parameters, IR scale, and input options.
-- Import settings button: restores history, connection parameters, IR scale, and input options (older v1/v2/v3 files still accepted—history only or history + parameters + IR). 
+- Export settings button: downloads a JSON bundle (version 5) containing command history (newest‑first), connection parameters, IR settings, and input options.
+- Import settings button: restores history, connection parameters, IR settings, and input options. Backward‑compatible with older files (v4 restores scale only; v1–v3 restore history and, where present, connection parameters).
+
+IR settings persisted/exported:
+- autoScale (boolean)
+- min (number)
+- max (number)
+- scale (1, 2, or 4)
 
 ## Requirements
 
 - Browser: Chrome or Edge on desktop with Web Serial support
 - Context: HTTPS or `http://localhost` (file:// will NOT work for Web Serial)
 - Only one app can hold a given serial port at a time
+ - For video recording: MediaRecorder with WebM support (modern Chrome/Edge)
 
 ## Run locally
 
@@ -108,6 +117,12 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 5. Use quick command buttons for `*IDN?`, `:SYST:INFO`, `*RST` (not stored in history).
 6. Toggle Local echo and Auto‑scroll as desired; use Clear / Save... to manage the log.
 
+IR Image basics:
+- Click Read to request one IR frame (`mv:66`).
+- Click Continuous to start device continuous mode (UI will show a green button and a glowing indicator). Click again to stop.
+- While Continuous is active, you can Start rec to capture a WebM video (Stop rec will download it). Recording is disabled when Continuous is inactive.
+- Use Auto‑scale for dynamic color mapping per frame, or uncheck it and enter Min/Max manually (persisted across reloads and included in settings export).
+
 ## Keyboard
 
 - Enter: send (when “Enter sends” is enabled)
@@ -119,6 +134,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 - “Failed to connect” or no ports listed → Ensure your device driver is installed and the port isn’t in use by another app.
 - No output / device doesn’t respond → Check baud/format and the EOL option (many devices require LF or CR).
 - Opened from file system and Connect is disabled → Serve over HTTPS or `http://localhost`.
+- Recording button disabled → Recording is only available when Continuous mode is active (device is streaming frames).
 
 ## Privacy & data
 
@@ -163,13 +179,21 @@ You can adjust:
 
 ### Replacing simulated IR data with real values
 
-Locate `randomizeIrData()` in `index.html` and substitute logic that copies real sensor values into the `irData` Float32Array (row-major: row * IR_COLS + col). After updating the array, call `renderIr()` (or just `drawIrHeatmap()` + `drawIrLegend()` if min/max might change). Continuous mode will automatically keep repainting as long as it triggers `randomizeIrData()` (rename appropriately).
+The IR tab is wired to a device protocol. For single reads, the app sends `mv:66` and parses 769 floats into a 32×24 frame. For continuous mode, the device streams `mv:66` frames (optionally prefixed with `@66:01:`). Lines may be quoted; the parser tolerates whitespace and CR/LF/CRLF.
 
 ## Connection behavior
 
 - The app always requests a new port selection on Connect (simplifies stale handle issues).
 - Disconnect waits for stream piping promises (readable/writable) before closing the port to avoid `InvalidStateError` / "port already open" problems.
 - Auto query (`*idn?`) sent immediately after successful open (not added to history).
+
+## Device IR protocol (summary)
+
+- Single frame read: send `mv:66` (with selected EOL). Expect a line like `mv:66:<timestamp_ms>:f0,f1,...,f768` (769 floats; first float ignored).
+- Continuous mode:
+  - Start: send `;` and wait for `;:continuous mode`.
+  - Stop: send `!` and wait for `:interactive mode`.
+  - Streamed frames: lines like `mv:66:...` or `@66:01:mv:66:...` (quoted or unquoted). UI auto‑activates/deactivates Continuous when corresponding mode lines are seen in RX.
 
 ## Accessibility & UX notes
 
