@@ -309,6 +309,9 @@
             <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
             <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Automatically fit color scale to current frame">
+              <input id="irAutoScale" type="checkbox" class="form-check-input" checked /> Auto-scale
+            </label>
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show grid lines over heatmap (for scale x1/x2)">
               <input id="irShowGrid" type="checkbox" class="form-check-input" /> Grid
             </label>
@@ -749,6 +752,8 @@
     // Stream RX processing: color prompts only at real start-of-line,
     // do not inject any markers. Works across chunk boundaries.
     let atLineStart = true;
+    // Accumulate partial line content across reads until EOL encountered
+    let _rxLineBuffer = '';
   function processRx(text) {
       let i = 0;
       while (i < text.length) {
@@ -764,16 +769,28 @@
             continue;
           }
         }
-        // Append up to and including next newline (if any)
+        // Append up to and including next EOL (\n or \r). Treat CRLF as single EOL.
         const nl = text.indexOf('\n', i);
-        if (nl === -1) {
-          appendLog(text.slice(i), 'log-rx');
-          // atLineStart unchanged
+        const cr = text.indexOf('\r', i);
+        let end = -1;
+        if (nl === -1) end = cr;
+        else if (cr === -1) end = nl;
+        else end = Math.min(nl, cr);
+        if (end === -1) {
+          const tail = text.slice(i);
+          appendLog(tail, 'log-rx');
+          // Accumulate partial line for waiter matching on next chunk
+          _rxLineBuffer += tail;
+          atLineStart = false;
           break;
         } else {
-          const seg = text.slice(i, nl + 1);
+          // Include CRLF as a single segment
+          const advance = (text[end] === '\r' && text[end + 1] === '\n') ? 2 : 1;
+          const seg = text.slice(i, end + advance);
           appendLog(seg, 'log-rx');
-          const lineBody = seg.replace(/\r?\n$/, '');
+          // Combine with any buffered partial from previous read()
+          const lineBody = (_rxLineBuffer + seg).replace(/[\r\n]+$/, '');
+          _rxLineBuffer = '';
           // notify any line waiters with the raw line (without trailing EOL)
           try { _notifyLineWaiters(lineBody); } catch {}
           if (awaitingIdnFirstLine) {
@@ -784,7 +801,7 @@
               updateConnectedStatus();
             }
           }
-          i = nl + 1;
+          i = end + advance;
           atLineStart = true;
         }
       }
@@ -805,8 +822,9 @@
       const es = $('eepromSave'); if (es) es.disabled = !enabled;
       const elb = $('eepromLoad'); if (elb) elb.disabled = !enabled;
       // IR tab controls follow connection state
-      const irRead = $('irRead'); if (irRead) irRead.disabled = !enabled;
       const irCont = $('irContinuous');
+      const irContActive = irCont && irCont.getAttribute('data-active') === '1';
+      const irRead = $('irRead'); if (irRead) irRead.disabled = !enabled || !!irContActive;
       if (irCont) {
         irCont.disabled = !enabled;
         if (!enabled) {
@@ -959,6 +977,10 @@
 
     // Await specific device line responses (normalized without trailing CR/LF)
     const _lineWaiters = [];
+    // Keep a small backlog of recent complete lines to avoid race conditions
+    // if a response arrives before a waiter is registered.
+    const RX_LAST_LINES_MAX = 200;
+    const _rxLastLines = [];
     function _notifyLineWaiters(line) {
       // iterate from end to allow safe splice
       for (let i = _lineWaiters.length - 1; i >= 0; i--) {
@@ -971,8 +993,17 @@
           }
         } catch {}
       }
+      // Record in backlog (cap size)
+      _rxLastLines.push(line);
+      if (_rxLastLines.length > RX_LAST_LINES_MAX) _rxLastLines.shift();
     }
     function waitForLineExact(expected, timeoutMs = 3000) {
+      // First, check recent backlog in case the line already arrived.
+      for (let i = _rxLastLines.length - 1; i >= 0; i--) {
+        if (_rxLastLines[i] === expected) {
+          return Promise.resolve(_rxLastLines[i]);
+        }
+      }
       return new Promise((resolve, reject) => {
         const predicate = (line) => line === expected;
         const timeoutId = setTimeout(() => {
@@ -984,6 +1015,64 @@
         }, timeoutMs);
         _lineWaiters.push({ predicate, resolve, reject, timeoutId });
       });
+    }
+    function waitForLineStartsWith(prefix, timeoutMs = 5000) {
+      // Check backlog first
+      for (let i = _rxLastLines.length - 1; i >= 0; i--) {
+        if (_rxLastLines[i].startsWith(prefix)) {
+          return Promise.resolve(_rxLastLines[i]);
+        }
+      }
+      return new Promise((resolve, reject) => {
+        const predicate = (line) => line.startsWith(prefix);
+        const timeoutId = setTimeout(() => {
+          for (let i = _lineWaiters.length - 1; i >= 0; i--) {
+            if (_lineWaiters[i].resolve === resolve) { _lineWaiters.splice(i, 1); }
+          }
+          reject(new Error('Timed out waiting for line starting with "' + prefix + '"'));
+        }, timeoutMs);
+        _lineWaiters.push({ predicate, resolve, reject, timeoutId });
+      });
+    }
+    function waitForLineRegex(regex, timeoutMs = 5000) {
+      // Check backlog first
+      for (let i = _rxLastLines.length - 1; i >= 0; i--) {
+        if (regex.test(_rxLastLines[i])) {
+          return Promise.resolve(_rxLastLines[i]);
+        }
+      }
+      return new Promise((resolve, reject) => {
+        const predicate = (line) => regex.test(line);
+        const timeoutId = setTimeout(() => {
+          for (let i = _lineWaiters.length - 1; i >= 0; i--) {
+            if (_lineWaiters[i].resolve === resolve) { _lineWaiters.splice(i, 1); }
+          }
+          reject(new Error('Timed out waiting for line matching ' + regex));
+        }, timeoutMs);
+        _lineWaiters.push({ predicate, resolve, reject, timeoutId });
+      });
+    }
+
+    function parseMvLineToFrame(line) {
+      // Expect: mv:XX:DDD:fp,fp,fp,... (769 floats). Ignore first float; use next 768 floats for 32x24 grid.
+      // Be tolerant of wrapping quotes and whitespace.
+      let s = (line || '').trim();
+      if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+        s = s.slice(1, -1);
+      }
+      const m = s.match(/^mv:([0-9A-Fa-f]{2}):([0-9]+):(.+)$/);
+      if (!m) throw new Error('Bad mv line format');
+      const hexCode = m[1];
+      const timestampMs = parseInt(m[2], 10);
+      const csv = m[3];
+      const parts = csv.split(',');
+      if (parts.length < 769) throw new Error('Expected 769 floats, got ' + parts.length);
+      const out = new Float32Array(IR_ROWS * IR_COLS);
+      for (let i = 0; i < IR_ROWS * IR_COLS; i++) {
+        const v = parseFloat(parts[i + 1]); // skip first value
+        out[i] = isNaN(v) ? 0 : v;
+      }
+      return { codeHex: hexCode, timestampMs, frame: out };
     }
 
     async function sendRaw(text) {
@@ -1074,8 +1163,11 @@
     /* ================= IR IMAGE (Heatmap) TAB ================= */
     const IR_ROWS = 24;
     const IR_COLS = 32;
-    const IR_MIN = 0.10;
-    const IR_MAX = 40.0;
+  const IR_MIN = 0.10;   // fixed range lower bound
+  const IR_MAX = 40.0;   // fixed range upper bound
+  let irAutoScale = true; // whether to fit min/max to current frame
+  let irDynMin = IR_MIN;  // computed per-frame min when auto-scale
+  let irDynMax = IR_MAX;  // computed per-frame max when auto-scale
     let irData = null; // Float32Array length IR_ROWS*IR_COLS
     let irInitialized = false;
   // Scaling / interpolation
@@ -1134,8 +1226,20 @@
     ];
 
     function lerp(a,b,t){return a + (b-a)*t;}
+    function currentIrMin(){ return irAutoScale ? irDynMin : IR_MIN; }
+    function currentIrMax(){ return irAutoScale ? irDynMax : IR_MAX; }
+    function recomputeIrDynamicRange() {
+      if (!irData || !irData.length) { irDynMin = IR_MIN; irDynMax = IR_MAX; return; }
+      let mn = Infinity, mx = -Infinity;
+      for (let i=0;i<irData.length;i++){ const v=irData[i]; if (v<mn) mn=v; if (v>mx) mx=v; }
+      // guard against degenerate range
+      if (!isFinite(mn) || !isFinite(mx) || mx <= mn) { mn = IR_MIN; mx = IR_MAX; }
+      irDynMin = mn; irDynMax = mx;
+    }
     function valueToColor(v) {
-      let n = (v - IR_MIN) / (IR_MAX - IR_MIN);
+      const vmin = currentIrMin();
+      const vmax = currentIrMax();
+      let n = (v - vmin) / (vmax - vmin);
       if (n < 0) n = 0; else if (n > 1) n = 1;
       // Find surrounding stops
       for (let i=0;i<GRADIENT_STOPS.length-1;i++) {
@@ -1317,7 +1421,7 @@
       const data = img.data;
       for (let y=0; y<h; y++) {
         const n = 1 - (y / (h-1)); // top = 1 (max), bottom = 0 (min)
-        const v = IR_MIN + (IR_MAX - IR_MIN) * n;
+        const v = currentIrMin() + (currentIrMax() - currentIrMin()) * n;
         const [r,g,b] = valueToColor(v);
         for (let x=0; x<w; x++) {
           const i = (y * w + x) * 4;
@@ -1353,7 +1457,7 @@
             const v = irData[r*IR_COLS + c];
             // Choose contrasting color based on brightness of underlying cell: sample center pixel
             // Simple heuristic: map value to normalized 0..1 and threshold
-            let norm = (v - IR_MIN)/(IR_MAX-IR_MIN); if (norm<0) norm=0; else if (norm>1) norm=1;
+            let norm = (v - currentIrMin())/(currentIrMax()-currentIrMin()); if (norm<0) norm=0; else if (norm>1) norm=1;
             const textColor = norm > 0.55 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
             ctx.fillStyle = textColor;
             ctx.fillText(v.toFixed(1), x + cellSize/2, y + cellSize/2);
@@ -1370,11 +1474,12 @@
         const y = (1-p)* (h-1);
         ctx.fillRect(w-8, y, 8, 1);
       }
-      $('irMax').textContent = IR_MAX.toFixed(1);
-      $('irMin').textContent = IR_MIN.toFixed(2);
+      $('irMax').textContent = currentIrMax().toFixed(1);
+      $('irMin').textContent = currentIrMin().toFixed(2);
     }
 
     function renderIr() {
+      if (irAutoScale) recomputeIrDynamicRange();
       updateIrCanvasSize();
       drawIrHeatmap();
       drawIrLegend();
@@ -1398,7 +1503,29 @@
       initIrData();
       renderIr();
   const readBtn = $('irRead');
-  if (readBtn) readBtn.addEventListener('click', () => { randomizeIrData(); renderIr(); });
+  if (readBtn) readBtn.addEventListener('click', async () => {
+    if (!writer) { setStatus('Not connected'); return; }
+    const btn = readBtn;
+    btn.disabled = true;
+    try {
+      // Register waiter BEFORE sending to avoid race with fast devices.
+      // Match full frame line, not the short header echo.
+      const p = waitForLineRegex(/^[\s\"]*mv:66:[0-9]+:/, 10000);
+      await sendRaw('mv:66\n');
+      const line = await p;
+      const { frame } = parseMvLineToFrame(line);
+      if (!irData || irData.length !== frame.length) irData = new Float32Array(IR_ROWS * IR_COLS);
+      irData.set(frame);
+      renderIr();
+    } catch (e) {
+      logError('IR read failed: ' + e.message + '\n');
+    } finally {
+      // Only re-enable if continuous is not active and connection still enabled
+      const cont = $('irContinuous');
+      const contActive = cont && cont.getAttribute('data-active') === '1';
+      if (!contActive) btn.disabled = false;
+    }
+  });
   const contBtn = $('irContinuous');
   if (contBtn) contBtn.addEventListener('click', toggleIrContinuous);
       const saveImgBtn = $('irSaveImage');
@@ -1411,7 +1538,9 @@
         irScale = (v === 2 || v === 4) ? v : 1;
         renderIr();
       });
-      const showGridCb = $('irShowGrid');
+  const autoScaleCb = $('irAutoScale');
+  if (autoScaleCb) autoScaleCb.addEventListener('change', () => { irAutoScale = autoScaleCb.checked; if (irAutoScale) recomputeIrDynamicRange(); renderIr(); });
+  const showGridCb = $('irShowGrid');
       if (showGridCb) showGridCb.addEventListener('change', () => { irShowGrid = showGridCb.checked; renderIr(); });
       const showValuesCb = $('irShowValues');
       if (showValuesCb) showValuesCb.addEventListener('change', () => { irShowValues = showValuesCb.checked; renderIr(); });
@@ -1435,8 +1564,8 @@
       if (active) {
         // stop
         try {
-          await sendRaw('!\n');
-          await waitForLineExact(':interactive mode');
+          await sendRaw(';\n');
+          await waitForLineExact('!:interactive mode');
         } catch (e) {
           console.warn('Stop continuous handshake failed:', e.message);
         } finally {
@@ -1446,11 +1575,12 @@
           if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
           irPausedByHover = false;
           refreshIrRunningIndicator();
+          const irRead = $('irRead'); if (irRead) irRead.disabled = false;
         }
       } else {
         // start
         try {
-          await sendRaw(';\n');
+          await sendRaw('!\n');
           await waitForLineExact(';:continuous mode');
           btn.setAttribute('data-active','1');
           btn.classList.remove('btn-outline-secondary');
@@ -1463,6 +1593,7 @@
             renderIr();
           }, 500);
           refreshIrRunningIndicator();
+          const irRead = $('irRead'); if (irRead) irRead.disabled = true;
         } catch (e) {
           console.warn('Start continuous handshake failed:', e.message);
           // leave button as not active on failure
@@ -1481,6 +1612,7 @@
           btn.classList.add('btn-outline-secondary');
           irPausedByHover = false;
           refreshIrRunningIndicator();
+          const irRead = $('irRead'); if (irRead) irRead.disabled = false;
         }
       }
     });
@@ -1502,7 +1634,7 @@
     function exportIrDataCsv() {
       if (!irData) return;
       let lines = [];
-      lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+IR_MIN+',max,'+IR_MAX);
+  lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+currentIrMin()+',max,'+currentIrMax());
       for (let r=0;r<IR_ROWS;r++) {
         let rowVals = [];
         for (let c=0;c<IR_COLS;c++) {
@@ -1545,8 +1677,8 @@
       ctx.fillStyle = '#fff';
       ctx.font = '16px system-ui';
       ctx.textAlign = 'left';
-      ctx.fillText(IR_MAX.toFixed(1), heat.width + gap + legend.width + 4, 18);
-      ctx.fillText(IR_MIN.toFixed(2), heat.width + gap + legend.width + 4, heat.height - 6);
+  ctx.fillText(currentIrMax().toFixed(1), heat.width + gap + legend.width + 4, 18);
+  ctx.fillText(currentIrMin().toFixed(2), heat.width + gap + legend.width + 4, heat.height - 6);
       // Title
       ctx.font = '18px system-ui';
       ctx.textAlign = 'center';
