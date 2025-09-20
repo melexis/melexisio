@@ -133,6 +133,17 @@
   .tab-content { background: var(--panel-bg); border:1px solid var(--panel-border); border-top: none; padding: .75rem .75rem; border-radius: 0 0 .75rem .75rem; }
   .form-control, .form-select { background:#132943; border:1px solid #1F3A62; color:#E9F2FF; }
   .form-control:focus, .form-select:focus { background:#163258; color:#fff; border-color:#5AA3FF; box-shadow:0 0 0 .15rem rgba(90,163,255,0.25); }
+  /* Keep disabled inputs readable (Bootstrap may set light bg/text) */
+  .form-control:disabled, .form-select:disabled {
+    background:#163258 !important;
+    color:#E9F2FF !important;
+    opacity: 1 !important; /* avoid dimming text */
+    border-color: #1F3A62 !important;
+  }
+  /* Chromium/WebKit sometimes ignores color on disabled text */
+  input.form-control:disabled::-webkit-text-fill-color { color:#E9F2FF; }
+  /* Placeholder tint when disabled */
+  .form-control:disabled::placeholder { color:#AFC7E6; }
   input::placeholder { color:#b7d5c6; }
   hr { border-color: var(--panel-border); }
     select, input[type="number"] { width: 8rem; }
@@ -173,9 +184,6 @@
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="pd-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">People Detection</button>
         </li>
       </ul>
       <div class="tab-content pt-3" id="mainTabsContent">
@@ -285,18 +293,13 @@
       </div>
       <div class="tab-pane fade" id="tab4" role="tabpanel" aria-labelledby="ir-tab">
         <div class="p-3" id="irContainer">
-          <div class="d-flex flex-wrap align-items-start gap-3">
+          <div class="d-flex flex-nowrap align-items-start gap-3" style="overflow-x:auto;">
             <div>
               <canvas id="irCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
               <div id="irTooltip" style="position:absolute;pointer-events:none;z-index:20;padding:4px 6px;background:rgba(0,0,0,0.75);color:#fff;font:12px system-ui;border:1px solid #59ffb0;border-radius:4px;display:none;white-space:nowrap;transform:translate(8px,8px);"></div>
             </div>
-            <div class="d-flex flex-column align-items-center" style="min-width:60px;">
+            <div class="d-flex flex-column align-items-center" style="min-width:60px;flex:0 0 auto;">
               <canvas id="irLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
-              <div class="w-100 small mt-2" style="text-align:center;line-height:1.1;">
-                <div id="irMax">40.0</div>
-                <div style="height:4px;"></div>
-                <div id="irMin">0.10</div>
-              </div>
             </div>
           </div>
           <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
@@ -304,11 +307,11 @@
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Automatically fit color scale to current frame">
               <input id="irAutoScale" type="checkbox" class="form-check-input" checked /> Auto-scale
             </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (disabled when Auto-scale)">
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (read-only when Auto-scale)">
               Min:
               <input id="irMinInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="10.00" />
             </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (disabled when Auto-scale)">
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (read-only when Auto-scale)">
               Max:
               <input id="irMaxInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="40.00" />
             </label>
@@ -337,45 +340,7 @@
           </div>
         </div>
       </div>
-      <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="pd-tab">
-        <div class="p-3" id="pdContainer">
-          <div class="d-flex flex-wrap align-items-start gap-3">
-            <div>
-              <canvas id="pdCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
-              <div id="pdTooltip" style="position:absolute;pointer-events:none;z-index:20;padding:4px 6px;background:rgba(0,0,0,0.75);color:#fff;font:12px system-ui;border:1px solid #59ffb0;border-radius:4px;display:none;white-space:nowrap;transform:translate(8px,8px);"></div>
-            </div>
-            <div class="d-flex flex-column align-items-center" style="min-width:60px;">
-              <canvas id="pdLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
-              <div class="w-100 small mt-2" style="text-align:center;line-height:1.1;">
-                <div id="pdMax">40.0</div>
-                <div style="height:4px;"></div>
-                <div id="pdMin">0.10</div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
-            <span>Grid: <span id="pdGridSize">32×24</span></span>
-            <label class="form-label mb-0 d-flex align-items-center gap-1">Scale:
-              <select id="pdScaleSelect" class="form-select form-select-sm" style="max-width:70px;">
-                <option value="1" selected>x1</option>
-                <option value="2">x2</option>
-                <option value="4">x4</option>
-              </select>
-            </label>
-            <button id="pdRead" class="btn btn-outline-primary btn-sm">Read</button>
-            <button id="pdContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="pdRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
-            <button id="pdSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
-            <button id="pdExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show grid lines (scale x1/x2)">
-              <input id="pdShowGrid" type="checkbox" class="form-check-input" /> Grid
-            </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show numeric cell values (scale x1 only)">
-              <input id="pdShowValues" type="checkbox" class="form-check-input" /> Values
-            </label>
-          </div>
-        </div>
-      </div>
+      
       </div>
       <p class="muted">
         Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
@@ -1433,8 +1398,8 @@
       if (irManualMax <= irManualMin) irManualMax = Math.min(50, irManualMin + 0.01);
       irScale = (s.scale === 2 || s.scale === 4) ? s.scale : 1;
       const autoCb = $('irAutoScale'); if (autoCb) autoCb.checked = irAutoScale;
-      const minEl = $('irMinInput'); if (minEl) minEl.value = irManualMin.toFixed(2);
-      const maxEl = $('irMaxInput'); if (maxEl) maxEl.value = irManualMax.toFixed(2);
+      // Populate Min/Max inputs according to current mode (auto-scale vs manual)
+      updateIrMinMaxInputsDisplay();
       const sel = $('irScaleSelect'); if (sel) sel.value = String(irScale);
     }
     function updateIrScaleInputsEnabled(){
@@ -1442,6 +1407,20 @@
       const dis = !!irAutoScale;
       if (minEl) minEl.disabled = dis;
       if (maxEl) maxEl.disabled = dis;
+    }
+    // Keep the Min/Max input boxes showing the currently effective range
+    function updateIrMinMaxInputsDisplay(){
+      const minEl = $('irMinInput'); const maxEl = $('irMaxInput');
+      if (!minEl || !maxEl) return;
+      if (irAutoScale) {
+        // Show autoscale-computed values (read-only UI)
+        minEl.value = (isFinite(irDynMin) ? irDynMin : IR_MIN).toFixed(2);
+        maxEl.value = (isFinite(irDynMax) ? irDynMax : IR_MAX).toFixed(2);
+      } else {
+        // Manual mode shows user-entered values
+        minEl.value = irManualMin.toFixed(2);
+        maxEl.value = irManualMax.toFixed(2);
+      }
     }
   function currentIrMin(){ return irAutoScale ? irDynMin : irManualMin; }
   function currentIrMax(){ return irAutoScale ? irDynMax : irManualMax; }
@@ -1691,8 +1670,7 @@
         const y = (1-p)* (h-1);
         ctx.fillRect(w-8, y, 8, 1);
       }
-      $('irMax').textContent = currentIrMax().toFixed(1);
-      $('irMin').textContent = currentIrMin().toFixed(2);
+      // irMax/irMin labels removed; values are reflected via Min/Max inputs
     }
 
     /* ===== IR Video Recording (MediaRecorder + captureStream) ===== */
@@ -1780,11 +1758,15 @@
 
     function renderIr() {
       if (irAutoScale) recomputeIrDynamicRange();
+      // Only refresh input boxes when Auto-scale is ON; in manual mode keep user's values untouched
+      if (irAutoScale) updateIrMinMaxInputsDisplay();
       updateIrCanvasSize();
       drawIrHeatmap();
       drawIrLegend();
       // If recording is active, push current composite frame
       maybeRecordIrFrame();
+      // Ensure legend CSS height matches displayed heatmap height
+      syncIrLegendDisplayHeight();
     }
 
     // Enable/disable Start/Stop recording buttons based on Continuous state and active recording
@@ -1808,6 +1790,17 @@
         canvas.width = newW; canvas.height = newH;
       }
       if (legend.height !== newH) legend.height = newH;
+    }
+
+    // Match legend's displayed height to the heatmap's displayed height (responsive)
+    function syncIrLegendDisplayHeight() {
+      const heat = $('irCanvas');
+      const legend = $('irLegend');
+      if (!heat || !legend) return;
+      const rect = heat.getBoundingClientRect();
+      if (rect && rect.height) {
+        legend.style.height = rect.height + 'px';
+      }
     }
 
     function ensureIrInitialized() {
@@ -1856,7 +1849,14 @@
         renderIr();
       });
   const autoScaleCb = $('irAutoScale');
-  if (autoScaleCb) autoScaleCb.addEventListener('change', () => { irAutoScale = autoScaleCb.checked; if (irAutoScale) recomputeIrDynamicRange(); updateIrScaleInputsEnabled(); saveIrSettings(); renderIr(); });
+  if (autoScaleCb) autoScaleCb.addEventListener('change', () => {
+    irAutoScale = autoScaleCb.checked;
+    if (irAutoScale) recomputeIrDynamicRange();
+    updateIrScaleInputsEnabled();
+    updateIrMinMaxInputsDisplay();
+    saveIrSettings();
+    renderIr();
+  });
       const minInput = $('irMinInput');
       const maxInput = $('irMaxInput');
       function onMinMaxChange(){
@@ -1868,6 +1868,7 @@
         minInput.value = irManualMin.toFixed(2);
         maxInput.value = irManualMax.toFixed(2);
         saveIrSettings();
+        updateIrMinMaxInputsDisplay();
         renderIr();
       }
       if (minInput) minInput.addEventListener('change', onMinMaxChange);
@@ -2089,390 +2090,10 @@
         // Uncomment to debug: logError('IR continuous parse failed: ' + e.message + '\n');
       }
     }
-    /* ================= PEOPLE DETECTION TAB (duplicate IR logic, beautified) ================= */
-    // Grid & value range (mirrors IR constants)
-    const PD_ROWS = 24;
-    const PD_COLS = 32;
-    const PD_MIN = 10.0;
-    const PD_MAX = 40.0;
-    const PD_BASE_CELL_SIZE = 20;      // pixels per cell at scale 1
-    let pdData = null;                 // Float32Array PD_ROWS*PD_COLS
-    let pdInitialized = false;         // lazy init when tab shown
-    let pdScale = 1;                   // 1 (nearest), 2/4 (bicubic)
-    // Overlay + state flags
-    let pdShowGrid = false;
-    let pdShowValues = false;
-    let pdPausedByHover = false;       // pause continuous updates while hovering
-    let pdContinuousTimer = null;      // interval id
-
-    /* ----- Data generation (placeholder for real sensor feed) ----- */
-    function initPdData() {
-      pdData = new Float32Array(PD_ROWS * PD_COLS);
-      randomizePdData();
-    }
-    function randomizePdData() {
-      if (!pdData) return;
-      const span = PD_MAX - PD_MIN;
-      for (let i = 0; i < pdData.length; i++) {
-        pdData[i] = PD_MIN + Math.random() * span;
-      }
-    }
-
-    /* ----- Color mapping (shares gradient stops) ----- */
-    function pdValueToColor(v) {
-      let n = (v - PD_MIN) / (PD_MAX - PD_MIN);
-      if (n < 0) n = 0; else if (n > 1) n = 1;
-      for (let i = 0; i < GRADIENT_STOPS.length - 1; i++) {
-        const a = GRADIENT_STOPS[i];
-        const b = GRADIENT_STOPS[i + 1];
-        if (n >= a[0] && n <= b[0]) {
-          const t = (n - a[0]) / (b[0] - a[0]);
-          return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
-        }
-      }
-      const last = GRADIENT_STOPS[GRADIENT_STOPS.length - 1];
-      return [last[1], last[2], last[3]];
-    }
-
-    /* ----- Heatmap rendering (nearest vs bicubic) ----- */
-    function drawPdHeatmap() {
-      const canvas = $('pdCanvas');
-      if (!canvas || !pdData) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height;
-
-      // Fast path: nearest (block) rendering
-      if (pdScale === 1) {
-        canvas.style.imageRendering = 'pixelated';
-        const cell = PD_BASE_CELL_SIZE;
-        for (let r = 0; r < PD_ROWS; r++) {
-          for (let c = 0; c < PD_COLS; c++) {
-            const v = pdData[r * PD_COLS + c];
-            const [R, G, B] = pdValueToColor(v);
-            ctx.fillStyle = `rgb(${R},${G},${B})`;
-            ctx.fillRect(c * cell, r * cell, cell, cell);
-          }
-        }
-        drawPdOverlays(ctx);
-        return;
-      }
-
-      // Bicubic path for smoother display
-      canvas.style.imageRendering = 'auto';
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      const gridW = PD_COLS, gridH = PD_ROWS;
-      const cellW = w / gridW, cellH = h / gridH;
-
-      function getVal(ix, iy) {
-        if (ix < 0) ix = 0; else if (ix >= gridW) ix = gridW - 1;
-        if (iy < 0) iy = 0; else if (iy >= gridH) iy = gridH - 1;
-        return pdData[iy * gridW + ix];
-      }
-      function cubic(p0, p1, p2, p3, t) {
-        // Catmull-Rom like cubic
-        const a = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
-        const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
-        const c = -0.5 * p0 + 0.5 * p2;
-        const d = p1;
-        return ((a * t + b) * t + c) * t + d;
-      }
-      for (let y = 0; y < h; y++) {
-        const gy = y / cellH;
-        const gyi = Math.floor(gy);
-        const ty = gy - gyi;
-        for (let x = 0; x < w; x++) {
-          const gx = x / cellW;
-          const gxi = Math.floor(gx);
-          const tx = gx - gxi;
-          const colVals = [];
-            for (let m = -1; m <= 2; m++) {
-              const rowVals = [];
-              for (let n = -1; n <= 2; n++) {
-                rowVals.push(getVal(gxi + n, gyi + m));
-              }
-              colVals.push(rowVals);
-            }
-          const colInterp = [];
-          for (let r = 0; r < 4; r++) {
-            colInterp.push(cubic(colVals[r][0], colVals[r][1], colVals[r][2], colVals[r][3], tx));
-          }
-          const v = cubic(colInterp[0], colInterp[1], colInterp[2], colInterp[3], ty);
-          const [R, G, B] = pdValueToColor(v);
-          const idx = (y * w + x) * 4;
-          data[idx] = R; data[idx + 1] = G; data[idx + 2] = B; data[idx + 3] = 255;
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      drawPdOverlays(ctx);
-    }
-
-    /* ----- Overlays (grid & numeric values) ----- */
-    function drawPdOverlays(ctx) {
-      const canvas = ctx.canvas;
-      if (!canvas) return;
-      const cellSize = PD_BASE_CELL_SIZE;
-      const showValues = pdShowValues && pdScale === 1;
-      const showGrid = pdShowGrid && pdScale <= 2;
-      if (!showValues && !showGrid) return;
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = '10px system-ui';
-      for (let r = 0; r < PD_ROWS; r++) {
-        for (let c = 0; c < PD_COLS; c++) {
-          const x = c * cellSize;
-          const y = r * cellSize;
-          if (showGrid) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
-          }
-          if (showValues) {
-            const v = pdData[r * PD_COLS + c];
-            let norm = (v - PD_MIN) / (PD_MAX - PD_MIN);
-            if (norm < 0) norm = 0; else if (norm > 1) norm = 1;
-            ctx.fillStyle = norm > 0.55 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
-            ctx.fillText(v.toFixed(1), x + cellSize / 2, y + cellSize / 2);
-          }
-        }
-      }
-      ctx.restore();
-    }
-
-    /* ----- Tooltip (raw + interpolated) ----- */
-    const pdTooltip = (() => {
-      const el = $('pdTooltip');
-      if (!el) return null;
-      function getVal(ix, iy) {
-        if (ix < 0) ix = 0; else if (ix >= PD_COLS) ix = PD_COLS - 1;
-        if (iy < 0) iy = 0; else if (iy >= PD_ROWS) iy = PD_ROWS - 1;
-        return pdData[iy * PD_COLS + ix];
-      }
-      function cubic(p0, p1, p2, p3, t) {
-        const a = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
-        const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
-        const c = -0.5 * p0 + 0.5 * p2;
-        const d = p1;
-        return ((a * t + b) * t + c) * t + d;
-      }
-      function sampleInterpolated(px, py, cw, ch) {
-        const cellW = cw / PD_COLS, cellH = ch / PD_ROWS;
-        const gx = px / cellW, gy = py / cellH;
-        const gxi = Math.floor(gx), gyi = Math.floor(gy);
-        const tx = gx - gxi, ty = gy - gyi;
-        const colVals = [];
-        for (let m = -1; m <= 2; m++) {
-          const rowVals = [];
-          for (let n = -1; n <= 2; n++) {
-            rowVals.push(getVal(gxi + n, gyi + m));
-          }
-          colVals.push(rowVals);
-        }
-        const colInterp = [];
-        for (let r = 0; r < 4; r++) {
-          colInterp.push(cubic(colVals[r][0], colVals[r][1], colVals[r][2], colVals[r][3], tx));
-        }
-        return cubic(colInterp[0], colInterp[1], colInterp[2], colInterp[3], ty);
-      }
-      function fmt(v) { return v.toFixed(2); }
-      function onMove(ev) {
-        if (!pdData) return;
-        const canvas = $('pdCanvas');
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-        if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) { el.style.display = 'none'; return; }
-        const cellW = rect.width / PD_COLS, cellH = rect.height / PD_ROWS;
-        const col = Math.floor(x / cellW), row = Math.floor(y / cellH);
-        const raw = pdData[row * PD_COLS + col];
-        const interp = pdScale === 1 ? raw : sampleInterpolated(x, y, rect.width, rect.height);
-        el.innerHTML = `r${row} c${col}: <strong>${fmt(raw)}</strong> (interp ${fmt(interp)})`;
-        el.style.display = 'block';
-        el.style.left = rect.left + window.scrollX + x + 8 + 'px';
-        el.style.top = rect.top + window.scrollY + y + 8 + 'px';
-      }
-      function onLeave(){ el.style.display='none'; }
-      const canvas = $('pdCanvas');
-      if (canvas) {
-        canvas.addEventListener('mousemove', onMove);
-        canvas.addEventListener('mouseleave', onLeave);
-      }
-      return { hide: onLeave };
-    })();
-
-    /* ----- Legend rendering ----- */
-    function drawPdLegend() {
-      const canvas = $('pdLegend');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height;
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      for (let y = 0; y < h; y++) {
-        const t = y / (h - 1);
-        const stopT = 1 - t; // top=high values
-        const n = stopT;
-        for (let i = 0; i < GRADIENT_STOPS.length - 1; i++) {
-          const a = GRADIENT_STOPS[i], b = GRADIENT_STOPS[i + 1];
-          if (n >= a[0] && n <= b[0]) {
-            const tt = (n - a[0]) / (b[0] - a[0]);
-            const R = lerp(a[1], b[1], tt), G = lerp(a[2], b[2], tt), B = lerp(a[3], b[3], tt);
-            const idx = y * w * 4;
-            for (let x = 0; x < w; x++) {
-              const off = idx + x * 4;
-              data[off] = R; data[off + 1] = G; data[off + 2] = B; data[off + 3] = 255;
-            }
-            break;
-          }
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px system-ui';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      for (let p = 0; p <= 1; p += 0.2) {
-        const yy = Math.round((1 - p) * (h - 1));
-        ctx.fillText((PD_MIN + (PD_MAX - PD_MIN) * p).toFixed(1), w + 4, yy);
-      }
-      $('pdMax').textContent = PD_MAX.toFixed(1);
-      $('pdMin').textContent = PD_MIN.toFixed(2);
-    }
-
-    /* ----- Canvas sizing + composite render ----- */
-    function updatePdCanvasSize() {
-      const canvas = $('pdCanvas');
-      const legend = $('pdLegend');
-      if (!canvas || !legend) return;
-      const newW = PD_COLS * PD_BASE_CELL_SIZE;
-      const newH = PD_ROWS * PD_BASE_CELL_SIZE;
-      if (canvas.width !== newW || canvas.height !== newH) {
-        canvas.width = newW; canvas.height = newH;
-      }
-      if (legend.height !== newH) legend.height = newH;
-    }
-    function renderPd() { updatePdCanvasSize(); drawPdHeatmap(); drawPdLegend(); }
-
-    /* ----- Initialization on first tab show ----- */
-    function ensurePdInitialized() {
-      if (pdInitialized) return;
-      initPdData();
-      renderPd();
-      const readBtn = $('pdRead');
-      if (readBtn) readBtn.addEventListener('click', () => { randomizePdData(); renderPd(); });
-      const contBtn = $('pdContinuous');
-      if (contBtn) contBtn.addEventListener('click', togglePdContinuous);
-      const saveImgBtn = $('pdSaveImage');
-      if (saveImgBtn) saveImgBtn.addEventListener('click', savePdImage);
-      const exportBtn = $('pdExportData');
-      if (exportBtn) exportBtn.addEventListener('click', exportPdDataCsv);
-      const scaleSel = $('pdScaleSelect');
-      if (scaleSel) scaleSel.addEventListener('change', () => {
-        const v = parseInt(scaleSel.value, 10) || 1;
-        pdScale = (v === 2 || v === 4) ? v : 1;
-        renderPd();
-      });
-      ['pdCanvas', 'pdLegend'].forEach(id => {
-        const el = $(id); if (!el) return;
-        el.addEventListener('mouseenter', () => { if (!pdInitialized) return; pdPausedByHover = true; refreshPdRunningIndicator(); });
-        el.addEventListener('mouseleave', () => { if (!pdInitialized) return; pdPausedByHover = false; refreshPdRunningIndicator(); });
-      });
-      const showGridCb = $('pdShowGrid');
-      if (showGridCb) showGridCb.addEventListener('change', () => { pdShowGrid = showGridCb.checked; renderPd(); });
-      const showValuesCb = $('pdShowValues');
-      if (showValuesCb) showValuesCb.addEventListener('change', () => { pdShowValues = showValuesCb.checked; renderPd(); });
-      pdInitialized = true;
-    }
-
-    /* ----- Running indicator + continuous mode ----- */
-    function refreshPdRunningIndicator() {
-      const ind = $('pdRunning');
-      const btn = $('pdContinuous');
-      if (!ind || !btn) return;
-      const running = btn.getAttribute('data-active') === '1';
-      if (!running) {
-        ind.style.background = '#0d2219';
-        ind.style.boxShadow = '0 0 4px #0d2219';
-        ind.title = 'Not running';
-        return;
-      }
-      if (pdPausedByHover) {
-        ind.style.background = '#e3b341';
-        ind.style.boxShadow = '0 0 6px #e3b341';
-        ind.title = 'Continuous running (paused by hover)';
-      } else {
-        ind.style.background = '#59ffb0';
-        ind.style.boxShadow = '0 0 6px #59ffb0';
-        ind.title = 'Continuous running';
-      }
-    }
-    function togglePdContinuous() {
-      const btn = $('pdContinuous');
-      if (!btn) return;
-      const active = btn.getAttribute('data-active') === '1';
-      if (active) {
-        btn.setAttribute('data-active', '0');
-        if (pdContinuousTimer) clearInterval(pdContinuousTimer);
-        pdContinuousTimer = null;
-        refreshPdRunningIndicator();
-        return;
-      }
-      btn.setAttribute('data-active', '1');
-      refreshPdRunningIndicator();
-      pdContinuousTimer = setInterval(() => {
-        if (pdPausedByHover) return;
-        randomizePdData();
-        renderPd();
-      }, 500);
-    }
-    window.addEventListener('beforeunload', () => { if (pdContinuousTimer) clearInterval(pdContinuousTimer); });
-
-    /* ----- Data export & image save ----- */
-    function exportPdDataCsv() {
-      if (!pdData) return;
-      let out = `rows,${PD_ROWS}\ncols,${PD_COLS}\nmin,${PD_MIN}\nmax,${PD_MAX}\n`;
-      for (let r = 0; r < PD_ROWS; r++) {
-        let rowVals = [];
-        for (let c = 0; c < PD_COLS; c++) {
-          rowVals.push(pdData[r * PD_COLS + c].toFixed(2));
-        }
-        out += rowVals.join(',') + '\n';
-      }
-      const blob = new Blob([out], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      a.download = `people-detection-data-${ts}.csv`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-    }
-    function savePdImage() {
-      const canvas = $('pdCanvas'); if (!canvas) return;
-      const legend = $('pdLegend'); if (!legend) return;
-      const off = document.createElement('canvas');
-      const pad = 16, legendPad = 12;
-      const width = canvas.width + legend.width + pad + legendPad;
-      const height = Math.max(canvas.height, legend.height) + pad * 2;
-      off.width = width; off.height = height;
-      const ctx = off.getContext('2d');
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(canvas, pad, pad);
-      ctx.drawImage(legend, pad + canvas.width + legendPad, pad);
-      ctx.fillStyle = '#fff';
-      ctx.font = '16px system-ui';
-      ctx.fillText('People Detection', pad, height - 8);
-      const url = off.toDataURL('image/png');
-      const a = document.createElement('a');
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      a.href = url;
-      a.download = `people-detection-${ts}.png`;
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-
-    /* ----- Tab activation ----- */
-    document.addEventListener('shown.bs.tab', (ev) => { if (ev.target && ev.target.id === 'pd-tab') ensurePdInitialized(); });
-    if (location.hash === '#tab5') { ensurePdInitialized(); }
+    // Keep legends visually matched to canvases on window resize
+    window.addEventListener('resize', () => {
+      try { syncIrLegendDisplayHeight(); } catch {}
+    });
   </script>
 </body>
 </html>

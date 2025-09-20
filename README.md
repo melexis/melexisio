@@ -20,7 +20,8 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
   - Stop bits: 1 or 2 (default 2)
   - Flow control: none or hardware (RTS/CTS)
 - Quick commands (enabled when connected):
-  - `*IDN?`, `:SYST:INFO`, `*RST`
+  - `*IDN?`, `:SYST:INFO`, `:SYST:LOG`, `:SYST:HELP`, `*RST`
+  - Reset flow: waits for `*RESET*` and then `(OK)>`, disconnects, waits ~5s, and auto‑reconnects to the same VID:PID
 - Log viewer with colors (dark theme):
   - Local echo (TX): bright blue (#4db2ff)
   - Device responses (RX): light gray
@@ -50,17 +51,11 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Legend & export automatically reflect current scale and value range
  - Hover tooltip shows raw cell (row/col) value and interpolated value under the cursor (updates in real time)
  - Optional grid overlay (x1/x2 scales) and numeric cell values (x1 only) toggles for inspection
- - Scaling controls: Auto‑scale (fit to current frame) and manual Min/Max inputs (0.0–50.0). Manual inputs are disabled when Auto‑scale is on. Settings are persisted.
+ - Scaling controls: Auto‑scale (fit to current frame) and manual Min/Max inputs (0.0–50.0).
+   - Auto‑scale ON: inputs display computed min/max and are disabled (read‑only).
+   - Auto‑scale OFF: user‑entered Min/Max are used for visualization and are not overwritten by new frames. Settings are persisted.
 
-**People Detection tab**
-
-- Mirrors IR Image tab functionality (separate canvas & legend, same 32×24 simulated frame)
-- Independent scale selector (x1/x2/x4) with bicubic interpolation on higher scales
-- Read / Continuous simulated frame generation (500 ms interval) with pause-on-hover behavior
-- Optional grid overlay (x1/x2) and numeric values (x1) just like IR tab
-- Tooltip shows raw and interpolated values (row / column) under cursor
-- Save composite PNG and export CSV (distinct filenames prefixed with people-detection)
-- Overlay + legend rendering parallel to IR implementation (can later plug real people detection / classification data)
+<!-- People Detection tab has been removed -->
 
 **Settings tab**
 
@@ -114,7 +109,7 @@ Tip: If your server serves directory indexes, `index.html` at the project root w
 2. Click “Connect…”, pick your serial device, and adjust settings if needed.
 3. Type in the input box; choose EOL (LF/CR/CRLF) if your device expects it.
 4. Press Enter (when “Enter sends” is checked) or click Send.
-5. Use quick command buttons for `*IDN?`, `:SYST:INFO`, `*RST` (not stored in history).
+5. Use quick command buttons for `*IDN?`, `:SYST:INFO`, `:SYST:LOG`, `:SYST:HELP`, `*RST` (not stored in history).
 6. Toggle Local echo and Auto‑scroll as desired; use Clear / Save... to manage the log.
 
 IR Image basics:
@@ -161,9 +156,9 @@ Theme is implemented with CSS custom properties near the top of `index.html`:
 
 ```css
 :root {
-  --theme-green: #198754; /* accent */
-  --bg-green: #0A3622;    /* page background */
-  --text-on-green: #f2f8f4;
+  --theme-green: #1066CC; /* primary theme accent (blue) */
+  --bg-green: #133D73;    /* lighter navy background */
+  --text-on-green: #E9F2FF;
   --panel-bg: rgba(255,255,255,0.06);
   --panel-border: rgba(255,255,255,0.18);
 }
@@ -208,8 +203,7 @@ The IR tab is wired to a device protocol. For single reads, the app sends `mv:66
 - Live sensor integration for IR data (replace random generator)
 - Adjustable continuous interval (dropdown: 0.2 / 0.5 / 1.0 s)
 - Additional IR visualization enhancements (e.g., adaptive min/max autoscaling)
- - Merge duplicated IR / People Detection rendering code into shared helpers
- - Persist People Detection scale & overlay preferences (currently only IR scale stored)
+<!-- Removed People Detection related future items -->
 
 Contributions or suggestions welcome via issues / pull requests.
 

@@ -174,7 +174,7 @@
     
     <div class="help-panel">
       <h2>Overview & Requirements</h2>
-      <p>Melexis.IO is a browser-based serial terminal application for communicating with Melexis devices. It provides IR imaging, people detection, and comprehensive terminal functionality.</p>
+  <p>Melexis.IO is a browser-based serial terminal application for communicating with Melexis devices. It provides comprehensive terminal functionality and an IR imaging viewer.</p>
       
       <h3>System Requirements</h3>
       <ul>
@@ -210,7 +210,8 @@
             <li>Auto-scroll option</li>
             <li>Clear and Save log functions</li>
             <li>Quick command buttons (ID, INFO, Log, Help, Reset)</li>
-            <li>Reset behavior: waits for <code>*RESET*</code> then <code>(OK)&gt;</code>, disconnects, waits 5s, and reconnects to the same device</li>
+            <li>Log/Help commands: <code>:SYST:LOG</code> and <code>:SYST:HELP</code></li>
+            <li>Reset behavior: waits for <code>*RESET*</code> then <code>(OK)&gt;</code>, disconnects, waits ~5s, and reconnects to the same device</li>
           </ul>
         </div>
         
@@ -234,19 +235,8 @@
             <li>Grid overlay and numeric values (x1 scale)</li>
             <li>Read single frame or continuous mode</li>
             <li>Save PNG images and export CSV data</li>
-            <li>Recording functionality</li>
-          </ul>
-        </div>
-        
-        <div class="feature-item">
-          <h4>People Detection</h4>
-          <ul>
-            <li>Parallel IR functionality with people detection overlay</li>
-            <li>Independent scale selector (x1/x2/x4)</li>
-            <li>Grid overlay and numeric values options</li>
-            <li>Tooltip with raw and interpolated values</li>
-            <li>Continuous mode with pause-on-hover</li>
-            <li>Separate export with "people-detection" prefix</li>
+            <li>Video recording: capture WebM while Continuous is active</li>
+            <li>Auto-scale ON: Min/Max inputs show computed values (disabled/read‑only); Auto-scale OFF: manual entries are used and preserved</li>
           </ul>
         </div>
       </div>
