@@ -394,6 +394,8 @@
   let connDescription = '';
   let textDecoder, textEncoder;
   let readableStreamClosed, writableStreamClosed;
+  // Track last connected VID:PID for reconnection use
+  let lastConnectedVidPid = null;
 
     // History (cookie-backed) — only for input #tx
     const HISTORY_COOKIE = 'mip_cmd_history';
@@ -799,6 +801,7 @@
           if (m) {
             const cls = m[1] === 'OK' ? 'log-okprompt' : 'log-badprompt';
             appendLog(m[0], cls);
+            try { _notifyPromptWaiters(m[0]); } catch {}
             i += m[0].length;
             atLineStart = false;
             continue;
@@ -895,6 +898,12 @@
       try {
         // Always request a new port
         port = await navigator.serial.requestPort();
+        try {
+          const info = port && typeof port.getInfo === 'function' ? port.getInfo() : null;
+          if (info && typeof info.usbVendorId === 'number' && typeof info.usbProductId === 'number') {
+            lastConnectedVidPid = { vid: info.usbVendorId, pid: info.usbProductId };
+          }
+        } catch {}
         const opts = {
           baudRate: parseInt($('baud').value, 10) || 115200,
           dataBits: parseInt($('databits').value, 10) || 7,
@@ -943,6 +952,74 @@
 
       } catch (err) {
         console.error('Connect failed:', err);
+        alert('Failed to connect: ' + err.message);
+        setStatus('Disconnected');
+        setCommandButtonsEnabled(false);
+      }
+    }
+
+    // Connect using filters or previously granted ports matching VID:PID
+    async function connectWithFilters(vid, pid) {
+      if (!('serial' in navigator)) {
+        alert('Web Serial API not supported in this browser. Use Chrome or Edge (desktop).');
+        return;
+      }
+      try {
+        // Try previously granted ports first for a silent re-connect
+        port = null;
+        try {
+          const ports = await navigator.serial.getPorts();
+          for (const p of ports) {
+            const info = p && typeof p.getInfo === 'function' ? p.getInfo() : null;
+            if (info && info.usbVendorId === vid && info.usbProductId === pid) { port = p; break; }
+          }
+        } catch {}
+        if (!port) {
+          port = await navigator.serial.requestPort({ filters: [{ usbVendorId: vid, usbProductId: pid }] });
+        }
+        try { lastConnectedVidPid = { vid, pid }; } catch {}
+        const opts = {
+          baudRate: parseInt($('baud').value, 10) || 115200,
+          dataBits: parseInt($('databits').value, 10) || 7,
+          stopBits: parseInt($('stopbits').value, 10) || 2,
+          parity: $('parity').value || 'odd',
+          flowControl: $('flow').value || 'none',
+        };
+        await port.open(opts);
+
+        textDecoder = new TextDecoderStream();
+        textEncoder = new TextEncoderStream();
+        readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+        reader = textDecoder.readable.getReader();
+        writer = textEncoder.writable.getWriter();
+
+        $('connect').disabled = true;
+        $('disconnect').disabled = false;
+        setCommandButtonsEnabled(true);
+        connPortLabel = formatPortLabel(port);
+        connDescription = '';
+        awaitingIdnFirstLine = true;
+        updateConnectedStatus();
+        await sendCommand('*idn?');
+
+        reading = true;
+        (async () => {
+          try {
+            while (reading) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              if (value) processRx(value);
+            }
+          } catch (err) {
+            console.error('Read error:', err);
+            setStatus('Read error: ' + err.message);
+          } finally {
+            try { reader.releaseLock(); } catch {}
+          }
+        })();
+      } catch (err) {
+        console.error('Connect (filtered) failed:', err);
         alert('Failed to connect: ' + err.message);
         setStatus('Disconnected');
         setCommandButtonsEnabled(false);
@@ -1020,7 +1097,7 @@
       }
     }
 
-    // Await specific device line responses (normalized without trailing CR/LF)
+  // Await specific device line responses (normalized without trailing CR/LF)
     const _lineWaiters = [];
     // Keep a small backlog of recent complete lines to avoid race conditions
     // if a response arrives before a waiter is registered.
@@ -1098,6 +1175,40 @@
       });
     }
 
+    // Prompt waiters: detect lines like "(OK)>" that are parsed separately from line bodies
+    const _promptWaiters = [];
+    const PROMPT_LAST_MAX = 50;
+    const _rxLastPrompts = [];
+    function _notifyPromptWaiters(promptText) {
+      for (let i = _promptWaiters.length - 1; i >= 0; i--) {
+        const w = _promptWaiters[i];
+        try {
+          if (w.predicate(promptText)) {
+            _promptWaiters.splice(i, 1);
+            try { clearTimeout(w.timeoutId); } catch {}
+            w.resolve(promptText);
+          }
+        } catch {}
+      }
+      _rxLastPrompts.push(promptText);
+      if (_rxLastPrompts.length > PROMPT_LAST_MAX) _rxLastPrompts.shift();
+    }
+    function waitForPromptExact(expected, timeoutMs = 3000) {
+      for (let i = _rxLastPrompts.length - 1; i >= 0; i--) {
+        if (_rxLastPrompts[i] === expected) return Promise.resolve(_rxLastPrompts[i]);
+      }
+      return new Promise((resolve, reject) => {
+        const predicate = (p) => p === expected;
+        const timeoutId = setTimeout(() => {
+          for (let i = _promptWaiters.length - 1; i >= 0; i--) {
+            if (_promptWaiters[i].resolve === resolve) { _promptWaiters.splice(i, 1); }
+          }
+          reject(new Error('Timed out waiting for prompt ' + expected));
+        }, timeoutMs);
+        _promptWaiters.push({ predicate, resolve, reject, timeoutId });
+      });
+    }
+
     function parseMvLineToFrame(line) {
       // Expect: mv:XX:DDD:fp,fp,fp,... (769 floats). Ignore first float; use next 768 floats for 32x24 grid.
       // Be tolerant of wrapping quotes and whitespace.
@@ -1158,7 +1269,25 @@
   $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
   $('cmd-log').addEventListener('click', () => sendCommand(':SYST:LOG'));
   $('cmd-help').addEventListener('click', () => sendCommand(':SYST:HELP'));
-    $('cmd-rst').addEventListener('click', () => sendCommand('*RST'));
+    $('cmd-rst').addEventListener('click', async () => {
+      try {
+        await sendCommand('*RST');
+        // Wait for reset indication then OK prompt
+        try { await waitForLineExact('*RESET*', 10000); } catch {}
+        try { await waitForPromptExact('(OK)>', 8000); } catch {}
+      } finally {
+        try { await disconnect(); } catch {}
+        // Wait 5 seconds
+        await new Promise(r => setTimeout(r, 5000));
+        // Reconnect using same VID:PID if known
+        if (lastConnectedVidPid && typeof lastConnectedVidPid.vid === 'number' && typeof lastConnectedVidPid.pid === 'number') {
+          try { await connectWithFilters(lastConnectedVidPid.vid, lastConnectedVidPid.pid); }
+          catch (err) { setStatus('Reconnect failed: ' + (err && err.message ? err.message : String(err))); }
+        } else {
+          setStatus('Reconnect skipped: unknown VID:PID');
+        }
+      }
+    });
 
     // Arrow Up/Down history navigation in input (newest-first order)
     $('tx').addEventListener('keydown', (e) => {
