@@ -43,7 +43,6 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
 - Read button: requests one new frame from the device via `mv:66`
 - Continuous toggle: engages device continuous mode; UI auto-syncs with device mode lines. Button turns green and a small glowing status indicator lights up
 - Running indicator: always visible; dim when inactive, mint glow when active
-- Pause-on-hover: while continuous mode is active, hovering the heatmap or legend pauses frame updates (indicator shifts to amber); leaving resumes.
 - Save image: exports composited PNG (heatmap + legend + labels)
 - Export data: CSV with header row (rows, cols, min, max) then one row per heatmap row (values with 2 decimals)
 - Video recording: Start/Stop recording buttons capture a WebM video (composite: heatmap + legend + labels) using MediaRecorder. Recording is enabled only while Continuous mode is active.
