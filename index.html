@@ -9,13 +9,13 @@
   <style>
     :root { 
       color-scheme: light dark; 
-      --theme-green: #198754; /* accent */
-      --bg-green: #0A3622; /* deeper green background */
-      --text-on-green: #f2f8f4;
+  --theme-green: #1066CC; /* primary theme accent (blue) */
+  --bg-green: #133D73; /* lighter navy background */
+      --text-on-green: #E9F2FF;
       --panel-bg: rgba(255,255,255,0.06);
-      --panel-bg-solid: #0f3a27;
+      --panel-bg-solid: #0f223a;
       --panel-border: rgba(255,255,255,0.18);
-      --muted-on-green: #c4d8ce;
+      --muted-on-green: #C6D6F0;
     }
     /* Make the page a column flex layout */
     body {
@@ -37,10 +37,11 @@
       background: rgba(0,0,0,0.18);
       backdrop-filter: blur(3px);
     }
-    #header .title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      text-align: center;
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
     }
 
     /* App area */
@@ -87,8 +88,8 @@
       overflow: auto;    /* scrollbars when content expands */
       border: 1px solid var(--panel-border);
       padding: .5rem;
-      background: #112d21; /* adjusted to harmonize with deeper bg */
-      color: #d9dedc;       /* default: response (RX) gray */
+      background: #0F203A; /* adjusted to harmonize with deep navy */
+      color: #D9E2F2;       /* default: response (RX) gray */
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
@@ -110,17 +111,18 @@
   .tx-bar { min-height: 0; }
     /* Themed elements */
   .btn-primary { background-color: #125f3d; border-color: #0f5235; }
-  .btn-primary:hover, .btn-primary:focus { background-color: #0f5235; border-color: #0c452c; }
-  .btn-secondary { background-color: #355846; border-color: #2b4638; color:#e6fff2; }
-  .btn-secondary:hover { background-color: #2b4638; }
-  .btn-success { background:#1e9d62; border-color:#198754; }
-  .btn-success:hover { background:#198754; }
-  .btn-outline-primary { color: #e6fff2; border-color: #59ffb0; }
-  .btn-outline-primary:hover { background:#59ffb0; color:#08301f; }
+  .btn-primary { background-color: #1066CC; border-color: #0E59B3; }
+  .btn-primary:hover, .btn-primary:focus { background-color: #0E59B3; border-color: #0B3D8C; }
+  .btn-secondary { background-color: #2F3F58; border-color: #243349; color:#E9F2FF; }
+  .btn-secondary:hover { background-color: #28384F; }
+  .btn-success { background:#1E7FD1; border-color:#1066CC; }
+  .btn-success:hover { background:#1066CC; }
+  .btn-outline-primary { color: #E9F2FF; border-color: #5AA3FF; }
+  .btn-outline-primary:hover { background:#5AA3FF; color:#0B1D3A; }
   .btn-outline-danger { color: #ffc8c8; border-color: #ff7a7a; }
   .btn-outline-danger:hover { background:#ff7a7a; color:#300; }
-  .btn-outline-secondary { color:#e2efe7; border-color:#88b6a1; }
-  .btn-outline-secondary:hover { background:#88b6a1; color:#10241b; }
+  .btn-outline-secondary { color:#E3ECFA; border-color:#88A8C7; }
+  .btn-outline-secondary:hover { background:#88A8C7; color:#0E203C; }
   .btn-outline-warning { color:#ffe8a6; border-color:#ffda6a; }
   .btn-outline-warning:hover { background:#ffda6a; color:#3a2d00; }
   .btn-outline-info { color:#c2ecff; border-color:#74d2ff; }
@@ -129,8 +131,8 @@
   .nav-tabs .nav-link { color: var(--text-on-green); }
   .nav-tabs .nav-link.active { background: rgba(0,0,0,0.35); color: #fff; border-color: var(--panel-border) var(--panel-border) transparent; }
   .tab-content { background: var(--panel-bg); border:1px solid var(--panel-border); border-top: none; padding: .75rem .75rem; border-radius: 0 0 .75rem .75rem; }
-  .form-control, .form-select { background:#123d2a; border:1px solid #1d5a3d; color:#e6fff2; }
-  .form-control:focus, .form-select:focus { background:#14452f; color:#fff; border-color:#59ffb0; box-shadow:0 0 0 .15rem rgba(89,255,176,0.25); }
+  .form-control, .form-select { background:#132943; border:1px solid #1F3A62; color:#E9F2FF; }
+  .form-control:focus, .form-select:focus { background:#163258; color:#fff; border-color:#5AA3FF; box-shadow:0 0 0 .15rem rgba(90,163,255,0.25); }
   input::placeholder { color:#b7d5c6; }
   hr { border-color: var(--panel-border); }
     select, input[type="number"] { width: 8rem; }
@@ -144,7 +146,7 @@
 </head>
 <body>
   <header id="header" role="banner">
-    <div class="title">Melexis.IO</div>
+    <img src="/media/banner.png" alt="Melexis.IO" class="banner" />
   </header>
 
   <div id="app">
@@ -194,6 +196,8 @@
             <h2>Commands</h2>
             <button id="cmd-id" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
             <button id="cmd-info" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
+            <button id="cmd-log" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
+            <button id="cmd-help" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
             <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
             <hr />
             <h2>History</h2>
@@ -325,7 +329,7 @@
             </label>
             <button id="irRead" class="btn btn-outline-primary btn-sm">Read</button>
             <button id="irContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
+            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
             <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
             <button id="irRecStart" class="btn btn-outline-danger btn-sm">Start rec</button>
@@ -360,7 +364,7 @@
             </label>
             <button id="pdRead" class="btn btn-outline-primary btn-sm">Read</button>
             <button id="pdContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="pdRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
+            <span id="pdRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
             <button id="pdSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             <button id="pdExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show grid lines (scale x1/x2)">
@@ -851,6 +855,8 @@
     function setCommandButtonsEnabled(enabled) {
       $('cmd-id').disabled = !enabled;
       $('cmd-info').disabled = !enabled;
+      $('cmd-log').disabled = !enabled;
+      $('cmd-help').disabled = !enabled;
       $('cmd-rst').disabled = !enabled;
       const es = $('eepromSave'); if (es) es.disabled = !enabled;
       const elb = $('eepromLoad'); if (elb) elb.disabled = !enabled;
@@ -1149,7 +1155,9 @@
     $('save').addEventListener('click', saveLog);
 
     $('cmd-id').addEventListener('click', () => sendCommand('*IDN?'));
-    $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
+  $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
+  $('cmd-log').addEventListener('click', () => sendCommand(':SYST:LOG'));
+  $('cmd-help').addEventListener('click', () => sendCommand(':SYST:HELP'));
     $('cmd-rst').addEventListener('click', () => sendCommand('*RST'));
 
     // Arrow Up/Down history navigation in input (newest-first order)
