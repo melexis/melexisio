@@ -185,6 +185,9 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="irchart-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">IR Chart</button>
+        </li>
       </ul>
       <div class="tab-content pt-3" id="mainTabsContent">
       <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="terminal-tab">
@@ -340,6 +343,21 @@
           </div>
         </div>
       </div>
+      <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="irchart-tab">
+  <div class="p-3" id="irChartContainer" style="max-height:70vh;overflow:auto;">
+          <div class="d-flex flex-column gap-3">
+            <canvas id="irChart" width="1200" height="400" style="border:1px solid var(--panel-border);border-radius:4px;background:#0002;width:100%;display:block;"></canvas>
+            <div class="small d-flex flex-wrap align-items-center gap-3">
+              <button id="irChartRead" class="btn btn-outline-primary btn-sm">Read</button>
+              <button id="irChartContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
+              <span id="irChartRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
+              <button id="irChartClear" class="btn btn-outline-warning btn-sm">Clear</button>
+              <button id="irChartExport" class="btn btn-outline-secondary btn-sm">Export CSV</button>
+              <button id="irChartSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
+            </div>
+          </div>
+        </div>
+      </div>
       
       </div>
       <p class="muted">
@@ -350,6 +368,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
   <script>
   // Serial
   let port, reader, writer, reading = false;
@@ -853,6 +872,8 @@
       }
       // When connected, sync recording buttons state with continuous
       try { updateIrRecordingButtons(); } catch {}
+      // Sync IR Chart controls as well
+      try { updateIrChartButtons(); } catch {}
     }
 
   async function connect() {
@@ -1880,6 +1901,226 @@
   irInitialized = true;
     }
 
+    /* ===== IR Chart (min/max/mean over time) ===== */
+  let irChartInitialized = false;
+  let irChart;
+  // Chart data as {x: ms, y: value} points; capped to a fixed number for a sliding window
+  const IR_CHART_CAP = 300;
+  let irChartData = { min: [], max: [], mean: [] };
+  // Base timestamp in ms (from device) when continuous starts; used to compute x=0
+  let irChartBaseTimestamp = null;
+    function ensureIrChartInitialized() {
+      if (irChartInitialized) return;
+      const ctx = document.getElementById('irChart');
+      if (!ctx || !window.Chart) return;
+      // Determine solid background color from theme for saved images (canvas export ignores CSS backgrounds)
+      let chartBgColor = '#0f223a';
+      try {
+        const rs = getComputedStyle(document.documentElement);
+        const v = rs.getPropertyValue('--panel-bg-solid');
+        chartBgColor = (v && v.trim()) || chartBgColor;
+      } catch {}
+      // Plugin to paint canvas background so toDataURL includes it
+      const chartBackgroundPlugin = {
+        id: 'chartBackgroundFill',
+        beforeDraw(chart) {
+          const { ctx, chartArea, width, height } = chart;
+          ctx.save();
+          ctx.fillStyle = chartBgColor;
+          // Fill entire canvas
+          ctx.fillRect(0, 0, width, height);
+          ctx.restore();
+        }
+      };
+      irChart = new Chart(ctx, {
+        type: 'line',
+        plugins: [chartBackgroundPlugin],
+        data: {
+          datasets: [
+            { label: 'Min',  data: irChartData.min,  borderColor: '#5AA3FF', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Mean', data: irChartData.mean, borderColor: '#59ffb0', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Max',  data: irChartData.max,  borderColor: '#ff7a7a', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 }
+          ]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'ms', color: '#88A8C7' },
+              ticks: { color: '#88A8C7' },
+              grid: { color: 'rgba(136,168,199,0.25)' },
+              border: { color: '#88A8C7' }
+            },
+            y: {
+              ticks: { color: '#88A8C7' },
+              grid: { color: 'rgba(136,168,199,0.25)' },
+              border: { color: '#88A8C7' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#cfe2ff' } }
+          }
+        }
+      });
+      // Wire controls
+      const readBtn = $('irChartRead');
+      if (readBtn) readBtn.addEventListener('click', irChartReadOnce);
+      const contBtn = $('irChartContinuous');
+      if (contBtn) contBtn.addEventListener('click', toggleIrChartContinuous);
+      const clrBtn = $('irChartClear');
+      if (clrBtn) clrBtn.addEventListener('click', clearIrChart);
+      const expBtn = $('irChartExport');
+      if (expBtn) expBtn.addEventListener('click', exportIrChartCsv);
+      const saveImgBtn = $('irChartSaveImage');
+      if (saveImgBtn) saveImgBtn.addEventListener('click', saveIrChartImage);
+      updateIrChartButtons();
+      irChartInitialized = true;
+    }
+
+    function refreshIrChartRunningIndicator() {
+      const ind = $('irChartRunning');
+      const btn = $('irChartContinuous');
+      if (!ind || !btn) return;
+      const running = btn.getAttribute('data-active') === '1';
+      if (!running) {
+        ind.style.background = '#0d2219';
+        ind.style.boxShadow = '0 0 4px #0d2219';
+        ind.title = 'Continuous inactive';
+      } else {
+        ind.style.background = '#59ffb0';
+        ind.style.boxShadow = '0 0 6px #59ffb0';
+        ind.title = 'Continuous running';
+      }
+    }
+
+    function updateIrChartButtons() {
+      try {
+        const contBtn = $('irChartContinuous');
+        const continuousActive = !!(contBtn && contBtn.getAttribute('data-active') === '1');
+        const readBtn = $('irChartRead'); if (readBtn) readBtn.disabled = continuousActive;
+        refreshIrChartRunningIndicator();
+      } catch {}
+    }
+
+    function pushIrChartPoint(ms, minV, maxV, meanV, absMs) {
+      // Store absolute timestamp 'absMs' as 'ts' on each point for CSV export
+      irChartData.min.push({ x: ms, y: minV, ts: absMs });
+      irChartData.max.push({ x: ms, y: maxV, ts: absMs });
+      irChartData.mean.push({ x: ms, y: meanV, ts: absMs });
+      // Limit to last IR_CHART_CAP points
+      if (irChartData.min.length > IR_CHART_CAP) irChartData.min.shift();
+      if (irChartData.max.length > IR_CHART_CAP) irChartData.max.shift();
+      if (irChartData.mean.length > IR_CHART_CAP) irChartData.mean.shift();
+      if (irChart) irChart.update('none');
+    }
+
+    function computeStats(frame) {
+      let mn = Infinity, mx = -Infinity, sum = 0;
+      for (let i = 0; i < frame.length; i++) { const v = frame[i]; if (v < mn) mn = v; if (v > mx) mx = v; sum += v; }
+      const mean = frame.length ? (sum / frame.length) : 0;
+      return { mn, mx, mean };
+    }
+
+    async function irChartReadOnce() {
+      if (!writer) { setStatus('Not connected'); return; }
+      const btn = $('irChartRead'); if (btn) btn.disabled = true;
+      try {
+        const p = waitForLineRegex(/^[\s\"]*mv:66:[0-9]+:/, 10000);
+        await sendRaw('mv:66\n');
+        const line = await p;
+        const { frame, timestampMs } = parseMvLineToFrame(line);
+        const { mn, mx, mean } = computeStats(frame);
+        // If no base set (not in continuous), use first read as base for relative ms
+        if (irChartBaseTimestamp == null) irChartBaseTimestamp = timestampMs;
+        const rel = Math.max(0, timestampMs - irChartBaseTimestamp);
+  pushIrChartPoint(rel, mn, mx, mean, timestampMs);
+      } catch (e) {
+        logError('IR chart read failed: ' + e.message + '\n');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function toggleIrChartContinuous() {
+      const btn = $('irChartContinuous');
+      if (!btn) return;
+      const active = btn.getAttribute('data-active') === '1';
+      if (active) {
+        try {
+          await sendRaw('!\n');
+          await waitForLineExact(':interactive mode');
+        } catch (e) {
+          console.warn('Stop continuous handshake failed (chart):', e.message);
+        } finally {
+          btn.setAttribute('data-active','0');
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-secondary');
+          // Reset base timestamp for next session
+          irChartBaseTimestamp = null;
+          refreshIrChartRunningIndicator();
+          updateIrChartButtons();
+        }
+      } else {
+        try {
+          await sendRaw(';\n');
+          await waitForLineExact(';:continuous mode');
+          // Fresh session: clear existing chart so x starts at 0 cleanly
+          try { clearIrChart(); } catch {}
+          btn.setAttribute('data-active','1');
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-success');
+          // Will set base timestamp from first arriving frame
+          irChartBaseTimestamp = null;
+          refreshIrChartRunningIndicator();
+          updateIrChartButtons();
+        } catch (e) {
+          console.warn('Start continuous handshake failed (chart):', e.message);
+        }
+      }
+    }
+
+    function clearIrChart() {
+      irChartData.min.length = 0;
+      irChartData.max.length = 0;
+      irChartData.mean.length = 0;
+      if (irChart) irChart.update('none');
+    }
+
+    function exportIrChartCsv() {
+      let lines = ['time_ms,min,mean,max'];
+      const n = Math.min(irChartData.min.length, irChartData.mean.length, irChartData.max.length);
+      for (let i = 0; i < n; i++) {
+        // Use absolute device timestamp if available; fallback to x (relative) otherwise
+        const t = (irChartData.mean[i] && typeof irChartData.mean[i].ts === 'number')
+          ? irChartData.mean[i].ts
+          : irChartData.mean[i].x;
+        const minV = irChartData.min[i].y;
+        const meanV = irChartData.mean[i].y;
+        const maxV = irChartData.max[i].y;
+        // Format values to two decimal places per requirement
+        lines.push(`${t},${minV.toFixed(2)},${meanV.toFixed(2)},${maxV.toFixed(2)}`);
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'ir-stats.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function saveIrChartImage() {
+      try {
+        const c = document.getElementById('irChart');
+        if (!c) return;
+        const url = c.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url; a.download = 'ir-chart.png';
+        a.click();
+      } catch (e) {
+        logError('Save chart image failed: ' + e.message + '\n');
+      }
+    }
   // Continuous read driven by device frames (handled in maybeHandleIrContinuousFrame)
   let irContinuousTimer = null; // no longer used; kept for safe clearing on stop/visibility
     async function toggleIrContinuous() {
@@ -1937,6 +2178,15 @@
           const irRead = $('irRead'); if (irRead) irRead.disabled = false;
           if (irRec && irRec.active) { try { stopIrRecording(); } catch {} }
           updateIrRecordingButtons();
+          // Chart reflects stop as well
+          const cbtn = $('irChartContinuous');
+          if (cbtn && cbtn.getAttribute('data-active') === '1') {
+            cbtn.setAttribute('data-active','0');
+            cbtn.classList.remove('btn-success');
+            cbtn.classList.add('btn-outline-secondary');
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       }
     });
@@ -1946,31 +2196,32 @@
     document.addEventListener('shown.bs.tab', (ev) => {
       if (ev.target && ev.target.id === 'ir-tab') {
         ensureIrInitialized();
+      } else if (ev.target && ev.target.id === 'irchart-tab') {
+        ensureIrChartInitialized();
       }
     });
 
     // If user bookmarked directly with hash #tab4, initialize
-    if (location.hash === '#tab4') {
-      ensureIrInitialized();
-    }
+    if (location.hash === '#tab4') { ensureIrInitialized(); }
+    if (location.hash === '#tab5') { ensureIrChartInitialized(); }
 
     /* ===== Export Helpers ===== */
     function exportIrDataCsv() {
       if (!irData) return;
       let lines = [];
-  lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+currentIrMin()+',max,'+currentIrMax());
-      for (let r=0;r<IR_ROWS;r++) {
+      lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+currentIrMin()+',max,'+currentIrMax());
+      for (let r = 0; r < IR_ROWS; r++) {
         let rowVals = [];
-        for (let c=0;c<IR_COLS;c++) {
-          rowVals.push(irData[r*IR_COLS + c].toFixed(2));
+        for (let c = 0; c < IR_COLS; c++) {
+          rowVals.push(irData[r * IR_COLS + c].toFixed(2));
         }
         lines.push(rowVals.join(','));
       }
-      const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'ir-data-'+Date.now()+'.csv';
+      a.download = 'ir-data-' + Date.now() + '.csv';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     }
@@ -2034,6 +2285,16 @@
           const irRead = $('irRead'); if (irRead) irRead.disabled = false;
           if (irRec && irRec.active) { try { stopIrRecording(); } catch {} }
           updateIrRecordingButtons();
+          // Reflect in chart
+          const cbtn = $('irChartContinuous');
+          if (cbtn) {
+            cbtn.setAttribute('data-active','0');
+            cbtn.classList.remove('btn-success');
+            cbtn.classList.add('btn-outline-secondary');
+            irChartBaseTimestamp = null;
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       } else if (s === ';:continuous mode') {
         const btn = $('irContinuous');
@@ -2044,6 +2305,17 @@
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = true;
           updateIrRecordingButtons();
+          // Reflect in chart
+          const cbtn = $('irChartContinuous');
+          if (cbtn) {
+            try { clearIrChart(); } catch {}
+            cbtn.setAttribute('data-active','1');
+            cbtn.classList.remove('btn-outline-secondary');
+            cbtn.classList.add('btn-success');
+            irChartBaseTimestamp = null; // first frame will set base
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       }
     }
@@ -2063,10 +2335,18 @@
       if (s.startsWith('@66:01:')) s = s.slice('@66:01:'.length);
       if (!/^mv:66:[0-9]+:/.test(s)) return;
       try {
-        const { frame } = parseMvLineToFrame(s);
+        const { frame, timestampMs } = parseMvLineToFrame(s);
         if (!irData || irData.length !== frame.length) irData = new Float32Array(IR_ROWS * IR_COLS);
         irData.set(frame);
         renderIr();
+        // Chart stats
+        try {
+          ensureIrChartInitialized();
+          const { mn, mx, mean } = computeStats(frame);
+          if (irChartBaseTimestamp == null) irChartBaseTimestamp = timestampMs;
+          const rel = Math.max(0, timestampMs - irChartBaseTimestamp);
+          pushIrChartPoint(rel, mn, mx, mean, timestampMs);
+        } catch {}
       } catch (e) {
         // Do not spam log on occasional parse errors during stream
         // Uncomment to debug: logError('IR continuous parse failed: ' + e.message + '\n');

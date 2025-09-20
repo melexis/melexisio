@@ -237,6 +237,20 @@
             <li>Save PNG images and export CSV data</li>
             <li>Video recording: capture WebM while Continuous is active</li>
             <li>Auto-scale ON: Min/Max inputs show computed values (disabled/read‑only); Auto-scale OFF: manual entries are used and preserved</li>
+            <li>Hover does not pause updates in Continuous mode (no hover-to-pause behavior)</li>
+          </ul>
+        </div>
+
+        <div class="feature-item">
+          <h4>IR Chart</h4>
+          <ul>
+            <li>Real-time line chart of <strong>Min</strong>, <strong>Mean</strong>, and <strong>Max</strong> temperature per frame</li>
+            <li>Buttons: Read (single frame) and Continuous (start/stop device stream); state is synchronized with IR Image tab</li>
+            <li>Export CSV with columns: <code>time_ms,min,mean,max</code> — <em>time_ms</em> is the device timestamp; values are printed with 2 decimals</li>
+            <li>Save image exports the chart canvas as PNG with a solid background and visible axes/grid</li>
+            <li>Fixed chart height (~400 px); up to 300 points retained (older points dropped)</li>
+            <li>Chart x-axis displays elapsed ms from the start of Continuous (for visuals only)</li>
+            <li>No video controls on this tab</li>
           </ul>
         </div>
       </div>

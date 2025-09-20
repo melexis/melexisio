@@ -53,8 +53,19 @@ Single‑page Melexis.IO demo application that runs in your browser using the We
  - Scaling controls: Auto‑scale (fit to current frame) and manual Min/Max inputs (0.0–50.0).
    - Auto‑scale ON: inputs display computed min/max and are disabled (read‑only).
    - Auto‑scale OFF: user‑entered Min/Max are used for visualization and are not overwritten by new frames. Settings are persisted.
+  - Continuous updates are not paused on hover (no hover‑to‑pause behavior).
 
 <!-- People Detection tab has been removed -->
+
+**IR Chart tab (min/mean/max lines)**
+
+- Line chart of per‑frame statistics: Minimum, Mean, Maximum
+- Read button for a one‑shot frame; Continuous toggle to start/stop device stream (state synced with IR Image)
+- Export CSV with columns: `time_ms,min,mean,max` (time_ms = device timestamp; min/mean/max printed to 2 decimals)
+- Save image downloads the chart canvas as PNG (solid background with axes/grid visible)
+- Fixed chart height (~400 px); up to 300 points retained (older points dropped)
+- X‑axis in the chart shows elapsed milliseconds from the start of Continuous for display only
+- No video recording on this tab
 
 **Settings tab**
 
@@ -117,6 +128,11 @@ IR Image basics:
 - While Continuous is active, you can Start rec to capture a WebM video (Stop rec will download it). Recording is disabled when Continuous is inactive.
 - Use Auto‑scale for dynamic color mapping per frame, or uncheck it and enter Min/Max manually (persisted across reloads and included in settings export).
 
+IR Chart basics:
+- Click Read to compute and plot min/mean/max for one frame.
+- Click Continuous to stream frames; the chart appends a point each frame. Stopping Continuous in either IR tab stops it for both.
+- Export CSV or Save image from the chart toolbar.
+
 ## Keyboard
 
 - Enter: send (when “Enter sends” is enabled)
@@ -137,11 +153,12 @@ IR Image basics:
 | Region | Description |
 |--------|-------------|
 | Connection controls | Top fieldset with only Connect / Disconnect + status line. |
-| Tabs | "Terminal" (active), plus placeholder "Settings" and "Scan" panes. |
+| Tabs | Terminal, Settings, Scan, IR Image, IR Chart |
 | Log | Monospaced scrollback (`#log`) at fixed height (50vh; capped by viewport calc). |
 | Input row | Single compact row: Clear, Save..., TX field, Send (behavior options moved to Settings). |
 | Sidebar (right) | Quick command buttons + history list + clear history. |
 | IR Image tab | Heatmap canvas, legend, toolbar (Grid size display, Scale selector, Read, Continuous, Save image, Export data, running indicator). |
+| IR Chart tab | Line chart of min/mean/max; controls: Read, Continuous, Clear, Export CSV, Save image, running indicator. |
 
 ## Android
 
