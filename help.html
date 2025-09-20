@@ -9,13 +9,30 @@
   <style>
     :root { 
       color-scheme: light dark; 
-      --theme-green: #198754; /* accent */
-      --bg-green: #0A3622; /* deeper green background */
-      --text-on-green: #f2f8f4;
+      --theme-green: #1066CC; /* primary theme accent (blue) */
+      --bg-green: #133D73; /* lighter navy background */
+      --text-on-green: #E9F2FF;
       --panel-bg: rgba(255,255,255,0.06);
-      --panel-bg-solid: #0f3a27;
+      --panel-bg-solid: #0f223a;
       --panel-border: rgba(255,255,255,0.18);
-      --muted-on-green: #c4d8ce;
+      --muted-on-green: #C6D6F0;
+    }
+
+    /* Header bar (match index.html) */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(0,0,0,0.18);
+      backdrop-filter: blur(3px);
+    }
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
     }
     
     body {
@@ -94,7 +111,7 @@
     
     code {
       background: rgba(0,0,0,0.3);
-      color: #e6fff2;
+      color: #E9F2FF;
       padding: 0.2rem 0.4rem;
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -147,6 +164,9 @@
   </style>
 </head>
 <body>
+  <header id="header" role="banner">
+    <img src="/media/banner.png" alt="Melexis.IO" class="banner" />
+  </header>
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>
     
@@ -189,7 +209,8 @@
             <li>Local echo toggle</li>
             <li>Auto-scroll option</li>
             <li>Clear and Save log functions</li>
-            <li>Quick command buttons (ID, INFO, Reset)</li>
+            <li>Quick command buttons (ID, INFO, Log, Help, Reset)</li>
+            <li>Reset behavior: waits for <code>*RESET*</code> then <code>(OK)&gt;</code>, disconnects, waits 5s, and reconnects to the same device</li>
           </ul>
         </div>
         
