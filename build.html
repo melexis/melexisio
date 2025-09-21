@@ -187,15 +187,24 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 )</code></pre>
           <div class="muted">Adjust the values to match your device identifiers.</div>
         </li>
+        <li>
+          Generate a <code>.hex</code> file from the built ELF by adding this to <code>CMakeLists.txt</code>:
+<pre><code># Generate HEX file from ELF
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $&lt;TARGET_FILE:${CMAKE_PROJECT_NAME}&gt; ${CMAKE_PROJECT_NAME}.hex
+    COMMENT "Generating HEX file"
+)</code></pre>
+          <div class="muted">If <code>${CMAKE_OBJCOPY}</code> isn’t defined by your toolchain file, replace it with <code>arm-none-eabi-objcopy</code>.</div>
+        </li>
       </ol>
-      <p class="muted">More steps (build, flash, and IDE integration) will be added below.</p>
+      <p>Next: <a href="#cubeide">Use STM32CubeIDE</a> · <a href="#build-windows">Build on Windows (MSYS2 MinGW64)</a> · <a href="#build-linux">Build on Linux</a></p>
     </div>
 
     <div class="help-panel">
       <h2>After code generation (optional)</h2>
       <ul>
         <li>Open the generated CMake project with your preferred IDE (e.g., VS Code + CMake Tools) or build via command line.</li>
-        <li>Ensure the correct ARM GCC toolchain is installed and on PATH (e.g., <code>arm-none-eabi-gcc --version</code>).</li>
+  <li>Ensure the ARM GCC toolchain <strong>(version ≥ 12.1)</strong> is installed and on PATH (e.g., <code>arm-none-eabi-gcc --version</code>).</li>
         <li>Configure a build folder (e.g., <code>build/</code>), run CMake configure and build.</li>
         <li>Use your preferred flasher (ST-LINK CLI/STM32CubeProgrammer) to program the resulting <code>.elf</code>/<code>.hex</code>.</li>
       </ul>
@@ -203,7 +212,54 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     </div>
 
     <div class="help-panel">
-      <h2>Build on Windows (MSYS2 MinGW64)</h2>
+      <h2 id="cubeide">Use STM32CubeIDE</h2>
+      <ul>
+        <li>
+          Download and install <a href="https://www.st.com/en/development-tools/stm32cubeide.html" target="_blank" rel="noopener noreferrer">STM32CubeIDE</a> <strong>&ge; 19.0</strong> <span class="muted">(better CMake support)</span>.
+        </li>
+        <li>Run STM32CubeIDE and create or open a workspace.</li>
+        <li>
+          Create a project from the generated CMake sources:
+          <ul>
+            <li>
+              Menu: <span class="kbd">File</span> → <span class="kbd">New</span> → <span class="kbd">STM32 CMake Project</span> → <span class="kbd">Project from existing CMake sources</span>
+            </li>
+            <li>
+              Wizard options:
+              <ul>
+                <li><strong>Project name</strong>: keep default</li>
+                <li>[x] Use default location</li>
+                <li>Browse for the folder with the generated files (select the project root that contains <code>CMakeLists.txt</code>)</li>
+                <li>[x] Use default build directory</li>
+              </ul>
+            </li>
+            <li>
+              Select MCU: <code>STM32F446MEYx</code>
+            </li>
+            <li>
+              Click <span class="kbd">Finish</span>
+            </li>
+          </ul>
+        </li>
+        <li>
+          Build, run, and debug from STM32CubeIDE:
+          <ul>
+            <li>In the <strong>Project Explorer</strong>, select the newly created project.</li>
+            <li>Build: right-click the project → <span class="kbd">Build Project</span> (or press <span class="kbd">Ctrl</span>+<span class="kbd">B</span>).</li>
+            <li>Run: right-click → <span class="kbd">Run As</span> → <span class="kbd">STM32 C/C++ Application</span>.</li>
+            <li>
+              Run configurations: from menu <span class="kbd">Run</span> → <span class="kbd">Run Configurations…</span>, select <span class="kbd">STM32 C/C++ Application</span>, click <span class="kbd">New launch configuration</span>, choose your built <code>.elf</code>, ensure the <strong>ST-LINK</strong> debugger is selected, then <span class="kbd">Apply</span> and <span class="kbd">Run</span>.
+              <div class="muted">Use this if the ST-LINK socket is soldered and the ST-LINK is connected. Otherwise, program via STM32CubeProgrammer — see <a href="firmware.html">Firmware update</a>.</div>
+            </li>
+            <li>Debug: right-click → <span class="kbd">Debug As</span> → <span class="kbd">STM32 C/C++ Application</span> (first time will create a debug configuration).</li>
+            <li>If prompted, choose the ST-LINK probe, ensure the correct MCU is detected, and click <span class="kbd">OK</span>.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2 id="build-windows">Build on Windows (MSYS2 MinGW64)</h2>
       <ol>
         <li>
           Install <a href="https://www.msys2.org/" target="_blank" rel="noopener noreferrer">MSYS2</a> and update the package database and core system.
@@ -213,9 +269,9 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
           Open the <strong>MSYS2 MinGW64</strong> terminal (Start Menu → MSYS2 MinGW 64-bit).
         </li>
         <li>
-          Install required packages:
+          Install required packages (ARM GCC <strong>≥ 12.1</strong>):
           <pre><code>pacman -S --needed mingw-w64-x86_64-arm-none-eabi-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja</code></pre>
-          <div class="muted">If you prefer Makefiles instead of Ninja, install <code>mingw-w64-x86_64-make</code> and adjust the generator accordingly.</div>
+          <div class="muted">Verify version with <code>arm-none-eabi-gcc --version</code>. If you prefer Makefiles instead of Ninja, install <code>mingw-w64-x86_64-make</code> and adjust the generator accordingly.</div>
         </li>
         <li>
           Change to your generated project folder and build:
@@ -230,15 +286,15 @@ cmake --build .</code></pre>
     </div>
 
     <div class="help-panel">
-      <h2>Build on Linux</h2>
+      <h2 id="build-linux">Build on Linux</h2>
       <ol>
         <li>
-          Install the required packages: <code>arm-none-eabi-gcc</code>, <code>cmake</code>, <code>ninja-build</code>.
+          Install the required packages (ARM GCC <strong>≥ 12.1</strong>): <code>arm-none-eabi-gcc</code>, <code>cmake</code>, <code>ninja-build</code>.
           <div class="muted">On Debian/Ubuntu, for example: <code>sudo apt install gcc-arm-none-eabi cmake ninja-build</code>. Package names may vary by distro.</div>
         </li>
         <li>
           Change to your generated project folder and build:
-<pre><code>cd /c/Projects/&lt;your-path-to-generated-project&gt;
+<pre><code>cd ~/Documents/projects/&lt;your-path-to-generated-project&gt;
 mkdir build
 cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake
