@@ -134,6 +134,15 @@
     <h1>Build the Firmware</h1>
 
     <div class="help-panel">
+      <h2>Clone the repository</h2>
+      <ul>
+        <li>Clone this repository to your machine or download and extract the ZIP archive.</li>
+        <li>Use the pre-generated folder <code>melexis_io_fw</code> in this repo as your working project folder. It already contains the project configuration files (<code>.ioc</code> and <code>.extSettings</code>) and all generated source files.</li>
+      </ul>
+      <p>Next: <a href="#cubeide">Use STM32CubeIDE</a> · <a href="#build-windows">Build on Windows (MSYS2 MinGW64)</a> · <a href="#build-linux">Build on Linux</a></p>
+    </div>
+
+    <div class="help-panel">
       <h2>Build from scratch (STM32CubeMX)</h2>
       <ol>
         <li>
@@ -197,7 +206,6 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
           <div class="muted">If <code>${CMAKE_OBJCOPY}</code> isn’t defined by your toolchain file, replace it with <code>arm-none-eabi-objcopy</code>.</div>
         </li>
       </ol>
-      <p>Next: <a href="#cubeide">Use STM32CubeIDE</a> · <a href="#build-windows">Build on Windows (MSYS2 MinGW64)</a> · <a href="#build-linux">Build on Linux</a></p>
     </div>
 
     <div class="help-panel">
