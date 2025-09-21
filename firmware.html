@@ -162,7 +162,9 @@
           <strong>Enter DFU mode</strong>
           <ul>
             <li>From Terminal: send command <code>:SYST:DFU 42</code></li>
-            <li>Using buttons: press and hold <span class="kbd">Boot</span>, then click <span class="kbd">Reset</span></li>
+            <li>Using buttons: press and hold <span class="kbd">Boot</span>, then click <span class="kbd">Reset</span>
+              <button type="button" class="btn btn-outline-info btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#dfuButtonsModal">Show image</button>
+            </li>
           </ul>
           <div class="muted">In DFU mode, the device re-enumerates as an STM32 DFU device over USB.</div>
         </li>
@@ -178,10 +180,12 @@
         <li>
           <strong>Upload and verify</strong>
           <ul>
-            <li>Click <strong>Open file</strong> and select the firmware <code>.hex</code></li>
-            <li>Ensure <strong>Download</strong> (program) is selected, then click <strong>Start</strong></li>
+            <li>Activate the <strong>Erasing & Programming</strong> tab in STM32CubeProgrammer</li>
+            <li>Enter the <strong>File path</strong> or click <strong>Browse</strong> to select the firmware <code>.hex</code></li>
+            <li>Check <strong>Verify programming</strong> and <strong>Run after programming</strong></li>
+            <li>Click <strong>Start Programming</strong></li>
             <li>Wait for the progress to complete and verify finishes without errors</li>
-            <li>Power-cycle or reset the device to exit DFU and run the new firmware</li>
+            <li>With <strong>Run after programming</strong> checked, the board will reset and start the new firmware automatically</li>
           </ul>
         </li>
       </ol>
@@ -198,6 +202,25 @@
 
     <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
       <a href="index.html" class="back-link">← Back to app</a>
+    </div>
+  </div>
+
+  <!-- DFU Buttons Modal -->
+  <div class="modal fade" id="dfuButtonsModal" tabindex="-1" aria-labelledby="dfuButtonsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-on-green);">
+        <div class="modal-header" style="border-bottom: 1px solid var(--panel-border);">
+          <h5 class="modal-title" id="dfuButtonsModalLabel">Enter DFU using buttons</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: invert(1) contrast(200%);"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-2">Press and hold Boot, then click Reset.</p>
+          <img src="media/buttons.png" alt="Board buttons: Boot and Reset" class="img-fluid rounded" style="max-height: 70vh; width: 100%; object-fit: contain;" />
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid var(--panel-border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
     </div>
   </div>
 
