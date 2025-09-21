@@ -134,20 +134,118 @@
     <h1>Build the Firmware</h1>
 
     <div class="help-panel">
-      <h2>Sources</h2>
-      <p>Details about the source code layout and repositories will be added later.</p>
+      <h2>Build from scratch (STM32CubeMX)</h2>
+      <ol>
+        <li>
+          Download and install <strong><a href="https://www.st.com/en/development-tools/stm32cubemx.html" target="_blank" rel="noopener noreferrer">STM32CubeMX</a></strong> version <strong>6.15 or newer</strong> from STMicroelectronics.
+          <div class="muted">Tip: Make sure the version is 6.15+.</div>
+        </li>
+        <li>
+          Get the project configuration files from this repo and place them in a fresh working folder on your PC:
+          <ul>
+            <li><a href="melexis_io_fw/melexis_io_fw.ioc" download="melexis_io_fw.ioc"><code>melexis_io_fw/melexis_io_fw.ioc</code></a></li>
+            <li><a href="melexis_io_fw/.extSettings" download=".extSettings"><code>melexis_io_fw/.extSettings</code></a></li>
+          </ul>
+          <div class="muted">
+            You may rename the <code>.ioc</code> file, but the folder name must match the <code>.ioc</code> filename (without the extension). For example, if you rename it to <code>MyProj.ioc</code>, the folder must be <code>MyProj/</code>.
+          </div>
+        </li>
+        <li>
+          Open the <code>.ioc</code> file in <strong>STM32CubeMX</strong>.
+        </li>
+        <li>
+          In <em>Project Manager → Project Settings</em>, set <strong>Toolchain / IDE</strong> to <strong>CMake</strong> and <strong>GCC</strong>.
+        </li>
+        <li>
+          Click <strong>Generate Code</strong> to produce the CMake-based project.
+        </li>
+        <li>
+          Create the folder <code>Application/src</code> inside the generated project and copy the file
+          <a href="melexis_io_fw/Application/src/heap_useNewlib_ST.c" download><code>src/Application/src/heap_useNewlib_ST.c</code></a>
+          there (so it becomes <code>Application/src/heap_useNewlib_ST.c</code> in your project tree).
+        </li>
+        <li>
+          Open <code>Core/Src/sysmem.c</code> in the generated project and change the <code>_sbrk</code> signature to be weak by adding the attribute:
+          <pre><code>__attribute__((weak)) void *_sbrk(ptrdiff_t incr)</code></pre>
+          <div class="muted">This allows overriding/compatibility with the newlib heap implementation added above.</div>
+        </li>
+        <li>
+          Edit your project's top-level <code>CMakeLists.txt</code> and add <code>heap_useNewlib_ST.c</code> to the executable sources:
+<pre><code># Add sources to executable
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user sources here
+    Application/src/heap_useNewlib_ST.c
+)</code></pre>
+        </li>
+        <li>
+          Add USB VID/PID definitions to the same <code>CMakeLists.txt</code> so they are available as compile-time macros:
+<pre><code># Add project symbols (macros)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined symbols
+    USB_FS_VID=0x3e9
+    USB_FS_PID=0x41
+)</code></pre>
+          <div class="muted">Adjust the values to match your device identifiers.</div>
+        </li>
+      </ol>
+      <p class="muted">More steps (build, flash, and IDE integration) will be added below.</p>
     </div>
 
     <div class="help-panel">
-      <h2>STM32CubeIDE Build</h2>
-      <p>Instructions for building the firmware with STM32CubeIDE will be added here.</p>
+      <h2>After code generation (optional)</h2>
       <ul>
-        <li>Install STM32CubeIDE</li>
-        <li>Import the project</li>
-        <li>Select the appropriate build configuration</li>
-        <li>Build to produce HEX/ELF artifacts</li>
+        <li>Open the generated CMake project with your preferred IDE (e.g., VS Code + CMake Tools) or build via command line.</li>
+        <li>Ensure the correct ARM GCC toolchain is installed and on PATH (e.g., <code>arm-none-eabi-gcc --version</code>).</li>
+        <li>Configure a build folder (e.g., <code>build/</code>), run CMake configure and build.</li>
+        <li>Use your preferred flasher (ST-LINK CLI/STM32CubeProgrammer) to program the resulting <code>.elf</code>/<code>.hex</code>.</li>
       </ul>
-      <p class="muted">This section is a placeholder. Provide target MCU, toolchain version, and any required middleware in the final version.</p>
+      <p class="muted">If you prefer STM32CubeIDE instead, you can import the generated project there and build/flash from the IDE.</p>
+    </div>
+
+    <div class="help-panel">
+      <h2>Build on Windows (MSYS2 MinGW64)</h2>
+      <ol>
+        <li>
+          Install <a href="https://www.msys2.org/" target="_blank" rel="noopener noreferrer">MSYS2</a> and update the package database and core system.
+          <div class="muted">Follow MSYS2's first-run update steps (run update, restart the shell if prompted, and update again).</div>
+        </li>
+        <li>
+          Open the <strong>MSYS2 MinGW64</strong> terminal (Start Menu → MSYS2 MinGW 64-bit).
+        </li>
+        <li>
+          Install required packages:
+          <pre><code>pacman -S --needed mingw-w64-x86_64-arm-none-eabi-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja</code></pre>
+          <div class="muted">If you prefer Makefiles instead of Ninja, install <code>mingw-w64-x86_64-make</code> and adjust the generator accordingly.</div>
+        </li>
+        <li>
+          Change to your generated project folder and build:
+          <pre><code>cd /c/Projects/&lt;your-path-to-generated-project&gt;
+mkdir build
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake
+cmake --build .</code></pre>
+          <div class="muted">If CMake reports a generator/tool issue, try specifying one explicitly, e.g., <code>cmake -G "MinGW Makefiles" ..</code> or <code>cmake -G Ninja ..</code> (if Ninja is installed).</div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Build on Linux</h2>
+      <ol>
+        <li>
+          Install the required packages: <code>arm-none-eabi-gcc</code>, <code>cmake</code>, <code>ninja-build</code>.
+          <div class="muted">On Debian/Ubuntu, for example: <code>sudo apt install gcc-arm-none-eabi cmake ninja-build</code>. Package names may vary by distro.</div>
+        </li>
+        <li>
+          Change to your generated project folder and build:
+<pre><code>cd /c/Projects/&lt;your-path-to-generated-project&gt;
+mkdir build
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake
+cmake --build .</code></pre>
+          <div class="muted">Use your Linux path instead of <code>/c/Projects/...</code>, e.g., <code>/home/&lt;user&gt;/Projects/...</code>. If needed, specify a generator explicitly: <code>cmake -G Ninja ..</code>.</div>
+        </li>
+      </ol>
     </div>
 
     <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
