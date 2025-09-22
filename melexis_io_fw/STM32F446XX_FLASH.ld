@@ -55,10 +55,10 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 128K
-  ISR      (rx)    : ORIGIN = 0x8000000,   LENGTH = 16K /* Vector table */
-  /* EEPROM   (rwx)   : ORIGIN = 0x0804000,   LENGTH = 3 * 16K */ /* Sectors 1, 2 and 3 for EEPROM emulation */
-  FLASH    (rx)    : ORIGIN = 0x8010000,   LENGTH = 512K-16k-48k /* Use remaing for code */
+  RAM      (xrw)  : ORIGIN = 0x20000000,   LENGTH = 128K
+  ISR      (rx)   : ORIGIN = 0x8000000,   LENGTH = 16K /* Vector table */
+  EEPROM   (rw)   : ORIGIN = 0x0804000,   LENGTH = 3 * 16K /* Sectors 1, 2 and 3 for EEPROM emulation */
+  FLASH    (rx)   : ORIGIN = 0x8010000,   LENGTH = 512K-16k-48k /* Use remaing for code */
 }
 
 /* Highest address of the user mode stack */

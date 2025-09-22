@@ -267,6 +267,28 @@ Permanent (user) PATH:
     </div>
 
     <div class="help-panel">
+      <h2>Partial update: preserve Flash sectors 1–3</h2>
+      <p>If you use EEPROM emulation in sectors 1–3 (0x08004000–0x0800FFFF), avoid erasing or writing those regions. Program only from <code>0x08010000</code> upward.</p>
+      <h3>Case A: BIN is linked to start at 0x08010000</h3>
+      <p>This is the recommended setup when you changed the linker script (FLASH origin at <code>0x08010000</code>).</p>
+<pre><code>dfu-util -a 0 -s 0x08010000:leave -D melexis_io_fw.bin</code></pre>
+      <div class="muted">This writes only the application region. Do not add <code>:mass-erase</code>. If multiple DFU devices are connected, you can select the STM32 DFU with <code>-d 0483:df11</code>.</div>
+
+      <h3>Case B: BIN starts at 0x08000000 (full image)</h3>
+      <p>Trim the first 64&nbsp;KB (sectors 0–3) so you only program the application part at <code>0x08010000</code>.</p>
+      <p class="muted">Windows PowerShell snippet to create <code>app_only.bin</code> from <code>full.bin</code>:</p>
+<pre><code>$in  = [System.IO.File]::OpenRead("full.bin")
+$out = [System.IO.File]::Create("app_only.bin")
+$in.Seek(0x10000, 'Begin') | Out-Null
+$in.CopyTo($out)
+$out.Close(); $in.Close()
+
+# Flash only the app region
+dfu-util -a 0 -s 0x08010000:leave -D .\app_only.bin</code></pre>
+      <div class="muted">This preserves sectors 1–3 because they are neither erased nor written. If you must also update sector 0 (vector table), do it in a separate 16&nbsp;KB write to <code>0x08000000</code> and still avoid sectors 1–3.</div>
+    </div>
+
+    <div class="help-panel">
       <h2>Update using dfu-util (Linux)</h2>
       <ol>
         <li>
