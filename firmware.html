@@ -144,10 +144,20 @@
     <div class="help-panel">
       <h2>Overview</h2>
       <p>This page explains how to update your device firmware using STMicroelectronics STM32CubeProgrammer. Follow the steps carefully. Do not disconnect power or USB during flashing.</p>
+      <div class="warning">
+        <h4>Notes</h4>
+        <ul>
+          <li>Close any other applications using the device’s USB port before switching to DFU.</li>
+          <li>Do not interrupt power or USB while programming.</li>
+          <li>If connection fails, try a different USB cable/port and ensure STM32 DFU drivers are installed.</li>
+        </ul>
+      </div>
     </div>
 
+    
+
     <div class="help-panel">
-      <h2>Steps</h2>
+      <h2>Update using STM32CubeProgrammer</h2>
       <ol>
         <li>
           <strong>Download and install STM32CubeProgrammer</strong><br />
@@ -189,15 +199,105 @@
           </ul>
         </li>
       </ol>
+    </div>
 
-      <div class="warning">
-        <h4>Notes</h4>
-        <ul>
-          <li>Close any other applications using the device’s USB port before switching to DFU.</li>
-          <li>Do not interrupt power or USB while programming.</li>
-          <li>If connection fails, try a different USB cable/port and ensure STM32 DFU drivers are installed.</li>
-        </ul>
-      </div>
+    <div class="help-panel">
+      <h2>Update using STM32CubeProgrammer CLI</h2>
+      <p>You can flash the firmware from the command line using STM32CubeProgrammer's CLI tool. Ensure the device is in DFU mode first (see steps above).</p>
+      <ol>
+        <li>
+          Locate the CLI executable, typically here:
+          <div class="muted">"C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeProgrammer\\bin\\STM32_Programmer_CLI.exe"</div>
+        </li>
+        <li>
+          <em>Optional</em>: Add the folder to your <strong>PATH</strong> so you can call the CLI from any directory:
+<pre><code>C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\</code></pre>
+          <div class="muted">Windows PowerShell (current session):
+<pre><code>$env:Path += ";C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin"</code></pre>
+Permanent (user) PATH:
+<pre><code>setx PATH "$env:Path;C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin"</code></pre>
+          </div>
+        </li>
+        <li>
+          Run the command (replace paths as needed):
+<pre><code>"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -c port=USB1 -w "C:\path\to\melexis_io_fw.hex" -v -g</code></pre>
+          <div class="muted">
+            -c port=USB1: connect over USB DFU · -w: write HEX · -v: verify · -g: run after programming
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Update using dfu-util (Windows)</h2>
+      <ol>
+        <li>
+          Install WinUSB driver for the DFU device using <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener">Zadig</a>:
+          <ul>
+            <li>Run Zadig → Options → <strong>List All Devices</strong></li>
+            <li>Select <strong>STM32 Bootloader</strong> from the list</li>
+            <li>Choose <strong>WinUSB</strong> as the driver and click <strong>Install Driver</strong></li>
+          </ul>
+        </li>
+        <li>
+          Download <a href="https://github.com/dfu-util/dfu-util/releases" target="_blank" rel="noopener">dfu-util for Windows</a> and extract it (e.g., to <code>C:\Tools\dfu-util\</code>).
+          <div class="muted">Add the folder to PATH or run commands from inside the extracted directory.</div>
+        </li>
+        <li>
+          Enter DFU mode (see steps above), then verify the device is detected:
+          <pre><code>dfu-util --list</code></pre>
+          <div class="muted">You should see an entry for <em>STM32 Bootloader</em> with DFU interfaces.</div>
+        </li>
+        <li>
+          Convert the firmware HEX to BIN (dfu-util writes BIN/DFU, not Intel HEX):
+          <ul>
+            <li>Using ARM GCC (if installed):
+              <pre><code>arm-none-eabi-objcopy -I ihex -O binary melexis_io_fw.hex melexis_io_fw.bin</code></pre>
+            </li>
+            <li>Or use another converter (e.g., <code>srec_cat</code>) to produce <code>.bin</code>.</li>
+          </ul>
+          <div class="muted">Download the HEX from this page above or use your own build output.</div>
+        </li>
+        <li>
+          Flash the BIN to internal flash at address <code>0x08000000</code> and reset when done:
+          <pre><code>dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.bin</code></pre>
+          <div class="muted">Drop <code>:leave</code> if you do not want the board to reset automatically after programming.</div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Update using dfu-util (Linux)</h2>
+      <ol>
+        <li>
+          No additional drivers are required on Linux.
+        </li>
+        <li>
+          Install <code>dfu-util</code> from your distribution:
+          <div class="muted">Debian/Ubuntu: <code>sudo apt install dfu-util</code> · Fedora: <code>sudo dnf install dfu-util</code> · Arch: <code>sudo pacman -S dfu-util</code></div>
+        </li>
+        <li>
+          Enter DFU mode (see above) and verify detection:
+          <pre><code>dfu-util --list</code></pre>
+        </li>
+        <li>
+          Convert HEX to BIN (same as Windows):
+          <pre><code>arm-none-eabi-objcopy -I ihex -O binary melexis_io_fw.hex melexis_io_fw.bin</code></pre>
+        </li>
+        <li>
+          Flash the BIN to internal flash and reset when done:
+          <pre><code>dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.bin</code></pre>
+        </li>
+      </ol>
+  <p class="muted">These steps mirror the Windows dfu-util flow; only installation differs. You may need <code>sudo</code> if udev permissions are not configured.</p>
+
+  <h3>Optional: allow flashing without sudo (udev rule)</h3>
+  <p class="muted">Adjust <code>idProduct</code> if your device reports a different PID than <code>df11</code> (check with <code>dfu-util --list</code>).</p>
+<pre><code># Create udev rule for STM32 DFU (VID 0483, PID df11)
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="df11", MODE="0666", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/49-st-dfu.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+# Unplug and re-plug the device (or reset to DFU) to apply</code></pre>
     </div>
 
     <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
