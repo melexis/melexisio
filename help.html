@@ -4,149 +4,179 @@
   <meta charset="utf-8" />
   <title>Melexis.IO - Help</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Montserrat font from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap 5 CDN -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <style>
-    :root { 
-      color-scheme: light dark; 
-      --theme-green: #198754; /* accent */
-      --bg-green: #0A3622; /* deeper green background */
-      --text-on-green: #f2f8f4;
-      --panel-bg: rgba(255,255,255,0.06);
-      --panel-bg-solid: #0f3a27;
-      --panel-border: rgba(255,255,255,0.18);
-      --muted-on-green: #c4d8ce;
+    :root {
+      --mlx-blue: #00ADEF;
+      font-size: 14px; /* base font size */
+      --mlx-dark: #232A34;
+      --mlx-bg: #1A2027;
+      --mlx-panel: #232A34;
+      --mlx-panel-border: #2D3742;
+      --mlx-muted: #A9B8C9;
+      --mlx-white: #fff;
     }
-    
     body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      background: var(--mlx-bg);
+      color: var(--mlx-white);
       margin: 0;
-      background: var(--bg-green);
-      color: var(--text-on-green);
-      line-height: 1.6;
+      line-height: 1.7;
     }
-    
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--mlx-panel-border);
+      background: var(--mlx-panel);
+    }
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
+    }
     .container {
-      max-width: 800px;
+      max-width: 820px;
       margin: 0 auto;
       padding: 2rem 1rem;
     }
-    
+    .help-panel {
+      background: var(--mlx-panel);
+      border: 1px solid var(--mlx-panel-border);
+      border-radius: 1rem;
+      padding: 1.7rem 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+    }
     .back-link {
-      color: var(--muted-on-green);
+      color: var(--mlx-muted);
       text-decoration: none;
-      font-size: 0.9rem;
+      font-size: 0.98rem;
       display: inline-block;
       margin-bottom: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: color 0.2s;
     }
-    
     .back-link:hover {
-      color: var(--text-on-green);
+      color: var(--mlx-blue);
       text-decoration: underline;
     }
-    
     h1 {
-      color: var(--theme-green);
-      font-size: 2.5rem;
-      font-weight: 600;
-      margin-bottom: 2rem;
+      color: var(--mlx-blue);
+      font-size: 2.6rem;
+      font-weight: 700;
+      margin-bottom: 2.2rem;
       text-align: center;
+      letter-spacing: -0.01em;
     }
-    
     h2 {
-      color: var(--theme-green);
-      font-size: 1.5rem;
+      color: var(--mlx-blue);
+      font-size: 1.45rem;
       font-weight: 600;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      border-bottom: 1px solid var(--panel-border);
+      margin-top: 2.2rem;
+      margin-bottom: 1.1rem;
+      border-bottom: 1px solid var(--mlx-panel-border);
       padding-bottom: 0.5rem;
+      letter-spacing: 0.01em;
     }
-    
     h3 {
-      color: var(--text-on-green);
-      font-size: 1.2rem;
+      color: var(--mlx-white);
+      font-size: 1.15rem;
       font-weight: 600;
       margin-top: 1.5rem;
       margin-bottom: 0.75rem;
+      letter-spacing: 0.01em;
     }
-    
-    .help-panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    
     .muted {
-      color: var(--muted-on-green);
-      font-size: 0.9rem;
+      color: var(--mlx-muted);
+      font-size: 0.97rem;
     }
-    
-    ul, ol {
-      padding-left: 1.5rem;
-    }
-    
-    li {
-      margin-bottom: 0.5rem;
-    }
-    
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
     code {
-      background: rgba(0,0,0,0.3);
-      color: #e6fff2;
-      padding: 0.2rem 0.4rem;
+      background: #232A34;
+      color: #00ADEF;
+      padding: 0.18rem 0.38rem;
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.98em;
     }
-    
     .kbd {
-      background: rgba(255,255,255,0.1);
-      color: var(--text-on-green);
-      padding: 0.2rem 0.5rem;
+      background: #232A34;
+      color: var(--mlx-blue);
+      padding: 0.18rem 0.5rem;
       border-radius: 0.25rem;
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--mlx-panel-border);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.9em;
+      font-size: 0.97em;
     }
-    
     .feature-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 1rem;
       margin: 1rem 0;
     }
-    
     .feature-item {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--panel-border);
+      background: #232A34;
+      border: 1px solid var(--mlx-panel-border);
       border-radius: 0.5rem;
       padding: 1rem;
     }
-    
     .feature-item h4 {
-      color: var(--theme-green);
+      color: var(--mlx-blue);
       margin-top: 0;
       margin-bottom: 0.75rem;
       font-size: 1.1rem;
     }
-    
     .warning {
-      background: rgba(255, 193, 7, 0.1);
-      border: 1px solid rgba(255, 193, 7, 0.3);
+      background: rgba(255, 193, 7, 0.09);
+      border: 1px solid #ffe082;
       border-radius: 0.5rem;
       padding: 1rem;
       margin: 1rem 0;
     }
-    
     .warning h4 {
       color: #ffc107;
       margin-top: 0;
       margin-bottom: 0.5rem;
     }
+    /* Buttons and links */
+    a.btn, button.btn {
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-weight: 600;
+      border-radius: 2rem;
+      letter-spacing: 0.01em;
+      transition: background 0.2s, color 0.2s;
+    }
+    a.btn-primary, .btn-primary {
+      background: var(--mlx-blue);
+      border-color: var(--mlx-blue);
+      color: #fff;
+    }
+    a.btn-primary:hover, .btn-primary:hover {
+      background: #008ec1;
+      border-color: #008ec1;
+      color: #fff;
+    }
+    /* Responsive tweaks */
+    @media (max-width: 600px) {
+      .container { padding: 1.2rem 0.3rem; }
+      .help-panel { padding: 1.1rem 0.5rem; }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.1rem; }
+    }
   </style>
 </head>
 <body>
+  <header id="header" role="banner">
+    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
+  </header>
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>
     
@@ -154,7 +184,7 @@
     
     <div class="help-panel">
       <h2>Overview & Requirements</h2>
-      <p>Melexis.IO is a browser-based serial terminal application for communicating with Melexis devices. It provides IR imaging, people detection, and comprehensive terminal functionality.</p>
+  <p>Melexis.IO is a browser-based serial terminal application for communicating with Melexis devices. It provides comprehensive terminal functionality and an IR imaging viewer.</p>
       
       <h3>System Requirements</h3>
       <ul>
@@ -162,6 +192,14 @@
         <li><strong>Connection:</strong> HTTPS or localhost (required for Web Serial access)</li>
         <li><strong>Port Access:</strong> Only one application can hold a serial port at a time</li>
         <li><strong>Permissions:</strong> Serial port access permission will be requested when connecting</li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2>Related pages</h2>
+      <ul>
+        <li><a href="firmware.html">Firmware update</a> — Step-by-step guide to flash the device (includes HEX download link).</li>
+        <li><a href="build.html">Build firmware</a> — Sources overview and STM32CubeIDE build instructions.</li>
       </ul>
     </div>
 
@@ -189,7 +227,9 @@
             <li>Local echo toggle</li>
             <li>Auto-scroll option</li>
             <li>Clear and Save log functions</li>
-            <li>Quick command buttons (ID, INFO, Reset)</li>
+            <li>Quick command buttons (ID, INFO, Log, Help, Reset)</li>
+            <li>Log/Help commands: <code>:SYST:LOG</code> and <code>:SYST:HELP</code></li>
+            <li>Reset behavior: waits for <code>*RESET*</code> then <code>(OK)&gt;</code>, disconnects, waits ~5s, and reconnects to the same device</li>
           </ul>
         </div>
         
@@ -213,19 +253,22 @@
             <li>Grid overlay and numeric values (x1 scale)</li>
             <li>Read single frame or continuous mode</li>
             <li>Save PNG images and export CSV data</li>
-            <li>Recording functionality</li>
+            <li>Video recording: capture WebM while Continuous is active</li>
+            <li>Auto-scale ON: Min/Max inputs show computed values (disabled/read‑only); Auto-scale OFF: manual entries are used and preserved</li>
+            <li>Hover does not pause updates in Continuous mode (no hover-to-pause behavior)</li>
           </ul>
         </div>
-        
+
         <div class="feature-item">
-          <h4>People Detection</h4>
+          <h4>IR Chart</h4>
           <ul>
-            <li>Parallel IR functionality with people detection overlay</li>
-            <li>Independent scale selector (x1/x2/x4)</li>
-            <li>Grid overlay and numeric values options</li>
-            <li>Tooltip with raw and interpolated values</li>
-            <li>Continuous mode with pause-on-hover</li>
-            <li>Separate export with "people-detection" prefix</li>
+            <li>Real-time line chart of <strong>Min</strong>, <strong>Mean</strong>, and <strong>Max</strong> temperature per frame</li>
+            <li>Buttons: Read (single frame) and Continuous (start/stop device stream); state is synchronized with IR Image tab</li>
+            <li>Export CSV with columns: <code>time_ms,min,mean,max</code> — <em>time_ms</em> is the device timestamp; values are printed with 2 decimals</li>
+            <li>Save image exports the chart canvas as PNG with a solid background and visible axes/grid</li>
+            <li>Fixed chart height (~400 px); up to 300 points retained (older points dropped)</li>
+            <li>Chart x-axis displays elapsed ms from the start of Continuous (for visuals only)</li>
+            <li>No video controls on this tab</li>
           </ul>
         </div>
       </div>

@@ -4,22 +4,26 @@
   <meta charset="utf-8" />
   <title>Melexis.IO</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Montserrat font (Melexis corporate) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap 5 CDN -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <style>
     :root { 
       color-scheme: light dark; 
-      --theme-green: #198754; /* accent */
-      --bg-green: #0A3622; /* deeper green background */
-      --text-on-green: #f2f8f4;
-      --panel-bg: rgba(255,255,255,0.06);
-      --panel-bg-solid: #0f3a27;
-      --panel-border: rgba(255,255,255,0.18);
-      --muted-on-green: #c4d8ce;
+      font-size: 14px; /* base font size */
+      /* Melexis palette */
+      --theme-green: #00ADEF; /* primary accent blue */
+      --bg-green: #1A2027;    /* dark background */
+      --text-on-green: #E9F2FF;
+      --panel-bg: #232A34;
+      --panel-bg-solid: #232A34;
+      --panel-border: #2D3742;
+      --muted-on-green: #A9B8C9;
     }
     /* Make the page a column flex layout */
     body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
       margin: 0;
       display: flex;
       flex-direction: column;
@@ -34,13 +38,13 @@
       justify-content: center;
       padding: .75rem 1rem;
       border-bottom: 1px solid var(--panel-border);
-      background: rgba(0,0,0,0.18);
-      backdrop-filter: blur(3px);
+      background: var(--panel-bg);
     }
-    #header .title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      text-align: center;
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
     }
 
     /* App area */
@@ -87,8 +91,8 @@
       overflow: auto;    /* scrollbars when content expands */
       border: 1px solid var(--panel-border);
       padding: .5rem;
-      background: #112d21; /* adjusted to harmonize with deeper bg */
-      color: #d9dedc;       /* default: response (RX) gray */
+      background: #000; /* black background for log */
+      color: #D9E2F2;       /* default: response (RX) gray */
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
@@ -109,18 +113,18 @@
   .tx-bar .btn, .tx-bar .form-control { padding-top: .2rem; padding-bottom: .2rem; line-height: 1.0; }
   .tx-bar { min-height: 0; }
     /* Themed elements */
-  .btn-primary { background-color: #125f3d; border-color: #0f5235; }
-  .btn-primary:hover, .btn-primary:focus { background-color: #0f5235; border-color: #0c452c; }
-  .btn-secondary { background-color: #355846; border-color: #2b4638; color:#e6fff2; }
-  .btn-secondary:hover { background-color: #2b4638; }
-  .btn-success { background:#1e9d62; border-color:#198754; }
-  .btn-success:hover { background:#198754; }
-  .btn-outline-primary { color: #e6fff2; border-color: #59ffb0; }
-  .btn-outline-primary:hover { background:#59ffb0; color:#08301f; }
+  .btn-primary { background-color: var(--theme-green); border-color: var(--theme-green); }
+  .btn-primary:hover, .btn-primary:focus { background-color: #008ec1; border-color: #008ec1; }
+  .btn-secondary { background-color: #2F3F58; border-color: #243349; color:#E9F2FF; }
+  .btn-secondary:hover { background-color: #28384F; }
+  .btn-success { background:#1E7FD1; border-color: var(--theme-green); }
+  .btn-success:hover { background: var(--theme-green); }
+  .btn-outline-primary { color: #E9F2FF; border-color: var(--theme-green); }
+  .btn-outline-primary:hover { background: var(--theme-green); color:#0B1D3A; }
   .btn-outline-danger { color: #ffc8c8; border-color: #ff7a7a; }
   .btn-outline-danger:hover { background:#ff7a7a; color:#300; }
-  .btn-outline-secondary { color:#e2efe7; border-color:#88b6a1; }
-  .btn-outline-secondary:hover { background:#88b6a1; color:#10241b; }
+  .btn-outline-secondary { color:#E3ECFA; border-color:#88A8C7; }
+  .btn-outline-secondary:hover { background:#88A8C7; color:#0E203C; }
   .btn-outline-warning { color:#ffe8a6; border-color:#ffda6a; }
   .btn-outline-warning:hover { background:#ffda6a; color:#3a2d00; }
   .btn-outline-info { color:#c2ecff; border-color:#74d2ff; }
@@ -129,8 +133,19 @@
   .nav-tabs .nav-link { color: var(--text-on-green); }
   .nav-tabs .nav-link.active { background: rgba(0,0,0,0.35); color: #fff; border-color: var(--panel-border) var(--panel-border) transparent; }
   .tab-content { background: var(--panel-bg); border:1px solid var(--panel-border); border-top: none; padding: .75rem .75rem; border-radius: 0 0 .75rem .75rem; }
-  .form-control, .form-select { background:#123d2a; border:1px solid #1d5a3d; color:#e6fff2; }
-  .form-control:focus, .form-select:focus { background:#14452f; color:#fff; border-color:#59ffb0; box-shadow:0 0 0 .15rem rgba(89,255,176,0.25); }
+  .form-control, .form-select { background:#132943; border:1px solid #1F3A62; color:#E9F2FF; }
+  .form-control:focus, .form-select:focus { background:#163258; color:#fff; border-color:#5AA3FF; box-shadow:0 0 0 .15rem rgba(90,163,255,0.25); }
+  /* Keep disabled inputs readable (Bootstrap may set light bg/text) */
+  .form-control:disabled, .form-select:disabled {
+    background:#163258 !important;
+    color:#E9F2FF !important;
+    opacity: 1 !important; /* avoid dimming text */
+    border-color: #1F3A62 !important;
+  }
+  /* Chromium/WebKit sometimes ignores color on disabled text */
+  input.form-control:disabled::-webkit-text-fill-color { color:#E9F2FF; }
+  /* Placeholder tint when disabled */
+  .form-control:disabled::placeholder { color:#AFC7E6; }
   input::placeholder { color:#b7d5c6; }
   hr { border-color: var(--panel-border); }
     select, input[type="number"] { width: 8rem; }
@@ -144,7 +159,7 @@
 </head>
 <body>
   <header id="header" role="banner">
-    <div class="title">Melexis.IO</div>
+    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
   </header>
 
   <div id="app">
@@ -173,7 +188,7 @@
           <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="pd-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">People Detection</button>
+          <button class="nav-link" id="irchart-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">IR Chart</button>
         </li>
       </ul>
       <div class="tab-content pt-3" id="mainTabsContent">
@@ -194,6 +209,8 @@
             <h2>Commands</h2>
             <button id="cmd-id" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
             <button id="cmd-info" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
+            <button id="cmd-log" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
+            <button id="cmd-help" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
             <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
             <hr />
             <h2>History</h2>
@@ -281,18 +298,13 @@
       </div>
       <div class="tab-pane fade" id="tab4" role="tabpanel" aria-labelledby="ir-tab">
         <div class="p-3" id="irContainer">
-          <div class="d-flex flex-wrap align-items-start gap-3">
+          <div class="d-flex flex-nowrap align-items-start gap-3" style="overflow-x:auto;">
             <div>
               <canvas id="irCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
               <div id="irTooltip" style="position:absolute;pointer-events:none;z-index:20;padding:4px 6px;background:rgba(0,0,0,0.75);color:#fff;font:12px system-ui;border:1px solid #59ffb0;border-radius:4px;display:none;white-space:nowrap;transform:translate(8px,8px);"></div>
             </div>
-            <div class="d-flex flex-column align-items-center" style="min-width:60px;">
+            <div class="d-flex flex-column align-items-center" style="min-width:60px;flex:0 0 auto;">
               <canvas id="irLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
-              <div class="w-100 small mt-2" style="text-align:center;line-height:1.1;">
-                <div id="irMax">40.0</div>
-                <div style="height:4px;"></div>
-                <div id="irMin">0.10</div>
-              </div>
             </div>
           </div>
           <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
@@ -300,11 +312,11 @@
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Automatically fit color scale to current frame">
               <input id="irAutoScale" type="checkbox" class="form-check-input" checked /> Auto-scale
             </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (disabled when Auto-scale)">
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (read-only when Auto-scale)">
               Min:
               <input id="irMinInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="10.00" />
             </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (disabled when Auto-scale)">
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (read-only when Auto-scale)">
               Max:
               <input id="irMaxInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="40.00" />
             </label>
@@ -325,7 +337,7 @@
             </label>
             <button id="irRead" class="btn btn-outline-primary btn-sm">Read</button>
             <button id="irContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
+            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
             <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
             <button id="irRecStart" class="btn btn-outline-danger btn-sm">Start rec</button>
@@ -333,54 +345,36 @@
           </div>
         </div>
       </div>
-      <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="pd-tab">
-        <div class="p-3" id="pdContainer">
-          <div class="d-flex flex-wrap align-items-start gap-3">
-            <div>
-              <canvas id="pdCanvas" width="640" height="480" style="border:1px solid var(--panel-border);background:#000;border-radius:4px;image-rendering:pixelated;max-width:100%;height:auto;"></canvas>
-              <div id="pdTooltip" style="position:absolute;pointer-events:none;z-index:20;padding:4px 6px;background:rgba(0,0,0,0.75);color:#fff;font:12px system-ui;border:1px solid #59ffb0;border-radius:4px;display:none;white-space:nowrap;transform:translate(8px,8px);"></div>
+      <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="irchart-tab">
+  <div class="p-3" id="irChartContainer" style="max-height:70vh;overflow:auto;">
+          <div class="d-flex flex-column gap-3">
+            <canvas id="irChart" width="1200" height="400" style="border:1px solid var(--panel-border);border-radius:4px;background:#0002;width:100%;display:block;"></canvas>
+            <div class="small d-flex flex-wrap align-items-center gap-3">
+              <button id="irChartRead" class="btn btn-outline-primary btn-sm">Read</button>
+              <button id="irChartContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
+              <span id="irChartRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
+              <button id="irChartClear" class="btn btn-outline-warning btn-sm">Clear</button>
+              <button id="irChartExport" class="btn btn-outline-secondary btn-sm">Export CSV</button>
+              <button id="irChartSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             </div>
-            <div class="d-flex flex-column align-items-center" style="min-width:60px;">
-              <canvas id="pdLegend" width="40" height="480" style="border:1px solid var(--panel-border);border-radius:4px;"></canvas>
-              <div class="w-100 small mt-2" style="text-align:center;line-height:1.1;">
-                <div id="pdMax">40.0</div>
-                <div style="height:4px;"></div>
-                <div id="pdMin">0.10</div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-3 small d-flex flex-wrap align-items-center gap-3">
-            <span>Grid: <span id="pdGridSize">32×24</span></span>
-            <label class="form-label mb-0 d-flex align-items-center gap-1">Scale:
-              <select id="pdScaleSelect" class="form-select form-select-sm" style="max-width:70px;">
-                <option value="1" selected>x1</option>
-                <option value="2">x2</option>
-                <option value="4">x4</option>
-              </select>
-            </label>
-            <button id="pdRead" class="btn btn-outline-primary btn-sm">Read</button>
-            <button id="pdContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="pdRunning" style="width:10px;height:10px;border-radius:50%;background:#0d2219;box-shadow:0 0 4px #0d2219;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
-            <button id="pdSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
-            <button id="pdExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show grid lines (scale x1/x2)">
-              <input id="pdShowGrid" type="checkbox" class="form-check-input" /> Grid
-            </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show numeric cell values (scale x1 only)">
-              <input id="pdShowValues" type="checkbox" class="form-check-input" /> Values
-            </label>
           </div>
         </div>
       </div>
+      
       </div>
       <p class="muted">
         Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
       </p>
-      <p><a href="help.html" class="muted">Help</a></p>
+      <p>
+        <a href="help.html" class="muted" style="margin-right:1rem;">Help</a>
+        <a href="firmware.html" class="muted" style="margin-right:1rem;">Firmware update</a>
+        <a href="build.html" class="muted">Build firmware</a>
+      </p>
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
   <script>
   // Serial
   let port, reader, writer, reading = false;
@@ -390,6 +384,8 @@
   let connDescription = '';
   let textDecoder, textEncoder;
   let readableStreamClosed, writableStreamClosed;
+  // Track last connected VID:PID for reconnection use
+  let lastConnectedVidPid = null;
 
     // History (cookie-backed) — only for input #tx
     const HISTORY_COOKIE = 'mip_cmd_history';
@@ -795,6 +791,7 @@
           if (m) {
             const cls = m[1] === 'OK' ? 'log-okprompt' : 'log-badprompt';
             appendLog(m[0], cls);
+            try { _notifyPromptWaiters(m[0]); } catch {}
             i += m[0].length;
             atLineStart = false;
             continue;
@@ -851,6 +848,8 @@
     function setCommandButtonsEnabled(enabled) {
       $('cmd-id').disabled = !enabled;
       $('cmd-info').disabled = !enabled;
+      $('cmd-log').disabled = !enabled;
+      $('cmd-help').disabled = !enabled;
       $('cmd-rst').disabled = !enabled;
       const es = $('eepromSave'); if (es) es.disabled = !enabled;
       const elb = $('eepromLoad'); if (elb) elb.disabled = !enabled;
@@ -870,7 +869,7 @@
           }
           // Clear any running timer if available (guarded in try in case IR section not parsed yet)
           try { if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; } } catch {}
-          try { irPausedByHover = false; refreshIrRunningIndicator(); } catch {}
+          try { refreshIrRunningIndicator(); } catch {}
           // Stop and disable recording controls if disconnected
           try { if (irRec && irRec.active) stopIrRecording(); } catch {}
           const recStart = $('irRecStart'); if (recStart) recStart.disabled = true;
@@ -879,6 +878,8 @@
       }
       // When connected, sync recording buttons state with continuous
       try { updateIrRecordingButtons(); } catch {}
+      // Sync IR Chart controls as well
+      try { updateIrChartButtons(); } catch {}
     }
 
   async function connect() {
@@ -889,6 +890,12 @@
       try {
         // Always request a new port
         port = await navigator.serial.requestPort();
+        try {
+          const info = port && typeof port.getInfo === 'function' ? port.getInfo() : null;
+          if (info && typeof info.usbVendorId === 'number' && typeof info.usbProductId === 'number') {
+            lastConnectedVidPid = { vid: info.usbVendorId, pid: info.usbProductId };
+          }
+        } catch {}
         const opts = {
           baudRate: parseInt($('baud').value, 10) || 115200,
           dataBits: parseInt($('databits').value, 10) || 7,
@@ -937,6 +944,74 @@
 
       } catch (err) {
         console.error('Connect failed:', err);
+        alert('Failed to connect: ' + err.message);
+        setStatus('Disconnected');
+        setCommandButtonsEnabled(false);
+      }
+    }
+
+    // Connect using filters or previously granted ports matching VID:PID
+    async function connectWithFilters(vid, pid) {
+      if (!('serial' in navigator)) {
+        alert('Web Serial API not supported in this browser. Use Chrome or Edge (desktop).');
+        return;
+      }
+      try {
+        // Try previously granted ports first for a silent re-connect
+        port = null;
+        try {
+          const ports = await navigator.serial.getPorts();
+          for (const p of ports) {
+            const info = p && typeof p.getInfo === 'function' ? p.getInfo() : null;
+            if (info && info.usbVendorId === vid && info.usbProductId === pid) { port = p; break; }
+          }
+        } catch {}
+        if (!port) {
+          port = await navigator.serial.requestPort({ filters: [{ usbVendorId: vid, usbProductId: pid }] });
+        }
+        try { lastConnectedVidPid = { vid, pid }; } catch {}
+        const opts = {
+          baudRate: parseInt($('baud').value, 10) || 115200,
+          dataBits: parseInt($('databits').value, 10) || 7,
+          stopBits: parseInt($('stopbits').value, 10) || 2,
+          parity: $('parity').value || 'odd',
+          flowControl: $('flow').value || 'none',
+        };
+        await port.open(opts);
+
+        textDecoder = new TextDecoderStream();
+        textEncoder = new TextEncoderStream();
+        readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+        reader = textDecoder.readable.getReader();
+        writer = textEncoder.writable.getWriter();
+
+        $('connect').disabled = true;
+        $('disconnect').disabled = false;
+        setCommandButtonsEnabled(true);
+        connPortLabel = formatPortLabel(port);
+        connDescription = '';
+        awaitingIdnFirstLine = true;
+        updateConnectedStatus();
+        await sendCommand('*idn?');
+
+        reading = true;
+        (async () => {
+          try {
+            while (reading) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              if (value) processRx(value);
+            }
+          } catch (err) {
+            console.error('Read error:', err);
+            setStatus('Read error: ' + err.message);
+          } finally {
+            try { reader.releaseLock(); } catch {}
+          }
+        })();
+      } catch (err) {
+        console.error('Connect (filtered) failed:', err);
         alert('Failed to connect: ' + err.message);
         setStatus('Disconnected');
         setCommandButtonsEnabled(false);
@@ -1014,7 +1089,7 @@
       }
     }
 
-    // Await specific device line responses (normalized without trailing CR/LF)
+  // Await specific device line responses (normalized without trailing CR/LF)
     const _lineWaiters = [];
     // Keep a small backlog of recent complete lines to avoid race conditions
     // if a response arrives before a waiter is registered.
@@ -1092,6 +1167,40 @@
       });
     }
 
+    // Prompt waiters: detect lines like "(OK)>" that are parsed separately from line bodies
+    const _promptWaiters = [];
+    const PROMPT_LAST_MAX = 50;
+    const _rxLastPrompts = [];
+    function _notifyPromptWaiters(promptText) {
+      for (let i = _promptWaiters.length - 1; i >= 0; i--) {
+        const w = _promptWaiters[i];
+        try {
+          if (w.predicate(promptText)) {
+            _promptWaiters.splice(i, 1);
+            try { clearTimeout(w.timeoutId); } catch {}
+            w.resolve(promptText);
+          }
+        } catch {}
+      }
+      _rxLastPrompts.push(promptText);
+      if (_rxLastPrompts.length > PROMPT_LAST_MAX) _rxLastPrompts.shift();
+    }
+    function waitForPromptExact(expected, timeoutMs = 3000) {
+      for (let i = _rxLastPrompts.length - 1; i >= 0; i--) {
+        if (_rxLastPrompts[i] === expected) return Promise.resolve(_rxLastPrompts[i]);
+      }
+      return new Promise((resolve, reject) => {
+        const predicate = (p) => p === expected;
+        const timeoutId = setTimeout(() => {
+          for (let i = _promptWaiters.length - 1; i >= 0; i--) {
+            if (_promptWaiters[i].resolve === resolve) { _promptWaiters.splice(i, 1); }
+          }
+          reject(new Error('Timed out waiting for prompt ' + expected));
+        }, timeoutMs);
+        _promptWaiters.push({ predicate, resolve, reject, timeoutId });
+      });
+    }
+
     function parseMvLineToFrame(line) {
       // Expect: mv:XX:DDD:fp,fp,fp,... (769 floats). Ignore first float; use next 768 floats for 32x24 grid.
       // Be tolerant of wrapping quotes and whitespace.
@@ -1149,8 +1258,28 @@
     $('save').addEventListener('click', saveLog);
 
     $('cmd-id').addEventListener('click', () => sendCommand('*IDN?'));
-    $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
-    $('cmd-rst').addEventListener('click', () => sendCommand('*RST'));
+  $('cmd-info').addEventListener('click', () => sendCommand(':SYST:INFO'));
+  $('cmd-log').addEventListener('click', () => sendCommand(':SYST:LOG'));
+  $('cmd-help').addEventListener('click', () => sendCommand(':SYST:HELP'));
+    $('cmd-rst').addEventListener('click', async () => {
+      try {
+        await sendCommand('*RST');
+        // Wait for reset indication then OK prompt
+        try { await waitForLineExact('*RESET*', 10000); } catch {}
+        try { await waitForPromptExact('(OK)>', 8000); } catch {}
+      } finally {
+        try { await disconnect(); } catch {}
+        // Wait 5 seconds
+        await new Promise(r => setTimeout(r, 5000));
+        // Reconnect using same VID:PID if known
+        if (lastConnectedVidPid && typeof lastConnectedVidPid.vid === 'number' && typeof lastConnectedVidPid.pid === 'number') {
+          try { await connectWithFilters(lastConnectedVidPid.vid, lastConnectedVidPid.pid); }
+          catch (err) { setStatus('Reconnect failed: ' + (err && err.message ? err.message : String(err))); }
+        } else {
+          setStatus('Reconnect skipped: unknown VID:PID');
+        }
+      }
+    });
 
     // Arrow Up/Down history navigation in input (newest-first order)
     $('tx').addEventListener('keydown', (e) => {
@@ -1217,8 +1346,6 @@
     // Overlay options (declared early to avoid TDZ in early render paths)
     let irShowGrid = false;
     let irShowValues = false;
-    // Pause state for continuous mode when user hovers heatmap/legend
-    let irPausedByHover = false;
     function refreshIrRunningIndicator() {
       const ind = $('irRunning');
       const btn = $('irContinuous');
@@ -1230,15 +1357,9 @@
         ind.title = 'Continuous inactive';
         return;
       }
-      if (irPausedByHover) {
-        ind.style.background = '#7a4c00';
-        ind.style.boxShadow = '0 0 6px #ffb347';
-        ind.title = 'Continuous running (paused by hover)';
-      } else {
-        ind.style.background = '#59ffb0';
-        ind.style.boxShadow = '0 0 6px #59ffb0';
-        ind.title = 'Continuous running';
-      }
+      ind.style.background = '#59ffb0';
+      ind.style.boxShadow = '0 0 6px #59ffb0';
+      ind.title = 'Continuous running';
     }
 
     function initIrData() {
@@ -1296,8 +1417,8 @@
       if (irManualMax <= irManualMin) irManualMax = Math.min(50, irManualMin + 0.01);
       irScale = (s.scale === 2 || s.scale === 4) ? s.scale : 1;
       const autoCb = $('irAutoScale'); if (autoCb) autoCb.checked = irAutoScale;
-      const minEl = $('irMinInput'); if (minEl) minEl.value = irManualMin.toFixed(2);
-      const maxEl = $('irMaxInput'); if (maxEl) maxEl.value = irManualMax.toFixed(2);
+      // Populate Min/Max inputs according to current mode (auto-scale vs manual)
+      updateIrMinMaxInputsDisplay();
       const sel = $('irScaleSelect'); if (sel) sel.value = String(irScale);
     }
     function updateIrScaleInputsEnabled(){
@@ -1305,6 +1426,20 @@
       const dis = !!irAutoScale;
       if (minEl) minEl.disabled = dis;
       if (maxEl) maxEl.disabled = dis;
+    }
+    // Keep the Min/Max input boxes showing the currently effective range
+    function updateIrMinMaxInputsDisplay(){
+      const minEl = $('irMinInput'); const maxEl = $('irMaxInput');
+      if (!minEl || !maxEl) return;
+      if (irAutoScale) {
+        // Show autoscale-computed values (read-only UI)
+        minEl.value = (isFinite(irDynMin) ? irDynMin : IR_MIN).toFixed(2);
+        maxEl.value = (isFinite(irDynMax) ? irDynMax : IR_MAX).toFixed(2);
+      } else {
+        // Manual mode shows user-entered values
+        minEl.value = irManualMin.toFixed(2);
+        maxEl.value = irManualMax.toFixed(2);
+      }
     }
   function currentIrMin(){ return irAutoScale ? irDynMin : irManualMin; }
   function currentIrMax(){ return irAutoScale ? irDynMax : irManualMax; }
@@ -1554,8 +1689,7 @@
         const y = (1-p)* (h-1);
         ctx.fillRect(w-8, y, 8, 1);
       }
-      $('irMax').textContent = currentIrMax().toFixed(1);
-      $('irMin').textContent = currentIrMin().toFixed(2);
+      // irMax/irMin labels removed; values are reflected via Min/Max inputs
     }
 
     /* ===== IR Video Recording (MediaRecorder + captureStream) ===== */
@@ -1643,11 +1777,15 @@
 
     function renderIr() {
       if (irAutoScale) recomputeIrDynamicRange();
+      // Only refresh input boxes when Auto-scale is ON; in manual mode keep user's values untouched
+      if (irAutoScale) updateIrMinMaxInputsDisplay();
       updateIrCanvasSize();
       drawIrHeatmap();
       drawIrLegend();
       // If recording is active, push current composite frame
       maybeRecordIrFrame();
+      // Ensure legend CSS height matches displayed heatmap height
+      syncIrLegendDisplayHeight();
     }
 
     // Enable/disable Start/Stop recording buttons based on Continuous state and active recording
@@ -1671,6 +1809,17 @@
         canvas.width = newW; canvas.height = newH;
       }
       if (legend.height !== newH) legend.height = newH;
+    }
+
+    // Match legend's displayed height to the heatmap's displayed height (responsive)
+    function syncIrLegendDisplayHeight() {
+      const heat = $('irCanvas');
+      const legend = $('irLegend');
+      if (!heat || !legend) return;
+      const rect = heat.getBoundingClientRect();
+      if (rect && rect.height) {
+        legend.style.height = rect.height + 'px';
+      }
     }
 
     function ensureIrInitialized() {
@@ -1719,7 +1868,14 @@
         renderIr();
       });
   const autoScaleCb = $('irAutoScale');
-  if (autoScaleCb) autoScaleCb.addEventListener('change', () => { irAutoScale = autoScaleCb.checked; if (irAutoScale) recomputeIrDynamicRange(); updateIrScaleInputsEnabled(); saveIrSettings(); renderIr(); });
+  if (autoScaleCb) autoScaleCb.addEventListener('change', () => {
+    irAutoScale = autoScaleCb.checked;
+    if (irAutoScale) recomputeIrDynamicRange();
+    updateIrScaleInputsEnabled();
+    updateIrMinMaxInputsDisplay();
+    saveIrSettings();
+    renderIr();
+  });
       const minInput = $('irMinInput');
       const maxInput = $('irMaxInput');
       function onMinMaxChange(){
@@ -1731,6 +1887,7 @@
         minInput.value = irManualMin.toFixed(2);
         maxInput.value = irManualMax.toFixed(2);
         saveIrSettings();
+        updateIrMinMaxInputsDisplay();
         renderIr();
       }
       if (minInput) minInput.addEventListener('change', onMinMaxChange);
@@ -1739,13 +1896,7 @@
       if (showGridCb) showGridCb.addEventListener('change', () => { irShowGrid = showGridCb.checked; renderIr(); });
       const showValuesCb = $('irShowValues');
       if (showValuesCb) showValuesCb.addEventListener('change', () => { irShowValues = showValuesCb.checked; renderIr(); });
-      // Hover pause listeners for continuous mode (canvas + legend)
-      ['irCanvas','irLegend'].forEach(id => {
-        const el = $(id);
-        if (!el) return;
-        el.addEventListener('mouseenter', () => { if (!irInitialized) return; irPausedByHover = true; refreshIrRunningIndicator(); });
-        el.addEventListener('mouseleave', () => { if (!irInitialized) return; irPausedByHover = false; refreshIrRunningIndicator(); });
-      });
+      // Hover pause removed: keep streaming while interacting with UI
       // Recording buttons are wired above; just ensure initial state
   // Apply persisted IR UI state and enforce input enable/disable
   applyIrSettingsToControls();
@@ -1756,6 +1907,226 @@
   irInitialized = true;
     }
 
+    /* ===== IR Chart (min/max/mean over time) ===== */
+  let irChartInitialized = false;
+  let irChart;
+  // Chart data as {x: ms, y: value} points; capped to a fixed number for a sliding window
+  const IR_CHART_CAP = 300;
+  let irChartData = { min: [], max: [], mean: [] };
+  // Base timestamp in ms (from device) when continuous starts; used to compute x=0
+  let irChartBaseTimestamp = null;
+    function ensureIrChartInitialized() {
+      if (irChartInitialized) return;
+      const ctx = document.getElementById('irChart');
+      if (!ctx || !window.Chart) return;
+      // Determine solid background color from theme for saved images (canvas export ignores CSS backgrounds)
+      let chartBgColor = '#0f223a';
+      try {
+        const rs = getComputedStyle(document.documentElement);
+        const v = rs.getPropertyValue('--panel-bg-solid');
+        chartBgColor = (v && v.trim()) || chartBgColor;
+      } catch {}
+      // Plugin to paint canvas background so toDataURL includes it
+      const chartBackgroundPlugin = {
+        id: 'chartBackgroundFill',
+        beforeDraw(chart) {
+          const { ctx, chartArea, width, height } = chart;
+          ctx.save();
+          ctx.fillStyle = chartBgColor;
+          // Fill entire canvas
+          ctx.fillRect(0, 0, width, height);
+          ctx.restore();
+        }
+      };
+      irChart = new Chart(ctx, {
+        type: 'line',
+        plugins: [chartBackgroundPlugin],
+        data: {
+          datasets: [
+            { label: 'Min',  data: irChartData.min,  borderColor: '#5AA3FF', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Mean', data: irChartData.mean, borderColor: '#59ffb0', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Max',  data: irChartData.max,  borderColor: '#ff7a7a', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 }
+          ]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'ms', color: '#88A8C7' },
+              ticks: { color: '#88A8C7' },
+              grid: { color: 'rgba(136,168,199,0.25)' },
+              border: { color: '#88A8C7' }
+            },
+            y: {
+              ticks: { color: '#88A8C7' },
+              grid: { color: 'rgba(136,168,199,0.25)' },
+              border: { color: '#88A8C7' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#cfe2ff' } }
+          }
+        }
+      });
+      // Wire controls
+      const readBtn = $('irChartRead');
+      if (readBtn) readBtn.addEventListener('click', irChartReadOnce);
+      const contBtn = $('irChartContinuous');
+      if (contBtn) contBtn.addEventListener('click', toggleIrChartContinuous);
+      const clrBtn = $('irChartClear');
+      if (clrBtn) clrBtn.addEventListener('click', clearIrChart);
+      const expBtn = $('irChartExport');
+      if (expBtn) expBtn.addEventListener('click', exportIrChartCsv);
+      const saveImgBtn = $('irChartSaveImage');
+      if (saveImgBtn) saveImgBtn.addEventListener('click', saveIrChartImage);
+      updateIrChartButtons();
+      irChartInitialized = true;
+    }
+
+    function refreshIrChartRunningIndicator() {
+      const ind = $('irChartRunning');
+      const btn = $('irChartContinuous');
+      if (!ind || !btn) return;
+      const running = btn.getAttribute('data-active') === '1';
+      if (!running) {
+        ind.style.background = '#0d2219';
+        ind.style.boxShadow = '0 0 4px #0d2219';
+        ind.title = 'Continuous inactive';
+      } else {
+        ind.style.background = '#59ffb0';
+        ind.style.boxShadow = '0 0 6px #59ffb0';
+        ind.title = 'Continuous running';
+      }
+    }
+
+    function updateIrChartButtons() {
+      try {
+        const contBtn = $('irChartContinuous');
+        const continuousActive = !!(contBtn && contBtn.getAttribute('data-active') === '1');
+        const readBtn = $('irChartRead'); if (readBtn) readBtn.disabled = continuousActive;
+        refreshIrChartRunningIndicator();
+      } catch {}
+    }
+
+    function pushIrChartPoint(ms, minV, maxV, meanV, absMs) {
+      // Store absolute timestamp 'absMs' as 'ts' on each point for CSV export
+      irChartData.min.push({ x: ms, y: minV, ts: absMs });
+      irChartData.max.push({ x: ms, y: maxV, ts: absMs });
+      irChartData.mean.push({ x: ms, y: meanV, ts: absMs });
+      // Limit to last IR_CHART_CAP points
+      if (irChartData.min.length > IR_CHART_CAP) irChartData.min.shift();
+      if (irChartData.max.length > IR_CHART_CAP) irChartData.max.shift();
+      if (irChartData.mean.length > IR_CHART_CAP) irChartData.mean.shift();
+      if (irChart) irChart.update('none');
+    }
+
+    function computeStats(frame) {
+      let mn = Infinity, mx = -Infinity, sum = 0;
+      for (let i = 0; i < frame.length; i++) { const v = frame[i]; if (v < mn) mn = v; if (v > mx) mx = v; sum += v; }
+      const mean = frame.length ? (sum / frame.length) : 0;
+      return { mn, mx, mean };
+    }
+
+    async function irChartReadOnce() {
+      if (!writer) { setStatus('Not connected'); return; }
+      const btn = $('irChartRead'); if (btn) btn.disabled = true;
+      try {
+        const p = waitForLineRegex(/^[\s\"]*mv:66:[0-9]+:/, 10000);
+        await sendRaw('mv:66\n');
+        const line = await p;
+        const { frame, timestampMs } = parseMvLineToFrame(line);
+        const { mn, mx, mean } = computeStats(frame);
+        // If no base set (not in continuous), use first read as base for relative ms
+        if (irChartBaseTimestamp == null) irChartBaseTimestamp = timestampMs;
+        const rel = Math.max(0, timestampMs - irChartBaseTimestamp);
+  pushIrChartPoint(rel, mn, mx, mean, timestampMs);
+      } catch (e) {
+        logError('IR chart read failed: ' + e.message + '\n');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function toggleIrChartContinuous() {
+      const btn = $('irChartContinuous');
+      if (!btn) return;
+      const active = btn.getAttribute('data-active') === '1';
+      if (active) {
+        try {
+          await sendRaw('!\n');
+          await waitForLineExact(':interactive mode');
+        } catch (e) {
+          console.warn('Stop continuous handshake failed (chart):', e.message);
+        } finally {
+          btn.setAttribute('data-active','0');
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-outline-secondary');
+          // Reset base timestamp for next session
+          irChartBaseTimestamp = null;
+          refreshIrChartRunningIndicator();
+          updateIrChartButtons();
+        }
+      } else {
+        try {
+          await sendRaw(';\n');
+          await waitForLineExact(';:continuous mode');
+          // Fresh session: clear existing chart so x starts at 0 cleanly
+          try { clearIrChart(); } catch {}
+          btn.setAttribute('data-active','1');
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-success');
+          // Will set base timestamp from first arriving frame
+          irChartBaseTimestamp = null;
+          refreshIrChartRunningIndicator();
+          updateIrChartButtons();
+        } catch (e) {
+          console.warn('Start continuous handshake failed (chart):', e.message);
+        }
+      }
+    }
+
+    function clearIrChart() {
+      irChartData.min.length = 0;
+      irChartData.max.length = 0;
+      irChartData.mean.length = 0;
+      if (irChart) irChart.update('none');
+    }
+
+    function exportIrChartCsv() {
+      let lines = ['time_ms,min,mean,max'];
+      const n = Math.min(irChartData.min.length, irChartData.mean.length, irChartData.max.length);
+      for (let i = 0; i < n; i++) {
+        // Use absolute device timestamp if available; fallback to x (relative) otherwise
+        const t = (irChartData.mean[i] && typeof irChartData.mean[i].ts === 'number')
+          ? irChartData.mean[i].ts
+          : irChartData.mean[i].x;
+        const minV = irChartData.min[i].y;
+        const meanV = irChartData.mean[i].y;
+        const maxV = irChartData.max[i].y;
+        // Format values to two decimal places per requirement
+        lines.push(`${t},${minV.toFixed(2)},${meanV.toFixed(2)},${maxV.toFixed(2)}`);
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'ir-stats.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function saveIrChartImage() {
+      try {
+        const c = document.getElementById('irChart');
+        if (!c) return;
+        const url = c.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url; a.download = 'ir-chart.png';
+        a.click();
+      } catch (e) {
+        logError('Save chart image failed: ' + e.message + '\n');
+      }
+    }
   // Continuous read driven by device frames (handled in maybeHandleIrContinuousFrame)
   let irContinuousTimer = null; // no longer used; kept for safe clearing on stop/visibility
     async function toggleIrContinuous() {
@@ -1775,7 +2146,6 @@
           btn.classList.remove('btn-success');
           btn.classList.add('btn-outline-secondary');
           if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; }
-          irPausedByHover = false;
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = false;
           // Stop recording when continuous stops
@@ -1810,11 +2180,19 @@
           btn.setAttribute('data-active','0');
           btn.classList.remove('btn-success');
           btn.classList.add('btn-outline-secondary');
-          irPausedByHover = false;
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = false;
           if (irRec && irRec.active) { try { stopIrRecording(); } catch {} }
           updateIrRecordingButtons();
+          // Chart reflects stop as well
+          const cbtn = $('irChartContinuous');
+          if (cbtn && cbtn.getAttribute('data-active') === '1') {
+            cbtn.setAttribute('data-active','0');
+            cbtn.classList.remove('btn-success');
+            cbtn.classList.add('btn-outline-secondary');
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       }
     });
@@ -1824,31 +2202,32 @@
     document.addEventListener('shown.bs.tab', (ev) => {
       if (ev.target && ev.target.id === 'ir-tab') {
         ensureIrInitialized();
+      } else if (ev.target && ev.target.id === 'irchart-tab') {
+        ensureIrChartInitialized();
       }
     });
 
     // If user bookmarked directly with hash #tab4, initialize
-    if (location.hash === '#tab4') {
-      ensureIrInitialized();
-    }
+    if (location.hash === '#tab4') { ensureIrInitialized(); }
+    if (location.hash === '#tab5') { ensureIrChartInitialized(); }
 
     /* ===== Export Helpers ===== */
     function exportIrDataCsv() {
       if (!irData) return;
       let lines = [];
-  lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+currentIrMin()+',max,'+currentIrMax());
-      for (let r=0;r<IR_ROWS;r++) {
+      lines.push('rows,'+IR_ROWS+',cols,'+IR_COLS+',min,'+currentIrMin()+',max,'+currentIrMax());
+      for (let r = 0; r < IR_ROWS; r++) {
         let rowVals = [];
-        for (let c=0;c<IR_COLS;c++) {
-          rowVals.push(irData[r*IR_COLS + c].toFixed(2));
+        for (let c = 0; c < IR_COLS; c++) {
+          rowVals.push(irData[r * IR_COLS + c].toFixed(2));
         }
         lines.push(rowVals.join(','));
       }
-      const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'ir-data-'+Date.now()+'.csv';
+      a.download = 'ir-data-' + Date.now() + '.csv';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     }
@@ -1908,11 +2287,20 @@
           btn.classList.remove('btn-success');
           btn.classList.add('btn-outline-secondary');
           try { if (irContinuousTimer) { clearInterval(irContinuousTimer); irContinuousTimer = null; } } catch {}
-          irPausedByHover = false;
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = false;
           if (irRec && irRec.active) { try { stopIrRecording(); } catch {} }
           updateIrRecordingButtons();
+          // Reflect in chart
+          const cbtn = $('irChartContinuous');
+          if (cbtn) {
+            cbtn.setAttribute('data-active','0');
+            cbtn.classList.remove('btn-success');
+            cbtn.classList.add('btn-outline-secondary');
+            irChartBaseTimestamp = null;
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       } else if (s === ';:continuous mode') {
         const btn = $('irContinuous');
@@ -1923,6 +2311,17 @@
           refreshIrRunningIndicator();
           const irRead = $('irRead'); if (irRead) irRead.disabled = true;
           updateIrRecordingButtons();
+          // Reflect in chart
+          const cbtn = $('irChartContinuous');
+          if (cbtn) {
+            try { clearIrChart(); } catch {}
+            cbtn.setAttribute('data-active','1');
+            cbtn.classList.remove('btn-outline-secondary');
+            cbtn.classList.add('btn-success');
+            irChartBaseTimestamp = null; // first frame will set base
+            refreshIrChartRunningIndicator();
+            updateIrChartButtons();
+          }
         }
       }
     }
@@ -1941,401 +2340,28 @@
       // Strip optional channel prefix
       if (s.startsWith('@66:01:')) s = s.slice('@66:01:'.length);
       if (!/^mv:66:[0-9]+:/.test(s)) return;
-      if (irPausedByHover) return;
       try {
-        const { frame } = parseMvLineToFrame(s);
+        const { frame, timestampMs } = parseMvLineToFrame(s);
         if (!irData || irData.length !== frame.length) irData = new Float32Array(IR_ROWS * IR_COLS);
         irData.set(frame);
         renderIr();
+        // Chart stats
+        try {
+          ensureIrChartInitialized();
+          const { mn, mx, mean } = computeStats(frame);
+          if (irChartBaseTimestamp == null) irChartBaseTimestamp = timestampMs;
+          const rel = Math.max(0, timestampMs - irChartBaseTimestamp);
+          pushIrChartPoint(rel, mn, mx, mean, timestampMs);
+        } catch {}
       } catch (e) {
         // Do not spam log on occasional parse errors during stream
         // Uncomment to debug: logError('IR continuous parse failed: ' + e.message + '\n');
       }
     }
-    /* ================= PEOPLE DETECTION TAB (duplicate IR logic, beautified) ================= */
-    // Grid & value range (mirrors IR constants)
-    const PD_ROWS = 24;
-    const PD_COLS = 32;
-    const PD_MIN = 10.0;
-    const PD_MAX = 40.0;
-    const PD_BASE_CELL_SIZE = 20;      // pixels per cell at scale 1
-    let pdData = null;                 // Float32Array PD_ROWS*PD_COLS
-    let pdInitialized = false;         // lazy init when tab shown
-    let pdScale = 1;                   // 1 (nearest), 2/4 (bicubic)
-    // Overlay + state flags
-    let pdShowGrid = false;
-    let pdShowValues = false;
-    let pdPausedByHover = false;       // pause continuous updates while hovering
-    let pdContinuousTimer = null;      // interval id
-
-    /* ----- Data generation (placeholder for real sensor feed) ----- */
-    function initPdData() {
-      pdData = new Float32Array(PD_ROWS * PD_COLS);
-      randomizePdData();
-    }
-    function randomizePdData() {
-      if (!pdData) return;
-      const span = PD_MAX - PD_MIN;
-      for (let i = 0; i < pdData.length; i++) {
-        pdData[i] = PD_MIN + Math.random() * span;
-      }
-    }
-
-    /* ----- Color mapping (shares gradient stops) ----- */
-    function pdValueToColor(v) {
-      let n = (v - PD_MIN) / (PD_MAX - PD_MIN);
-      if (n < 0) n = 0; else if (n > 1) n = 1;
-      for (let i = 0; i < GRADIENT_STOPS.length - 1; i++) {
-        const a = GRADIENT_STOPS[i];
-        const b = GRADIENT_STOPS[i + 1];
-        if (n >= a[0] && n <= b[0]) {
-          const t = (n - a[0]) / (b[0] - a[0]);
-          return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
-        }
-      }
-      const last = GRADIENT_STOPS[GRADIENT_STOPS.length - 1];
-      return [last[1], last[2], last[3]];
-    }
-
-    /* ----- Heatmap rendering (nearest vs bicubic) ----- */
-    function drawPdHeatmap() {
-      const canvas = $('pdCanvas');
-      if (!canvas || !pdData) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height;
-
-      // Fast path: nearest (block) rendering
-      if (pdScale === 1) {
-        canvas.style.imageRendering = 'pixelated';
-        const cell = PD_BASE_CELL_SIZE;
-        for (let r = 0; r < PD_ROWS; r++) {
-          for (let c = 0; c < PD_COLS; c++) {
-            const v = pdData[r * PD_COLS + c];
-            const [R, G, B] = pdValueToColor(v);
-            ctx.fillStyle = `rgb(${R},${G},${B})`;
-            ctx.fillRect(c * cell, r * cell, cell, cell);
-          }
-        }
-        drawPdOverlays(ctx);
-        return;
-      }
-
-      // Bicubic path for smoother display
-      canvas.style.imageRendering = 'auto';
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      const gridW = PD_COLS, gridH = PD_ROWS;
-      const cellW = w / gridW, cellH = h / gridH;
-
-      function getVal(ix, iy) {
-        if (ix < 0) ix = 0; else if (ix >= gridW) ix = gridW - 1;
-        if (iy < 0) iy = 0; else if (iy >= gridH) iy = gridH - 1;
-        return pdData[iy * gridW + ix];
-      }
-      function cubic(p0, p1, p2, p3, t) {
-        // Catmull-Rom like cubic
-        const a = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
-        const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
-        const c = -0.5 * p0 + 0.5 * p2;
-        const d = p1;
-        return ((a * t + b) * t + c) * t + d;
-      }
-      for (let y = 0; y < h; y++) {
-        const gy = y / cellH;
-        const gyi = Math.floor(gy);
-        const ty = gy - gyi;
-        for (let x = 0; x < w; x++) {
-          const gx = x / cellW;
-          const gxi = Math.floor(gx);
-          const tx = gx - gxi;
-          const colVals = [];
-            for (let m = -1; m <= 2; m++) {
-              const rowVals = [];
-              for (let n = -1; n <= 2; n++) {
-                rowVals.push(getVal(gxi + n, gyi + m));
-              }
-              colVals.push(rowVals);
-            }
-          const colInterp = [];
-          for (let r = 0; r < 4; r++) {
-            colInterp.push(cubic(colVals[r][0], colVals[r][1], colVals[r][2], colVals[r][3], tx));
-          }
-          const v = cubic(colInterp[0], colInterp[1], colInterp[2], colInterp[3], ty);
-          const [R, G, B] = pdValueToColor(v);
-          const idx = (y * w + x) * 4;
-          data[idx] = R; data[idx + 1] = G; data[idx + 2] = B; data[idx + 3] = 255;
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      drawPdOverlays(ctx);
-    }
-
-    /* ----- Overlays (grid & numeric values) ----- */
-    function drawPdOverlays(ctx) {
-      const canvas = ctx.canvas;
-      if (!canvas) return;
-      const cellSize = PD_BASE_CELL_SIZE;
-      const showValues = pdShowValues && pdScale === 1;
-      const showGrid = pdShowGrid && pdScale <= 2;
-      if (!showValues && !showGrid) return;
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = '10px system-ui';
-      for (let r = 0; r < PD_ROWS; r++) {
-        for (let c = 0; c < PD_COLS; c++) {
-          const x = c * cellSize;
-          const y = r * cellSize;
-          if (showGrid) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
-          }
-          if (showValues) {
-            const v = pdData[r * PD_COLS + c];
-            let norm = (v - PD_MIN) / (PD_MAX - PD_MIN);
-            if (norm < 0) norm = 0; else if (norm > 1) norm = 1;
-            ctx.fillStyle = norm > 0.55 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
-            ctx.fillText(v.toFixed(1), x + cellSize / 2, y + cellSize / 2);
-          }
-        }
-      }
-      ctx.restore();
-    }
-
-    /* ----- Tooltip (raw + interpolated) ----- */
-    const pdTooltip = (() => {
-      const el = $('pdTooltip');
-      if (!el) return null;
-      function getVal(ix, iy) {
-        if (ix < 0) ix = 0; else if (ix >= PD_COLS) ix = PD_COLS - 1;
-        if (iy < 0) iy = 0; else if (iy >= PD_ROWS) iy = PD_ROWS - 1;
-        return pdData[iy * PD_COLS + ix];
-      }
-      function cubic(p0, p1, p2, p3, t) {
-        const a = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
-        const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
-        const c = -0.5 * p0 + 0.5 * p2;
-        const d = p1;
-        return ((a * t + b) * t + c) * t + d;
-      }
-      function sampleInterpolated(px, py, cw, ch) {
-        const cellW = cw / PD_COLS, cellH = ch / PD_ROWS;
-        const gx = px / cellW, gy = py / cellH;
-        const gxi = Math.floor(gx), gyi = Math.floor(gy);
-        const tx = gx - gxi, ty = gy - gyi;
-        const colVals = [];
-        for (let m = -1; m <= 2; m++) {
-          const rowVals = [];
-          for (let n = -1; n <= 2; n++) {
-            rowVals.push(getVal(gxi + n, gyi + m));
-          }
-          colVals.push(rowVals);
-        }
-        const colInterp = [];
-        for (let r = 0; r < 4; r++) {
-          colInterp.push(cubic(colVals[r][0], colVals[r][1], colVals[r][2], colVals[r][3], tx));
-        }
-        return cubic(colInterp[0], colInterp[1], colInterp[2], colInterp[3], ty);
-      }
-      function fmt(v) { return v.toFixed(2); }
-      function onMove(ev) {
-        if (!pdData) return;
-        const canvas = $('pdCanvas');
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-        if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) { el.style.display = 'none'; return; }
-        const cellW = rect.width / PD_COLS, cellH = rect.height / PD_ROWS;
-        const col = Math.floor(x / cellW), row = Math.floor(y / cellH);
-        const raw = pdData[row * PD_COLS + col];
-        const interp = pdScale === 1 ? raw : sampleInterpolated(x, y, rect.width, rect.height);
-        el.innerHTML = `r${row} c${col}: <strong>${fmt(raw)}</strong> (interp ${fmt(interp)})`;
-        el.style.display = 'block';
-        el.style.left = rect.left + window.scrollX + x + 8 + 'px';
-        el.style.top = rect.top + window.scrollY + y + 8 + 'px';
-      }
-      function onLeave(){ el.style.display='none'; }
-      const canvas = $('pdCanvas');
-      if (canvas) {
-        canvas.addEventListener('mousemove', onMove);
-        canvas.addEventListener('mouseleave', onLeave);
-      }
-      return { hide: onLeave };
-    })();
-
-    /* ----- Legend rendering ----- */
-    function drawPdLegend() {
-      const canvas = $('pdLegend');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height;
-      const img = ctx.createImageData(w, h);
-      const data = img.data;
-      for (let y = 0; y < h; y++) {
-        const t = y / (h - 1);
-        const stopT = 1 - t; // top=high values
-        const n = stopT;
-        for (let i = 0; i < GRADIENT_STOPS.length - 1; i++) {
-          const a = GRADIENT_STOPS[i], b = GRADIENT_STOPS[i + 1];
-          if (n >= a[0] && n <= b[0]) {
-            const tt = (n - a[0]) / (b[0] - a[0]);
-            const R = lerp(a[1], b[1], tt), G = lerp(a[2], b[2], tt), B = lerp(a[3], b[3], tt);
-            const idx = y * w * 4;
-            for (let x = 0; x < w; x++) {
-              const off = idx + x * 4;
-              data[off] = R; data[off + 1] = G; data[off + 2] = B; data[off + 3] = 255;
-            }
-            break;
-          }
-        }
-      }
-      ctx.putImageData(img, 0, 0);
-      ctx.fillStyle = '#fff';
-      ctx.font = '10px system-ui';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      for (let p = 0; p <= 1; p += 0.2) {
-        const yy = Math.round((1 - p) * (h - 1));
-        ctx.fillText((PD_MIN + (PD_MAX - PD_MIN) * p).toFixed(1), w + 4, yy);
-      }
-      $('pdMax').textContent = PD_MAX.toFixed(1);
-      $('pdMin').textContent = PD_MIN.toFixed(2);
-    }
-
-    /* ----- Canvas sizing + composite render ----- */
-    function updatePdCanvasSize() {
-      const canvas = $('pdCanvas');
-      const legend = $('pdLegend');
-      if (!canvas || !legend) return;
-      const newW = PD_COLS * PD_BASE_CELL_SIZE;
-      const newH = PD_ROWS * PD_BASE_CELL_SIZE;
-      if (canvas.width !== newW || canvas.height !== newH) {
-        canvas.width = newW; canvas.height = newH;
-      }
-      if (legend.height !== newH) legend.height = newH;
-    }
-    function renderPd() { updatePdCanvasSize(); drawPdHeatmap(); drawPdLegend(); }
-
-    /* ----- Initialization on first tab show ----- */
-    function ensurePdInitialized() {
-      if (pdInitialized) return;
-      initPdData();
-      renderPd();
-      const readBtn = $('pdRead');
-      if (readBtn) readBtn.addEventListener('click', () => { randomizePdData(); renderPd(); });
-      const contBtn = $('pdContinuous');
-      if (contBtn) contBtn.addEventListener('click', togglePdContinuous);
-      const saveImgBtn = $('pdSaveImage');
-      if (saveImgBtn) saveImgBtn.addEventListener('click', savePdImage);
-      const exportBtn = $('pdExportData');
-      if (exportBtn) exportBtn.addEventListener('click', exportPdDataCsv);
-      const scaleSel = $('pdScaleSelect');
-      if (scaleSel) scaleSel.addEventListener('change', () => {
-        const v = parseInt(scaleSel.value, 10) || 1;
-        pdScale = (v === 2 || v === 4) ? v : 1;
-        renderPd();
-      });
-      ['pdCanvas', 'pdLegend'].forEach(id => {
-        const el = $(id); if (!el) return;
-        el.addEventListener('mouseenter', () => { if (!pdInitialized) return; pdPausedByHover = true; refreshPdRunningIndicator(); });
-        el.addEventListener('mouseleave', () => { if (!pdInitialized) return; pdPausedByHover = false; refreshPdRunningIndicator(); });
-      });
-      const showGridCb = $('pdShowGrid');
-      if (showGridCb) showGridCb.addEventListener('change', () => { pdShowGrid = showGridCb.checked; renderPd(); });
-      const showValuesCb = $('pdShowValues');
-      if (showValuesCb) showValuesCb.addEventListener('change', () => { pdShowValues = showValuesCb.checked; renderPd(); });
-      pdInitialized = true;
-    }
-
-    /* ----- Running indicator + continuous mode ----- */
-    function refreshPdRunningIndicator() {
-      const ind = $('pdRunning');
-      const btn = $('pdContinuous');
-      if (!ind || !btn) return;
-      const running = btn.getAttribute('data-active') === '1';
-      if (!running) {
-        ind.style.background = '#0d2219';
-        ind.style.boxShadow = '0 0 4px #0d2219';
-        ind.title = 'Not running';
-        return;
-      }
-      if (pdPausedByHover) {
-        ind.style.background = '#e3b341';
-        ind.style.boxShadow = '0 0 6px #e3b341';
-        ind.title = 'Continuous running (paused by hover)';
-      } else {
-        ind.style.background = '#59ffb0';
-        ind.style.boxShadow = '0 0 6px #59ffb0';
-        ind.title = 'Continuous running';
-      }
-    }
-    function togglePdContinuous() {
-      const btn = $('pdContinuous');
-      if (!btn) return;
-      const active = btn.getAttribute('data-active') === '1';
-      if (active) {
-        btn.setAttribute('data-active', '0');
-        if (pdContinuousTimer) clearInterval(pdContinuousTimer);
-        pdContinuousTimer = null;
-        refreshPdRunningIndicator();
-        return;
-      }
-      btn.setAttribute('data-active', '1');
-      refreshPdRunningIndicator();
-      pdContinuousTimer = setInterval(() => {
-        if (pdPausedByHover) return;
-        randomizePdData();
-        renderPd();
-      }, 500);
-    }
-    window.addEventListener('beforeunload', () => { if (pdContinuousTimer) clearInterval(pdContinuousTimer); });
-
-    /* ----- Data export & image save ----- */
-    function exportPdDataCsv() {
-      if (!pdData) return;
-      let out = `rows,${PD_ROWS}\ncols,${PD_COLS}\nmin,${PD_MIN}\nmax,${PD_MAX}\n`;
-      for (let r = 0; r < PD_ROWS; r++) {
-        let rowVals = [];
-        for (let c = 0; c < PD_COLS; c++) {
-          rowVals.push(pdData[r * PD_COLS + c].toFixed(2));
-        }
-        out += rowVals.join(',') + '\n';
-      }
-      const blob = new Blob([out], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      a.download = `people-detection-data-${ts}.csv`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-    }
-    function savePdImage() {
-      const canvas = $('pdCanvas'); if (!canvas) return;
-      const legend = $('pdLegend'); if (!legend) return;
-      const off = document.createElement('canvas');
-      const pad = 16, legendPad = 12;
-      const width = canvas.width + legend.width + pad + legendPad;
-      const height = Math.max(canvas.height, legend.height) + pad * 2;
-      off.width = width; off.height = height;
-      const ctx = off.getContext('2d');
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(canvas, pad, pad);
-      ctx.drawImage(legend, pad + canvas.width + legendPad, pad);
-      ctx.fillStyle = '#fff';
-      ctx.font = '16px system-ui';
-      ctx.fillText('People Detection', pad, height - 8);
-      const url = off.toDataURL('image/png');
-      const a = document.createElement('a');
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      a.href = url;
-      a.download = `people-detection-${ts}.png`;
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-
-    /* ----- Tab activation ----- */
-    document.addEventListener('shown.bs.tab', (ev) => { if (ev.target && ev.target.id === 'pd-tab') ensurePdInitialized(); });
-    if (location.hash === '#tab5') { ensurePdInitialized(); }
+    // Keep legends visually matched to canvases on window resize
+    window.addEventListener('resize', () => {
+      try { syncIrLegendDisplayHeight(); } catch {}
+    });
   </script>
 </body>
 </html>

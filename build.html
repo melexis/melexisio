@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Melexis.IO - Build Firmware</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Montserrat font (Melexis corporate) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <style>
+    :root { 
+      color-scheme: light dark; 
+      font-size: 14px; /* base font size */
+      --theme-green: #00ADEF; /* Melexis blue */
+      --bg-green: #1A2027; /* dark background */
+      --text-on-green: #E9F2FF;
+      --panel-bg: #232A34;
+      --panel-bg-solid: #232A34;
+      --panel-border: #2D3742;
+      --muted-on-green: #A9B8C9;
+    }
+
+    /* Header bar (match index.html) */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+    }
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
+    }
+    
+    body {
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      margin: 0;
+      background: var(--bg-green);
+      color: var(--text-on-green);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    
+    .back-link {
+      color: var(--muted-on-green);
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+      color: var(--theme-green);
+      text-decoration: underline;
+    }
+    
+    h1 {
+      color: var(--theme-green);
+      font-size: 2.6rem;
+      font-weight: 700;
+      margin-bottom: 2.2rem;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+    
+    h2 {
+      color: var(--theme-green);
+      font-size: 1.45rem;
+      font-weight: 600;
+      margin-top: 2.2rem;
+      margin-bottom: 1.1rem;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+
+    h3 {
+      color: var(--text-on-green);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .help-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 1rem;
+      padding: 1.7rem 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+    }
+
+    .muted {
+      color: var(--muted-on-green);
+      font-size: 0.9rem;
+    }
+
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+    code {
+      background: rgba(0,0,0,0.3);
+      color: #E9F2FF;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .kbd {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-on-green);
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      border: 1px solid var(--panel-border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <header id="header" role="banner">
+    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
+  </header>
+  <div class="container">
+    <a href="index.html" class="back-link">← Back to app</a>
+    <div class="muted" style="margin-bottom: .5rem;">
+      See also: <a href="help.html" class="back-link">Help</a> · <a href="firmware.html" class="back-link">Firmware update</a>
+    </div>
+
+    <h1>Build the Firmware</h1>
+
+    <div class="help-panel">
+      <h2>Clone the repository</h2>
+      <ul>
+  <li>Clone <a href="https://github.com/icis4/melexisio" target="_blank" rel="noopener noreferrer">https://github.com/icis4/melexisio</a> repository to your machine or download and extract the <a href="https://github.com/icis4/melexisio/archive/refs/heads/master.zip">ZIP archive</a>.</li>
+        <li>Use the pre-generated folder <code>melexis_io_fw</code> in this repo as your working project folder. It already contains the project configuration files (<code>.ioc</code> and <code>.extSettings</code>) and all generated and patched source files.</li>
+      </ul>
+      <p>Next: <a href="#cubeide">Use STM32CubeIDE</a> · <a href="#build-windows">Build on Windows (MSYS2 MinGW64)</a> · <a href="#build-linux">Build on Linux</a></p>
+    </div>
+
+    <div class="help-panel">
+      <h2>Build from scratch (STM32CubeMX)</h2>
+      <ol>
+        <li>
+          Download and install <strong><a href="https://www.st.com/en/development-tools/stm32cubemx.html" target="_blank" rel="noopener noreferrer">STM32CubeMX</a></strong> version <strong>6.15 or newer</strong> from STMicroelectronics.
+          <div class="muted">Tip: Make sure the version is 6.15+.</div>
+        </li>
+        <li>
+          Get the project configuration files from this repo and place them in a fresh working folder on your PC:
+          <ul>
+            <li><a href="melexis_io_fw/melexis_io_fw.ioc" download="melexis_io_fw.ioc"><code>melexis_io_fw/melexis_io_fw.ioc</code></a></li>
+            <li><a href="melexis_io_fw/.extSettings" download=".extSettings"><code>melexis_io_fw/.extSettings</code></a></li>
+          </ul>
+          <div class="muted">
+            You may rename the <code>.ioc</code> file, but the folder name must match the <code>.ioc</code> filename (without the extension). For example, if you rename it to <code>MyProj.ioc</code>, the folder must be <code>MyProj/</code>.
+          </div>
+        </li>
+        <li>
+          Open the <code>.ioc</code> file in <strong>STM32CubeMX</strong>.
+        </li>
+        <li>
+          In <em>Project Manager → Project Settings</em>, set <strong>Toolchain / IDE</strong> to <strong>CMake</strong> and <strong>GCC</strong>.
+        </li>
+        <li>
+          Click <strong>Generate Code</strong> to produce the CMake-based project.
+        </li>
+        <li>
+          Create the folder <code>Application/src</code> inside the generated project and copy the file
+          <a href="melexis_io_fw/Application/src/heap_useNewlib_ST.c" download><code>melexis_io_fw/Application/src/heap_useNewlib_ST.c</code></a>
+          there (so it becomes <code>Application/src/heap_useNewlib_ST.c</code> in your project tree).
+        </li>
+        <li>
+          Open <code>Core/Src/sysmem.c</code> in the generated project and change the <code>_sbrk</code> signature to be weak by adding the attribute:
+          <pre><code>__attribute__((weak)) void *_sbrk(ptrdiff_t incr)</code></pre>
+          <div class="muted">This allows overriding/compatibility with the newlib heap implementation added above.</div>
+        </li>
+        <li>
+          Edit your project's top-level <code>CMakeLists.txt</code> and add <code>heap_useNewlib_ST.c</code> to the executable sources:
+<pre><code># Add sources to executable
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user sources here
+    Application/src/heap_useNewlib_ST.c
+)</code></pre>
+        </li>
+        <li>
+          Add USB VID/PID definitions to the same <code>CMakeLists.txt</code> so they are available as compile-time macros:
+<pre><code># Add project symbols (macros)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined symbols
+    USB_FS_VID=0x1111
+    USB_FS_PID=0x2222
+)</code></pre>
+          <div class="muted">Adjust the values to match your device identifiers.</div>
+        </li>
+        <li>
+          Generate a <code>.hex</code> file from the built ELF by adding this to <code>CMakeLists.txt</code>:
+<pre><code># Generate HEX file from ELF
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $&lt;TARGET_FILE:${CMAKE_PROJECT_NAME}&gt; ${CMAKE_PROJECT_NAME}.hex
+    COMMENT "Generating HEX file"
+)</code></pre>
+          <div class="muted">If <code>${CMAKE_OBJCOPY}</code> isn’t defined by your toolchain file, replace it with <code>arm-none-eabi-objcopy</code>.</div>
+        </li>
+        <li>
+          Edit the linker script (e.g., <code>STM32F446xx_FLASH.ld</code>) to preserve Flash sectors 1–3 for EEPROM emulation. Keep the vector table in sector 0 and start the application at <code>0x08010000</code>:
+<pre><code>/* Memories definition */
+MEMORY
+{
+  RAM     (xrw) : ORIGIN = 0x20000000, LENGTH = 128K
+  ISR      (rx) : ORIGIN = 0x08000000, LENGTH = 16K   /* Vector table (Sector 0) */
+  /* EEPROM  (rwx): ORIGIN = 0x08004000, LENGTH = 3 * 16K */ /* Sectors 1, 2 and 3 for EEPROM emulation */
+  FLASH    (rx) : ORIGIN = 0x08010000, LENGTH = 512K-16K-48K /* Use remaining for code */
+}
+
+/* Place vector table in dedicated ISR region */
+.isr_vector :
+{
+  . = ALIGN(4);
+  KEEP(*(.isr_vector)) /* Startup code */
+  . = ALIGN(4);
+} >ISR</code></pre>
+          <div class="muted">Addresses and sizes are for STM32F446 with 512&nbsp;KB Flash. Adjust for your MCU if it differs.</div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>After code generation (optional)</h2>
+      <ul>
+        <li>Open the generated CMake project with your preferred IDE (e.g., VS Code + CMake Tools) or build via command line.</li>
+  <li>Ensure the ARM GCC toolchain <strong>(version ≥ 12.1)</strong> is installed and on PATH (e.g., <code>arm-none-eabi-gcc --version</code>).</li>
+        <li>Configure a build folder (e.g., <code>build/</code>), run CMake configure and build.</li>
+        <li>Use your preferred flasher (ST-LINK CLI/STM32CubeProgrammer) to program the resulting <code>.elf</code>/<code>.hex</code>.</li>
+      </ul>
+      <p class="muted">If you prefer STM32CubeIDE instead, you can import the generated project there and build/flash from the IDE.</p>
+    </div>
+
+    <div class="help-panel">
+      <h2 id="cubeide">Use STM32CubeIDE</h2>
+      <ul>
+        <li>
+          Download and install <a href="https://www.st.com/en/development-tools/stm32cubeide.html" target="_blank" rel="noopener noreferrer">STM32CubeIDE</a> <strong>&ge; 19.0</strong> <span class="muted">(better CMake support)</span>.
+        </li>
+        <li>Run STM32CubeIDE and create or open a workspace.</li>
+        <li>
+          Create a project from the generated CMake sources:
+          <ul>
+            <li>
+              Menu: <span class="kbd">File</span> → <span class="kbd">New</span> → <span class="kbd">STM32 CMake Project</span> → <span class="kbd">Project from existing CMake sources</span>
+            </li>
+            <li>
+              Wizard options:
+              <ul>
+                <li><strong>Project name</strong>: keep default</li>
+                <li>[x] Use default location</li>
+                <li>Browse for the folder with the generated files (select the project root that contains <code>CMakeLists.txt</code>)</li>
+                <li>[x] Use default build directory</li>
+              </ul>
+            </li>
+            <li>
+              Select MCU: <code>STM32F446MEYx</code>
+            </li>
+            <li>
+              Click <span class="kbd">Finish</span>
+            </li>
+          </ul>
+        </li>
+        <li>
+          Build, run, and debug from STM32CubeIDE:
+          <ul>
+            <li>In the <strong>Project Explorer</strong>, select the newly created project.</li>
+            <li>Build: right-click the project → <span class="kbd">Build Project</span> (or press <span class="kbd">Ctrl</span>+<span class="kbd">B</span>).</li>
+            <li>Run: right-click → <span class="kbd">Run As</span> → <span class="kbd">STM32 C/C++ Application</span>.</li>
+            <li>
+              Run configurations: from menu <span class="kbd">Run</span> → <span class="kbd">Run Configurations…</span>, select <span class="kbd">STM32 C/C++ Application</span>, click <span class="kbd">New launch configuration</span>, choose your built <code>.elf</code>, ensure the <strong>ST-LINK</strong> debugger is selected, then <span class="kbd">Apply</span> and <span class="kbd">Run</span>.
+              <div class="muted">Use this if the ST-LINK socket is soldered and the ST-LINK is connected. Otherwise, program via STM32CubeProgrammer — see <a href="firmware.html">Firmware update</a>.</div>
+            </li>
+            <li>Debug: right-click → <span class="kbd">Debug As</span> → <span class="kbd">STM32 C/C++ Application</span> (first time will create a debug configuration).</li>
+            <li>If prompted, choose the ST-LINK probe, ensure the correct MCU is detected, and click <span class="kbd">OK</span>.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="help-panel">
+      <h2 id="build-windows">Build on Windows (MSYS2 MinGW64)</h2>
+      <ol>
+        <li>
+          Install <a href="https://www.msys2.org/" target="_blank" rel="noopener noreferrer">MSYS2</a> and update the package database and core system.
+          <div class="muted">Follow MSYS2's first-run update steps (run update, restart the shell if prompted, and update again).</div>
+        </li>
+        <li>
+          Open the <strong>MSYS2 MinGW64</strong> terminal (Start Menu → MSYS2 MinGW 64-bit).
+        </li>
+        <li>
+          Install required packages (ARM GCC <strong>≥ 12.1</strong>):
+          <pre><code>pacman -S --needed mingw-w64-x86_64-arm-none-eabi-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja</code></pre>
+          <div class="muted">Verify version with <code>arm-none-eabi-gcc --version</code>. If you prefer Makefiles instead of Ninja, install <code>mingw-w64-x86_64-make</code> and adjust the generator accordingly.</div>
+        </li>
+        <li>
+          Change to your generated project folder and build:
+          <pre><code>cd /c/Projects/&lt;your-path-to-generated-project&gt;
+mkdir build
+cd build
+cmake -G Ninja .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake
+cmake --build .</code></pre>
+          <div class="muted">Ninja is recommended on Windows for speed and compatibility. If needed, specify it explicitly: <code>cmake -G Ninja .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake</code>.</div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2 id="build-linux">Build on Linux</h2>
+      <ol>
+        <li>
+          Install the required packages (ARM GCC <strong>≥ 12.1</strong>): <code>arm-none-eabi-gcc</code>, <code>cmake</code>, <code>ninja-build</code>.
+          <div class="muted">On Debian/Ubuntu, for example: <code>sudo apt install gcc-arm-none-eabi cmake ninja-build</code>. Package names may vary by distro.</div>
+        </li>
+        <li>
+          Change to your generated project folder and build:
+<pre><code>cd ~/Documents/projects/&lt;your-path-to-generated-project&gt;
+mkdir build
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/gcc-arm-none-eabi.cmake
+cmake --build .</code></pre>
+          <div class="muted">Use your Linux path instead of <code>/c/Projects/...</code>, e.g., <code>/home/&lt;user&gt;/Projects/...</code>. If needed, specify a generator explicitly: <code>cmake -G Ninja ..</code>.</div>
+        </li>
+      </ol>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
+      <a href="index.html" class="back-link">← Back to app</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

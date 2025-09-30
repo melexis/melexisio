@@ -1,4 +1,7 @@
 /.vscode
+/melexis_io_fw/build
+/melexis_io_fw/.mxproject
+/melexis_io_fw/config_default
 /.idea
 /android/app/build
 /android/.gradle

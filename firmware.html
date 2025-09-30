@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Melexis.IO - Firmware Update</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Montserrat font from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <style>
+    :root {
+      --mlx-blue: #00ADEF;
+      --mlx-dark: #232A34;
+      --mlx-bg: #1A2027;
+      --mlx-panel: #232A34;
+      --mlx-panel-border: #2D3742;
+      --mlx-muted: #A9B8C9;
+      --mlx-white: #fff;
+    }
+    body {
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      background: var(--mlx-bg);
+      color: var(--mlx-white);
+      margin: 0;
+      line-height: 1.7;
+    }
+    #header {
+      display: flex;
+          color-scheme: light dark; 
+          font-size: 14px; /* base font size */
+      justify-content: center;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--mlx-panel-border);
+      background: var(--mlx-panel);
+    }
+    #header .banner {
+      display: block;
+      max-height: 72px;
+      height: auto;
+      width: auto;
+    }
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    .help-panel {
+      background: var(--mlx-panel);
+      border: 1px solid var(--mlx-panel-border);
+      border-radius: 1rem;
+      padding: 1.7rem 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+    }
+    .back-link {
+      color: var(--mlx-muted);
+      text-decoration: none;
+      font-size: 0.98rem;
+      display: inline-block;
+      margin-bottom: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: color 0.2s;
+    }
+    .back-link:hover {
+      color: var(--mlx-blue);
+      text-decoration: underline;
+    }
+    h1 {
+      color: var(--mlx-blue);
+      font-size: 2.6rem;
+      font-weight: 700;
+      margin-bottom: 2.2rem;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+    h2 {
+      color: var(--mlx-blue);
+      font-size: 1.45rem;
+      font-weight: 600;
+      margin-top: 2.2rem;
+      margin-bottom: 1.1rem;
+      border-bottom: 1px solid var(--mlx-panel-border);
+      padding-bottom: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+    h3 {
+      color: var(--mlx-white);
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.01em;
+    }
+    .muted {
+      color: var(--mlx-muted);
+      font-size: 0.97rem;
+    }
+    ul, ol { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5rem; }
+    code {
+      background: #232A34;
+      color: #00ADEF;
+      padding: 0.18rem 0.38rem;
+      border-radius: 0.25rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.98em;
+    }
+    .kbd {
+      background: #232A34;
+      color: var(--mlx-blue);
+      padding: 0.18rem 0.5rem;
+      border-radius: 0.25rem;
+      border: 1px solid var(--mlx-panel-border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.97em;
+    }
+    .warning {
+      background: rgba(255, 193, 7, 0.09);
+      border: 1px solid #ffe082;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .warning h4 { color: #ffc107; margin: 0 0 .5rem 0; }
+    /* Buttons and links */
+    a.btn, button.btn {
+      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-weight: 600;
+      border-radius: 2rem;
+      letter-spacing: 0.01em;
+      transition: background 0.2s, color 0.2s;
+    }
+    a.btn-primary, .btn-primary {
+      background: var(--mlx-blue);
+      border-color: var(--mlx-blue);
+      color: #fff;
+    }
+    a.btn-primary:hover, .btn-primary:hover {
+      background: #008ec1;
+      border-color: #008ec1;
+      color: #fff;
+    }
+    /* Responsive tweaks */
+    @media (max-width: 600px) {
+      .container { padding: 1.2rem 0.3rem; }
+      .help-panel { padding: 1.1rem 0.5rem; }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header id="header" role="banner">
+    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
+  </header>
+  <div class="container">
+    <a href="index.html" class="back-link">← Back to app</a>
+    <div class="muted" style="margin-bottom: .5rem;">
+      See also: <a href="help.html" class="back-link">Help</a> · <a href="build.html" class="back-link">Build firmware</a>
+    </div>
+
+    <h1>Firmware Update Guide</h1>
+
+    <div class="help-panel">
+      <h2>Overview</h2>
+      <p>This page explains how to update your device firmware using STMicroelectronics STM32CubeProgrammer. Follow the steps carefully. Do not disconnect power or USB during flashing.</p>
+      <div class="warning">
+        <h4>Notes</h4>
+        <ul>
+          <li>Close any other applications using the device’s USB port before switching to DFU.</li>
+          <li>Do not interrupt power or USB while programming.</li>
+          <li>If connection fails, try a different USB cable/port and ensure STM32 DFU drivers are installed.</li>
+        </ul>
+      </div>
+    </div>
+
+    
+
+    <div class="help-panel">
+      <h2>Update using STM32CubeProgrammer</h2>
+      <ol>
+        <li>
+          <strong>Download and install STM32CubeProgrammer</strong><br />
+          Get it from ST: <a class="back-link" href="https://www.st.com/en/development-tools/stm32cubeprog.html" target="_blank" rel="noopener">https://www.st.com/en/development-tools/stm32cubeprog.html</a>
+        </li>
+        <li>
+          <strong>Download the firmware (HEX)</strong><br />
+          <a class="back-link" href="bin/melexis_io_fw.hex" download>Download melexis_io_fw.hex</a>
+          <div class="muted">Save the <code>.hex</code> file to a known location.</div>
+        </li>
+        <li>
+          <strong>Enter DFU mode</strong>
+          <ul>
+            <li>From Terminal: send command <code>:SYST:DFU 42</code></li>
+            <li>Using buttons: press and hold <span class="kbd">Boot</span>, then click <span class="kbd">Reset</span>
+              <button type="button" class="btn btn-outline-info btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#dfuButtonsModal">Show image</button>
+            </li>
+          </ul>
+          <div class="muted">In DFU mode, the device re-enumerates as an STM32 DFU device over USB.</div>
+        </li>
+        <li>
+          <strong>Connect STM32CubeProgrammer over USB</strong>
+          <ul>
+            <li>Open STM32CubeProgrammer</li>
+            <li>Select the <strong>USB</strong> connection type (upper right)</li>
+            <li>Click <strong>Refresh</strong> and choose the DFU target</li>
+            <li>Click <strong>Connect</strong></li>
+          </ul>
+        </li>
+        <li>
+          <strong>Upload and verify</strong>
+          <ul>
+            <li>Activate the <strong>Erasing & Programming</strong> tab in STM32CubeProgrammer</li>
+            <li>Enter the <strong>File path</strong> or click <strong>Browse</strong> to select the firmware <code>.hex</code></li>
+            <li>Check <strong>Verify programming</strong> and <strong>Run after programming</strong></li>
+            <li>Click <strong>Start Programming</strong></li>
+            <li>Wait for the progress to complete and verify finishes without errors</li>
+            <li>With <strong>Run after programming</strong> checked, the board will reset and start the new firmware automatically</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Update using STM32CubeProgrammer CLI</h2>
+      <p>You can flash the firmware from the command line using STM32CubeProgrammer's CLI tool. Ensure the device is in DFU mode first (see steps above).</p>
+      <ol>
+        <li>
+          Locate the CLI executable, typically here:
+          <div class="muted">"C:\\Program Files\\STMicroelectronics\\STM32Cube\\STM32CubeProgrammer\\bin\\STM32_Programmer_CLI.exe"</div>
+        </li>
+        <li>
+          <em>Optional</em>: Add the folder to your <strong>PATH</strong> so you can call the CLI from any directory:
+<pre><code>C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\</code></pre>
+          <div class="muted">Windows PowerShell (current session):
+<pre><code>$env:Path += ";C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin"</code></pre>
+Permanent (user) PATH:
+<pre><code>setx PATH "$env:Path;C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin"</code></pre>
+          </div>
+        </li>
+        <li>
+          Run the command (replace paths as needed):
+<pre><code>"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe" -c port=USB1 -w "C:\path\to\melexis_io_fw.hex" -v -g</code></pre>
+          <div class="muted">
+            -c port=USB1: connect over USB DFU · -w: write HEX · -v: verify · -g: run after programming
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Update using dfu-util (Windows)</h2>
+      <ol>
+        <li>
+          Install WinUSB driver for the DFU device using <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener">Zadig</a>:
+          <ul>
+            <li>Run Zadig → Options → <strong>List All Devices</strong></li>
+            <li>Select <strong>STM32 Bootloader</strong> from the list</li>
+            <li>Choose <strong>WinUSB</strong> as the driver and click <strong>Install Driver</strong></li>
+          </ul>
+        </li>
+        <li>
+          Download <a href="https://github.com/dfu-util/dfu-util/releases" target="_blank" rel="noopener">dfu-util for Windows</a> and extract it (e.g., to <code>C:\Tools\dfu-util\</code>).
+          <div class="muted">Add the folder to PATH or run commands from inside the extracted directory.</div>
+        </li>
+        <li>
+          Enter DFU mode (see steps above), then verify the device is detected:
+          <pre><code>dfu-util --list</code></pre>
+          <div class="muted">You should see an entry for <em>STM32 Bootloader</em> with DFU interfaces.</div>
+        </li>
+        <li>
+          Convert the firmware HEX to BIN (dfu-util writes BIN/DFU, not Intel HEX):
+          <ul>
+            <li>Using ARM GCC (if installed):
+              <pre><code>arm-none-eabi-objcopy -I ihex -O binary melexis_io_fw.hex melexis_io_fw.bin</code></pre>
+            </li>
+            <li>Or use another converter (e.g., <code>srec_cat</code>) to produce <code>.bin</code>.</li>
+          </ul>
+          <div class="muted">Download the HEX from this page above or use your own build output.</div>
+        </li>
+        <li>
+          Flash the BIN to internal flash at address <code>0x08000000</code> and reset when done:
+          <pre><code>dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.bin</code></pre>
+          <div class="muted">Drop <code>:leave</code> if you do not want the board to reset automatically after programming.</div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="help-panel">
+      <h2>Partial update: preserve Flash sectors 1–3</h2>
+      <p>If you use EEPROM emulation in sectors 1–3 (0x08004000–0x0800FFFF), avoid erasing or writing those regions. Program only from <code>0x08010000</code> upward.</p>
+      <h3>Case A: BIN is linked to start at 0x08010000</h3>
+      <p>This is the recommended setup when you changed the linker script (FLASH origin at <code>0x08010000</code>).</p>
+<pre><code>dfu-util -a 0 -s 0x08010000:leave -D melexis_io_fw.bin</code></pre>
+      <div class="muted">This writes only the application region. Do not add <code>:mass-erase</code>. If multiple DFU devices are connected, you can select the STM32 DFU with <code>-d 0483:df11</code>.</div>
+
+      <h3>Case B: BIN starts at 0x08000000 (full image)</h3>
+      <p>Trim the first 64&nbsp;KB (sectors 0–3) so you only program the application part at <code>0x08010000</code>.</p>
+      <p class="muted">Windows PowerShell snippet to create <code>app_only.bin</code> from <code>full.bin</code>:</p>
+<pre><code>$in  = [System.IO.File]::OpenRead("full.bin")
+$out = [System.IO.File]::Create("app_only.bin")
+$in.Seek(0x10000, 'Begin') | Out-Null
+$in.CopyTo($out)
+$out.Close(); $in.Close()
+
+# Flash only the app region
+dfu-util -a 0 -s 0x08010000:leave -D .\app_only.bin</code></pre>
+      <div class="muted">This preserves sectors 1–3 because they are neither erased nor written. If you must also update sector 0 (vector table), do it in a separate 16&nbsp;KB write to <code>0x08000000</code> and still avoid sectors 1–3.</div>
+    </div>
+
+    <div class="help-panel">
+      <h2>Update using dfu-util (Linux)</h2>
+      <ol>
+        <li>
+          No additional drivers are required on Linux.
+        </li>
+        <li>
+          Install <code>dfu-util</code> from your distribution:
+          <div class="muted">Debian/Ubuntu: <code>sudo apt install dfu-util</code> · Fedora: <code>sudo dnf install dfu-util</code> · Arch: <code>sudo pacman -S dfu-util</code></div>
+        </li>
+        <li>
+          Enter DFU mode (see above) and verify detection:
+          <pre><code>dfu-util --list</code></pre>
+        </li>
+        <li>
+          Convert HEX to BIN (same as Windows):
+          <pre><code>arm-none-eabi-objcopy -I ihex -O binary melexis_io_fw.hex melexis_io_fw.bin</code></pre>
+        </li>
+        <li>
+          Flash the BIN to internal flash and reset when done:
+          <pre><code>dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.bin</code></pre>
+        </li>
+      </ol>
+  <p class="muted">These steps mirror the Windows dfu-util flow; only installation differs. You may need <code>sudo</code> if udev permissions are not configured.</p>
+
+  <h3>Optional: allow flashing without sudo (udev rule)</h3>
+  <p class="muted">Adjust <code>idProduct</code> if your device reports a different PID than <code>df11</code> (check with <code>dfu-util --list</code>).</p>
+<pre><code># Create udev rule for STM32 DFU (VID 0483, PID df11)
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="df11", MODE="0666", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/49-st-dfu.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+# Unplug and re-plug the device (or reset to DFU) to apply</code></pre>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
+      <a href="index.html" class="back-link">← Back to app</a>
+    </div>
+  </div>
+
+  <!-- DFU Buttons Modal -->
+  <div class="modal fade" id="dfuButtonsModal" tabindex="-1" aria-labelledby="dfuButtonsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content" style="background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-on-green);">
+        <div class="modal-header" style="border-bottom: 1px solid var(--panel-border);">
+          <h5 class="modal-title" id="dfuButtonsModalLabel">Enter DFU using buttons</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: invert(1) contrast(200%);"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted mb-2">Press and hold Boot, then click Reset.</p>
+          <img src="media/buttons.png" alt="Board buttons: Boot and Reset" class="img-fluid rounded" style="max-height: 70vh; width: 100%; object-fit: contain;" />
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid var(--panel-border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
