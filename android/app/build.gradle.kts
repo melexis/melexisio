@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.melexisio.terminal"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.melexisio.terminal"
@@ -30,6 +30,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    buildToolsVersion = "36.1.0"
 }
 
 dependencies {
