@@ -190,6 +190,9 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="irchart-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">IR Chart</button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="thermal-tab" data-bs-toggle="tab" data-bs-target="#tab6" type="button" role="tab" aria-controls="tab6" aria-selected="false">MLX9064x Thermal Viewer</button>
+        </li>
       </ul>
       <div class="tab-content pt-3" id="mainTabsContent">
       <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="terminal-tab">
@@ -358,6 +361,11 @@
               <button id="irChartSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="tab6" role="tabpanel" aria-labelledby="thermal-tab">
+        <div class="p-3" style="height:70vh;">
+          <iframe src="thermal_viewer.html" title="MLX9064x Thermal Viewer" style="border:0;width:100%;height:100%;border-radius:.5rem;background:#000;"></iframe>
         </div>
       </div>
       
