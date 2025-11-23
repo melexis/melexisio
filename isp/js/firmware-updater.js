@@ -28,8 +28,16 @@ class FirmwareUpdater {
         this.FLASH_SIZE = 0x80000;  // 512KB
         this.TRANSFER_SIZE = 2048;  // 2KB blocks
 
-        // GitLab Pages configuration (no authentication required)
-        this.PAGES_BASE_URL = 'https://ays.pages.melexis.com/mlx9064x-isp-melexisio';
+        // Determine update source based on environment
+        const hostname = window.location.hostname;
+        if (hostname.includes('melexis.io') || hostname.includes('github.io')) {
+            // External: Look in relative directory (must be served by Pages)
+            this.PAGES_BASE_URL = '.';
+        } else {
+            // Internal: Use GitLab Pages
+            this.PAGES_BASE_URL = 'https://ays.pages.melexis.com/mlx9064x-isp-melexisio';
+        }
+        
         this.MANIFEST_URL = `${this.PAGES_BASE_URL}/latest/firmware-manifest.json`;
 
         // Fallback: GitLab API configuration (requires authentication for private repos)
@@ -69,18 +77,16 @@ class FirmwareUpdater {
 
             // Compare versions
             const updateAvailable = this._compareVersions(latestRelease.tag_name, currentVersion);
+            const manifest = await this._getManifest(latestRelease);
 
-            if (updateAvailable) {
-                return {
-                    current: currentVersion,
-                    latest: latestRelease.tag_name,
-                    downloadUrl: this._getFirmwareUrl(latestRelease),
-                    manifest: await this._getManifest(latestRelease),
-                    releaseNotes: latestRelease.description
-                };
-            }
-
-            return null;
+            return {
+                updateAvailable: updateAvailable,
+                current: currentVersion,
+                latest: latestRelease.tag_name,
+                downloadUrl: updateAvailable ? this._getFirmwareUrl(latestRelease) : null,
+                manifest: manifest,
+                releaseNotes: latestRelease.description
+            };
         } catch (error) {
             this._updateError('Update check failed: ' + error.message);
             throw error;
@@ -326,16 +332,16 @@ class FirmwareUpdater {
      * @private
      */
     _compareVersions(latest, current) {
-        // Remove 'v' prefix if present
-        latest = latest.replace(/^v/, '');
-        current = current.replace(/^v/, '');
+        // Normalize versions: remove 'v' prefix and trim
+        latest = (latest || '').toString().trim().replace(/^v/, '');
+        current = (current || '').toString().trim().replace(/^v/, '');
 
-        const latestParts = latest.split('.').map(Number);
-        const currentParts = current.split('.').map(Number);
+        const latestParts = latest.split('.').map(p => parseInt(p, 10));
+        const currentParts = current.split('.').map(p => parseInt(p, 10));
 
         for (let i = 0; i < 3; i++) {
-            const l = latestParts[i] || 0;
-            const c = currentParts[i] || 0;
+            const l = isNaN(latestParts[i]) ? 0 : latestParts[i];
+            const c = isNaN(currentParts[i]) ? 0 : currentParts[i];
 
             if (l > c) return true;
             if (l < c) return false;
@@ -547,23 +553,115 @@ class FirmwareUpdater {
     }
 
     /**
+     * Filter segments to ensure safety (Main Flash only)
+     * @param {Array} segments 
+     * @returns {Array} Safe segments
+     */
+    _filterSafeSegments(segments) {
+        // STM32F446 Flash Range: 0x08000000 - 0x0807FFFF (512KB)
+        // We strictly prohibit writing to:
+        // - 0x1FFF0000 (System Memory / Bootloader)
+        // - 0x1FFFC000 (Option Bytes) - DANGER ZONE
+        // - 0x20000000 (SRAM)
+        
+        // Additionally, we must PROTECT the EEPROM emulation area to prevent
+        // overwriting user settings or bricking if the firmware puts data there.
+        // EEPROM Range: 0x08004000 - 0x08010000 (Sectors 1, 2, 3)
+        
+        // Safe Ranges:
+        // 1. Sector 0 (ISR Vector): 0x08000000 - 0x08003FFF
+        // 2. Main Code (Sector 4+): 0x08010000 - 0x0807FFFF
+        
+        const SAFE_RANGES = [
+            { start: 0x08000000, end: 0x08003FFF }, // ISR Vector
+            { start: 0x08010000, end: 0x0807FFFF }  // Main Application Code
+        ];
+        
+        return segments.filter(seg => {
+            const segStart = seg.address;
+            const segEnd = seg.address + seg.data.length - 1;
+            
+            for (const range of SAFE_RANGES) {
+                // Check if segment is fully contained within a safe range
+                if (segStart >= range.start && segEnd <= range.end) {
+                    return true;
+                }
+            }
+            
+            console.warn(`Skipping unsafe/EEPROM segment at 0x${segStart.toString(16)} (Length: ${seg.data.length})`);
+            return false;
+        });
+    }
+
+    /**
      * Flash HEX firmware by parsing segments and flashing them individually
      * Preserves gaps (e.g. EEPROM)
      * @private
      */
     async _flashFirmwareHex(hexString) {
-        const segments = this._parseIntelHex(hexString);
-        console.log(`Parsed ${segments.length} segments`);
+        const rawSegments = this._parseIntelHex(hexString);
+        
+        // 1. Filter for safety
+        const safeSegments = this._filterSafeSegments(rawSegments);
+        
+        if (safeSegments.length === 0) {
+            throw new Error("No valid firmware segments found in HEX file!");
+        }
+
+        // 2. Sort by address
+        safeSegments.sort((a, b) => a.address - b.address);
+
+        // 3. Merge overlapping or contiguous segments
+        const mergedSegments = [];
+        if (safeSegments.length > 0) {
+            let current = safeSegments[0];
+            for (let i = 1; i < safeSegments.length; i++) {
+                const next = safeSegments[i];
+                const currentEnd = current.address + current.data.length;
+                
+                console.log(`Checking merge: Current [0x${current.address.toString(16)} - 0x${currentEnd.toString(16)}] vs Next [0x${next.address.toString(16)} - 0x${(next.address + next.data.length).toString(16)}]`);
+
+                // Check for overlap, contiguity, or small gap (< 4KB)
+                // Merging small gaps prevents "double erase" of the same sector
+                const gap = next.address - currentEnd;
+                
+                if (next.address <= currentEnd || gap < 4096) {
+                    // Merge!
+                    console.log(`Merging segments (Gap: ${gap}): 0x${current.address.toString(16)} and 0x${next.address.toString(16)}`);
+                    
+                    const newLength = Math.max(currentEnd, next.address + next.data.length) - current.address;
+                    const newData = new Uint8Array(newLength);
+                    
+                    // Fill with 0xFF (erased state) by default
+                    newData.fill(0xFF);
+                    
+                    // Copy current data
+                    newData.set(current.data);
+                    
+                    // Copy next data (overwriting overlap or after gap)
+                    const offset = next.address - current.address;
+                    newData.set(next.data, offset);
+                    
+                    current.data = newData;
+                } else {
+                    mergedSegments.push(current);
+                    current = next;
+                }
+            }
+            mergedSegments.push(current);
+        }
+
+        console.log(`Parsed ${rawSegments.length} segments, filtered to ${safeSegments.length}, merged to ${mergedSegments.length} safe to flash`);
         
         this._setupDfuLogging();
         
         let totalBytes = 0;
-        segments.forEach(s => totalBytes += s.data.length);
+        mergedSegments.forEach(s => totalBytes += s.data.length);
         let globalBytesWritten = 0;
 
-        for (const segment of segments) {
+        for (const segment of mergedSegments) {
              // 1. Erase
-             console.log(`Erasing/Writing segment at 0x${segment.address.toString(16)}`);
+             console.log(`Erasing/Writing segment at 0x${segment.address.toString(16)} (Length: ${segment.data.length})`);
              await this.dfuDevice.erase(segment.address, segment.data.byteLength);
 
              // 2. Write
@@ -591,7 +689,7 @@ class FirmwareUpdater {
                  // Update global progress
                  if (this.onProgress) {
                      const percent = (globalBytesWritten / totalBytes) * 100;
-                     this.onProgress(percent, `Flashing: ${percent.toFixed(0)}%`);
+                     this.onProgress(percent, 'Flashing firmware...');
                  }
              }
         }
@@ -600,7 +698,7 @@ class FirmwareUpdater {
         console.log("Manifesting (Rebooting)...");
         try {
             // Set address to start of first segment (usually 0x08000000)
-            await this.dfuDevice.dfuseCommand(0x21, segments[0].address, 4);
+            await this.dfuDevice.dfuseCommand(0x21, mergedSegments[0].address, 4);
             await this.dfuDevice.download(new ArrayBuffer(), 0);
         } catch (error) {
             throw "Error during DfuSe manifestation: " + error;

@@ -23,10 +23,10 @@ Single-file HTML application (~3700 lines) that provides real-time thermal heatm
 **Usage:**
 ```bash
 # Basic mode (default)
-open thermal_viewer.html
+open index.html
 
 # Advanced mode (all controls)
-open thermal_viewer.html?advanced
+open index.html?advanced
 ```
 
 **UI Modes:**
@@ -260,27 +260,24 @@ STM32 has **unbrickable ROM bootloader** - device can always be recovered!
 1. Enter manual DFU mode (see above)
 2. Retry firmware update from web interface
 3. If web update fails, use command-line tool:
+   
+   **Option A: STM32CubeProgrammer (Recommended)**
+   Supports `.hex` files natively.
+   
+   **Option B: dfu-util**
+   ⚠️ **Warning:** `dfu-util` treats input files as raw binary. Flashing a `.hex` file directly **will corrupt the firmware** because HEX is text-based. You must use a `.bin` file or convert the HEX first.
+   
    ```bash
-   dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.hex
+   # Only for .bin files (NOT .hex):
+   dfu-util -a 0 -s 0x08000000:leave -D melexis_io_fw.bin
    ```
 4. Download firmware from GitLab Releases if needed
 
-### Security Considerations
+### Firmware File Formats
 
-**SHA-256 Verification:**
-- Firmware binary hash verified before flashing
-- Readback verification after flashing
-- Prevents corrupt/modified binaries from being flashed
-
-**Source Authenticity:**
-- Firmware fetched from official GitLab Releases only
-- HTTPS connection to GitLab API
-- Manifest includes firmware metadata (version, build date, commit hash)
-
-**User Confirmation:**
-- Explicit confirmation required before flashing
-- Warning about power disconnection risks
-- Cannot accidentally trigger update
+- **.hex (Intel HEX):** ASCII text format containing data and specific memory addresses. Safe for updates because it allows "gaps" in data (preserving EEPROM/user settings). The Web Tool parses this format.
+- **.bin (Binary):** Raw sequence of bytes. No address information. Flashing a `.bin` blindly to `0x08000000` overwrites everything linearly, which may wipe the EEPROM emulation section.
+- **.dfu (ST DfuSe):** Binary container format with metadata (Vendor/Product IDs).
 
 ### Developer Notes
 
