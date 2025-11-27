@@ -76,6 +76,10 @@
             display: none;
         }
 
+        .basic-mode .advanced-only {
+            display: none;
+        }
+
         .panel {
             background: #2a2a2a;
             border-radius: 10px;
@@ -603,7 +607,7 @@
                 <canvas id="thermalCanvas" width="640" height="480"></canvas>
                 <div class="stats-grid">
                     <div class="stat-box">
-                        <div class="stat-label">People Detected</div>
+                        <div class="stat-label">People Est. (footprint)</div>
                         <div class="stat-value large" id="peopleCount">-</div>
                     </div>
                     <div class="stat-box">
@@ -652,10 +656,10 @@
                     <button class="secondary" id="captureToggle"  disabled>Start Capture</button>
                 </div>
 
-                <!-- Frame Rate -->
-                <div class="control-group">
-                    <label>Frame Rate: <span class="range-value" id="frameRateValue">4.0 Hz</span></label>
-                    <input type="range" id="frameRateSlider" min="1.0" max="16.0" step="1.0" value="4"
+                <!-- Frame Rate (advanced only - basic mode auto-syncs to sensor FPS) -->
+                <div class="control-group advanced-only">
+                    <label>Frame Rate: <span class="range-value" id="frameRateValue">8.0 Hz</span></label>
+                    <input type="range" id="frameRateSlider" min="1.0" max="16.0" step="1.0" value="8"
                            >
                 </div>
 
@@ -676,8 +680,8 @@
 
                 <!-- Simple Mode Controls (replaces Preset in Simple Mode) -->
                 <div class="control-group slider-group simple-mode-only" style="display: none;">
-                    <label>Hot Threshold <span id="thHotValue">2.0</span>°C</label>
-                    <input type="range" id="thHotSlider" min="0" max="500" value="100" step="5">
+                    <label>Hot Threshold <span id="thHotValue">1.8</span>°C</label>
+                    <input type="range" id="thHotSlider" min="0" max="500" value="90" step="5">
                 </div>
 
                 <div class="control-group" id="coldDetectionGroup">
@@ -692,6 +696,11 @@
                     <label class="panel-title" style="font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; display: block;">Visualization</label>
 
                     <div class="checkbox-group">
+                        <input type="checkbox" id="displayMotionMap">
+                        <label for="displayMotionMap">Display Motion Map</label>
+                    </div>
+
+                    <div class="checkbox-group">
                         <input type="checkbox" id="fixedScale" checked>
                         <label for="fixedScale">Fixed Color Scale</label>
                     </div>
@@ -699,7 +708,7 @@
                     <div id="fixedScaleControls" style="display: block; margin-top: 10px; padding-left: 10px; border-left: 2px solid #444; margin-bottom: 10px;">
                          <div style="margin-bottom: 8px;">
                             <label style="display: inline-block; width: 60px;">Min °C:</label>
-                            <input type="number" id="fixedMinTemp" value="20" step="1" style="width: 80px; display: inline-block;">
+                            <input type="number" id="fixedMinTemp" value="22" step="1" style="width: 80px; display: inline-block;">
                         </div>
                         <div>
                             <label style="display: inline-block; width: 60px;">Max °C:</label>
@@ -790,8 +799,8 @@
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Min Blob Area <span id="minAreaValue">10</span> px</label>
-                            <input type="range" id="minAreaSlider" min="5" max="100" value="10" step="1">
+                            <label>Min Blob Area <span id="minAreaValue">15</span> px</label>
+                            <input type="range" id="minAreaSlider" min="5" max="100" value="15" step="1">
                         </div>
 
                         <!-- Standard Mode Params -->
@@ -825,13 +834,28 @@
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Min Track Age <span id="trackAgeValue">5</span> fr</label>
-                                <input type="range" id="trackAgeSlider" min="1" max="20" value="5" step="1">
+                                <label>Motion Threshold <span id="motionThreshValue">1.0</span>°C</label>
+                                <input type="range" id="motionThreshSlider" min="0" max="500" value="50" step="5">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Max Missed Frames <span id="trackMissedValue">10</span> fr</label>
-                                <input type="range" id="trackMissedSlider" min="1" max="30" value="10" step="1">
+                                <label>Motion Persistence <span id="motionHystValue">120</span> s</label>
+                                <input type="range" id="motionHystSlider" min="1" max="180" value="120" step="1">
+                            </div>
+
+                            <div class="control-group slider-group">
+                                <label>Motion Density <span id="motionDensityValue">20</span>%</label>
+                                <input type="range" id="motionDensitySlider" min="0" max="100" value="20" step="1">
+                            </div>
+
+                            <div class="control-group slider-group">
+                                <label>Min Track Age <span id="trackAgeValue">1.0</span> s</label>
+                                <input type="range" id="trackAgeSlider" min="0.1" max="5.0" value="1.0" step="0.1">
+                            </div>
+
+                            <div class="control-group slider-group">
+                                <label>Max Missed <span id="trackMissedValue">2.0</span> s</label>
+                                <input type="range" id="trackMissedSlider" min="0.1" max="10.0" value="2.0" step="0.1">
                             </div>
                         </div>
                     </div>
@@ -1023,7 +1047,7 @@
                 dfuRebootDelay: 2000
             },
             capture: {
-                defaultFrameRate: 4.0,
+                defaultFrameRate: 8.0,
                 minFrameRate: 1.0,
                 maxFrameRate: 16.0,
                 maxFrameTimeSamples: 10
@@ -1110,7 +1134,14 @@
                     simpleHysteresisValue: document.getElementById('simpleHysteresisValue'),
                     simpleGammaEmaSlider: document.getElementById('simpleGammaEmaSlider'),
                     simpleGammaEmaValue: document.getElementById('simpleGammaEmaValue'),
+                    motionThreshSlider: document.getElementById('motionThreshSlider'),
+                    motionThreshValue: document.getElementById('motionThreshValue'),
+                    motionHystSlider: document.getElementById('motionHystSlider'),
+                    motionHystValue: document.getElementById('motionHystValue'),
+                    motionDensitySlider: document.getElementById('motionDensitySlider'),
+                    motionDensityValue: document.getElementById('motionDensityValue'),
                     smoothHeatmap: document.getElementById('smoothHeatmap'),
+                    displayMotionMap: document.getElementById('displayMotionMap'),
                     // Fixed Scale Controls
                     fixedScale: document.getElementById('fixedScale'),
                     fixedMinTemp: document.getElementById('fixedMinTemp'),
@@ -1252,6 +1283,20 @@
                     this.el.smoothHeatmap.addEventListener('change', (e) => {
                         if (app && app.heatmapRenderer) {
                             app.heatmapRenderer.setSmoothing(e.target.checked);
+                            // Re-render if not capturing
+                            if (!app.capturing && app.currentFrameData) {
+                                app.redrawCurrentFrame();
+                            }
+                            app.saveAppSettings();
+                        }
+                    });
+                }
+
+                // Display Motion Map
+                if (this.el.displayMotionMap) {
+                    this.el.displayMotionMap.addEventListener('change', (e) => {
+                        if (app && app.heatmapRenderer) {
+                            app.heatmapRenderer.setDisplayMotionMap(e.target.checked);
                             // Re-render if not capturing
                             if (!app.capturing && app.currentFrameData) {
                                 app.redrawCurrentFrame();
@@ -1726,7 +1771,7 @@
                     try {
                         const { value, done } = await Promise.race([
                             this.reader.read(),
-                            new Promise((_, reject) => setTimeout(() => reject('timeout'), 300))
+                            new Promise((_, reject) => setTimeout(() => reject('timeout'), 500))
                         ]);
 
                         if (value && value.length > 0) {
@@ -1907,6 +1952,7 @@
                     const result = {
                         thermalFrame: [],
                         foregroundMask: [],
+                        motionMask: [], // New: Motion mask
                         peopleCount: data.meta.people,
                         activityCount: data.meta.people_act,
                         blobCount: data.meta.blobs,
@@ -1931,6 +1977,7 @@
                     for (let y = 0; y < height; y++) {
                         const row = [];
                         const maskRow = new Array(width).fill(false);
+                        const motionRow = new Array(width).fill(false);
 
                         for (let x = 0; x < width; x++) {
                             const val = data.frame[y * width + x];
@@ -1941,11 +1988,27 @@
                         }
                         result.thermalFrame.push(row);
                         result.foregroundMask.push(maskRow);
+                        result.motionMask.push(motionRow);
                     }
 
                     // Update scale info for auto-scaling heatmap
                     result.scaleInfo.minDigit = minVal;
                     result.scaleInfo.maxDigit = maxVal;
+
+                    // Reconstruct motion mask from hex string
+                    if (data.motion_mask) {
+                        for (let y = 0; y < height; y++) {
+                            const hexRow = data.motion_mask.substring(y * 8, (y + 1) * 8);
+                            if (hexRow.length === 8) {
+                                const rowBits = parseInt(hexRow, 16);
+                                for (let x = 0; x < width; x++) {
+                                    if ((rowBits >>> x) & 1) {
+                                        result.motionMask[y][x] = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Reconstruct foreground mask from blob hex strings
                     if (data.blobs && Array.isArray(data.blobs)) {
@@ -2108,11 +2171,16 @@
                 this.flipX = false;
                 this.flipY = false;
                 this.rotate90 = false;
+                this.displayMotionMap = false;
                 
                 // Fixed scale settings
                 this.fixedScale = true;
                 this.fixedMin = 20.0;
                 this.fixedMax = 33.0;
+            }
+
+            setDisplayMotionMap(enabled) {
+                this.displayMotionMap = enabled;
             }
 
             setTransforms(flipX, flipY, rotate90) {
@@ -2202,7 +2270,7 @@
             /**
              * Render thermal heatmap
              */
-            render(thermalFrame, scaleInfo) {
+            render(thermalFrame, scaleInfo, motionMask = null) {
                 // Validate input data
                 if (!thermalFrame || thermalFrame.length === 0 || !thermalFrame[0]) {
                     console.warn('Invalid thermal frame data - skipping render');
@@ -2288,6 +2356,19 @@
                             // Get interpolated value
                             const normalized = this.bilinearInterpolate(tx, ty, thermalFrame, effectiveMinDigit, effectiveDigitRange);
                             const color = this.getColor(normalized);
+                            
+                            // Determine opacity based on motion mask
+                            // For smooth rendering, we sample the nearest pixel in the motion mask
+                            let alpha = 255;
+                            if (this.displayMotionMap && motionMask) {
+                                const mx = Math.floor(tx);
+                                const my = Math.floor(ty);
+                                if (my >= 0 && my < motionMask.length && mx >= 0 && mx < motionMask[0].length) {
+                                    if (!motionMask[my][mx]) {
+                                        alpha = 204; // 80% opacity for static pixels (more visible)
+                                    }
+                                }
+                            }
 
                             // Parse RGB values from color string
                             const matches = color.match(/\d+/g);
@@ -2296,7 +2377,7 @@
                                 data[idx] = parseInt(matches[0]);     // R
                                 data[idx + 1] = parseInt(matches[1]); // G
                                 data[idx + 2] = parseInt(matches[2]); // B
-                                data[idx + 3] = 255;                  // A
+                                data[idx + 3] = alpha;                // A
                             }
                         }
                     }
@@ -2334,7 +2415,13 @@
                             if (this.flipY) dy = gridH - 1 - dy;
 
                             const normalized = (digit - effectiveMinDigit) / effectiveDigitRange;
-                            const color = this.getColor(normalized);
+                            let color = this.getColor(normalized);
+                            
+                            // Apply dimming for static pixels
+                            if (this.displayMotionMap && motionMask && !motionMask[sy][sx]) {
+                                // Convert rgb(...) to rgba(..., 0.8)
+                                color = color.replace('rgb', 'rgba').replace(')', ', 0.8)');
+                            }
 
                             this.ctx.fillStyle = color;
                             this.ctx.fillRect(
@@ -2611,7 +2698,8 @@
                             centroidX: blob.cx,
                             centroidY: blob.cy,
                             area: blob.area,
-                            id: blob.id // Keep original ID for consistent coloring
+                            id: blob.id, // Keep original ID for consistent coloring
+                            act: blob.act // Pass activity status
                         });
 
                         // Populate blobLabels from blob mask
@@ -2667,12 +2755,17 @@
                     // Use firmware ID if available, otherwise index
                     const blobId = (box.id !== undefined) ? box.id : index;
 
+                    // Get blob status
+                    // box.act comes from firmware JSON ("true" or "false" string)
+                    const isActive = (box.act === "true" || box.act === true);
+
                     // Get blob-specific color
-                    const blobColor = this.getBlobColor(blobId, 1.0);
+                    // Active = Green, Inactive = Red
+                    const blobColor = isActive ? 'rgba(0, 255, 0, 1.0)' : 'rgba(255, 50, 50, 1.0)';
 
                     // Draw contour (outline of blob mask)
-                    // User requested green outline only
-                    this.drawBlobContour(foregroundMask, blobLabels, blobId, '#4ade80');
+                    // User requested green outline only -> Update: Now dynamic based on activity
+                    this.drawBlobContour(foregroundMask, blobLabels, blobId, blobColor);
 
                     // Draw centroid crosshair
                     // Transform centroid
@@ -2779,6 +2872,7 @@
                 // Firmware updater
                 this.firmwareUpdater = new FirmwareUpdater(this.serialManager);
                 this.currentUpdateInfo = null;
+                this.connectedViaProbe = false;  // Track if connected via probe for update modal
 
                 this.algoMode = 1; // Default to Simplified
 
@@ -2918,7 +3012,13 @@
              */
             redrawCurrentFrame() {
                 if (this.currentFrameData) {
-                     this.heatmapRenderer.render(this.currentFrameData.thermalFrame, this.currentFrameData.scaleInfo);
+                     this.heatmapRenderer.render(
+                        this.currentFrameData.thermalFrame, 
+                        this.currentFrameData.scaleInfo,
+                        this.currentFrameData.motionMask
+                     );
+                     // No longer using blue overlay - now dimming static pixels
+                     // this.blobOverlay.renderMotionOverlay(this.currentFrameData.motionMask);
                      this.blobOverlay.renderForegroundOverlay(this.currentFrameData.foregroundMask);
                      this.blobOverlay.renderBlobs(
                         this.currentFrameData.foregroundMask,
@@ -3018,15 +3118,11 @@
                         this.log('ISP library build info:\n' + buildInfoResponse);
 
                         // Extract version from response (look for "Version X.Y.Z" pattern)
-                        const lines = buildInfoResponse.split('\n');
-                        for (const line of lines) {
-                            // Match pattern: "[INFO] [isp] Version 0.1.1 | ..."
-                            const versionMatch = line.match(/Version\s+(\d+\.\d+\.\d+)/);
-                            if (versionMatch) {
-                                const version = versionMatch[1];
-                                document.getElementById('libraryVersion').textContent = 'v' + version;
-                                break;
-                            }
+                        // Use flexible regex to match any version format (e.g. 0.3.2, 0.3, etc.)
+                        const versionMatch = buildInfoResponse.match(/Version\s+([\d.]+)/);
+                        if (versionMatch) {
+                            const version = versionMatch[1];
+                            document.getElementById('libraryVersion').textContent = 'v' + version;
                         }
                     } catch (error) {
                         this.log('Note: Could not get library version');
@@ -3133,26 +3229,33 @@
                         }
                     }
 
-                    // If all retries failed (yellow status), disconnect
+                    // If all retries failed, disconnect and inform user
                     if (!initSuccess) {
-                        this.log('⚠️ Initialization failed. Entering RECOVERY MODE.');
-                        this.log('Limited functionality: Firmware update only.');
+                        this.log('');
+                        this.log('❌ Connection failed after 3 initialization attempts.');
+                        this.log('');
+                        this.log('The device responded but could not initialize the sensor.');
+                        this.log('This may indicate corrupted firmware or a hardware issue.');
+                        this.log('');
+                        this.log('Recommended: Click "Update Firmware" to install the latest firmware.');
+                        this.log('');
 
-                        document.getElementById('sensorStatus').textContent = 'Recovery Mode';
-                        document.getElementById('sensorStatus').style.color = '#ff8800'; // Orange
+                        document.getElementById('sensorStatus').textContent = 'Init failed';
+                        document.getElementById('sensorStatus').style.color = '#ef4444'; // Red
 
-                        // Proceed to connected state, but disable capture controls
-                        this.updateConnectionState(true, true);
+                        // Show update badge to draw attention to firmware update
+                        const badge = document.getElementById('updateBadge');
+                        if (badge) badge.style.display = 'flex';
 
-                        // Force disable capture button/controls specifically for recovery mode
-                        document.getElementById('captureToggle').disabled = true;
-                        document.getElementById('presetSelect').disabled = true;
-                        document.getElementById('applySensorConfigBtn').disabled = true;
+                        // Fully disconnect - don't leave in confusing partial state
+                        try {
+                            await this.serialManager.disconnect();
+                        } catch (e) {
+                            console.log('Disconnect error (OK):', e);
+                        }
+                        this.updateConnectionState(false);
 
-                        // Check for updates immediately
-                        this.autoCheckForUpdates();
-
-                        return; // Exit connect() successfully (in recovery mode)
+                        return; // Exit connect() - user is NOT connected
                     }
 
                     // Apply configuration based on mode
@@ -3405,8 +3508,16 @@
                     const smoothingEnabled = document.getElementById('smoothHeatmap').checked;
                     this.heatmapRenderer.setSmoothing(smoothingEnabled);
 
+                    // Check motion map checkbox and apply
+                    const displayMotionMap = document.getElementById('displayMotionMap').checked;
+                    this.heatmapRenderer.setDisplayMotionMap(displayMotionMap);
+
                     // Render heatmap
-                    this.heatmapRenderer.render(data.thermalFrame, data.scaleInfo);
+                    this.heatmapRenderer.render(
+                        data.thermalFrame, 
+                        data.scaleInfo,
+                        data.motionMask
+                    );
 
                     // Render simple foreground overlay (uniform yellow)
                     this.blobOverlay.renderForegroundOverlay(data.foregroundMask);
@@ -3555,6 +3666,13 @@
 
                     this.log('Sensor configuration applied successfully!');
                     this.log('Note: EEPROM settings persist across power cycles.');
+
+                    // Auto-sync polling rate to match sensor FPS
+                    const fpsMap = { '2': 2, '3': 4, '4': 8, '5': 16 };
+                    const targetHz = fpsMap[fps] || 8;
+                    this.updateFrameRate(targetHz);
+                    document.getElementById('frameRateSlider').value = targetHz;
+                    this.saveAppSettings();
                 } catch (error) {
                     this.log('ERROR applying sensor config: ' + error.message);
                     document.getElementById('sensorStatus').textContent = 'Config failed';
@@ -3813,22 +3931,44 @@
                                 document.getElementById('thColdValue').textContent = match[2];
                             }
                         }
+                        // Motion Threshold
+                        else if (line.includes('motion_thresh:')) {
+                            const match = line.match(/(-?\d+)\s+\(([\d.]+)\s*(?:degC|°C)\)/);
+                            if (match) {
+                                const value = parseInt(match[1]);
+                                document.getElementById('motionThreshSlider').value = value;
+                                document.getElementById('motionThreshValue').textContent = match[2];
+                            }
+                        }
+                        // Motion Persistence
+                        else if (line.includes('motion_hysteresis:')) {
+                            const match = line.match(/(\d+)\s+frames/);
+                            if (match) {
+                                const frames = parseInt(match[1]);
+                                const seconds = (frames / this.frameRate).toFixed(1);
+                                // Update slider with seconds, but ensure it respects min/max
+                                document.getElementById('motionHystSlider').value = seconds;
+                                document.getElementById('motionHystValue').textContent = seconds;
+                            }
+                        }
                         // Track Age
                         else if (line.includes('track_age:')) {
                             const match = line.match(/(\d+)\s+frames/);
                             if (match) {
-                                const value = parseInt(match[1]);
-                                document.getElementById('trackAgeSlider').value = value;
-                                document.getElementById('trackAgeValue').textContent = value;
+                                const frames = parseInt(match[1]);
+                                const seconds = (frames / this.frameRate).toFixed(1);
+                                document.getElementById('trackAgeSlider').value = seconds;
+                                document.getElementById('trackAgeValue').textContent = seconds;
                             }
                         }
                         // Track Missed
                         else if (line.includes('track_missed:')) {
                             const match = line.match(/(\d+)\s+frames/);
                             if (match) {
-                                const value = parseInt(match[1]);
-                                document.getElementById('trackMissedSlider').value = value;
-                                document.getElementById('trackMissedValue').textContent = value;
+                                const frames = parseInt(match[1]);
+                                const seconds = (frames / this.frameRate).toFixed(1);
+                                document.getElementById('trackMissedSlider').value = seconds;
+                                document.getElementById('trackMissedValue').textContent = seconds;
                             }
                         }
                     }
@@ -3940,16 +4080,38 @@
                         format: (v) => (v / 256).toFixed(2)
                     },
                     {
+                        id: 'motionThreshSlider',
+                        labelId: 'motionThreshValue',
+                        cmd: ':PeopleDetection:TUNE:MOTION:THRESH',
+                        format: (v) => (v / 50).toFixed(1)
+                    },
+                    {
+                        id: 'motionHystSlider',
+                        labelId: 'motionHystValue',
+                        cmd: ':PeopleDetection:TUNE:MOTION:HYST',
+                        format: (v) => v,
+                        isTime: true
+                    },
+                    {
+                        id: 'motionDensitySlider',
+                        labelId: 'motionDensityValue',
+                        cmd: ':PeopleDetection:TUNE:MOTION:DENSITY',
+                        format: (v) => v,
+                        convert: (v) => Math.round(v * 255 / 100)  // Convert % to 0-255
+                    },
+                    {
                         id: 'trackAgeSlider',
                         labelId: 'trackAgeValue',
                         cmd: ':PeopleDetection:TUNE:TRACK:AGE',
-                        format: (v) => v
+                        format: (v) => v,
+                        isTime: true
                     },
                     {
                         id: 'trackMissedSlider',
                         labelId: 'trackMissedValue',
                         cmd: ':PeopleDetection:TUNE:TRACK:MISSED',
-                        format: (v) => v
+                        format: (v) => v,
+                        isTime: true
                     }
                 ];
 
@@ -3971,7 +4133,15 @@
                         // Send command on release (change event)
                         element.addEventListener('change', async (e) => {
                             if (this.serialManager.isConnected()) {
-                                await this.updateRuntimeParam(slider.cmd, e.target.value);
+                                let val = e.target.value;
+                                if (slider.isTime) {
+                                    val = Math.round(parseFloat(val) * this.frameRate);
+                                    // Ensure at least 1 frame for safety
+                                    if (val < 1) val = 1;
+                                } else if (slider.convert) {
+                                    val = slider.convert(parseFloat(val));
+                                }
+                                await this.updateRuntimeParam(slider.cmd, val);
                                 this.saveRuntimeParams();
                             }
                         });
@@ -3980,35 +4150,31 @@
             }
 
             /**
-             * Apply default parameters for Simple Mode (Hot=2.0°C, Cold=0°C)
+             * Apply default parameters for Simple Mode
              */
             async applySimpleModeDefaults() {
                 this.log('Applying Simple Mode defaults...');
                 try {
-                    // 1. Hot Threshold: 1.8°C (90 units) - Catch the "green" shape
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:HOT', 90);
-                    
-                    // 2. Cold Threshold: 0 (Disabled)
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:COLD', 0);
+                    // Thresholds
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:HOT', 90);        // 1.8°C
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:COLD', 0);        // Disabled
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:THRESHOLD:UPPER', 512); // 2.0x hysteresis
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:LEARNING', 26);      // 0.10x BG learning
 
-                    // 3. Hysteresis (Strong): 2.0x (512) - Requires peak temp > 3.6°C to confirm
-                    // This keeps "very red" blobs while filtering weak warm air
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:THRESHOLD:UPPER', 512);
+                    // Motion
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:THRESH', 50); // 1.0°C
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:HYST', 960);  // 120s @ 8Hz
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', 51);// 20%
 
-                    // 4. BG Learning: 0.02x (5) - Very slow adaptation
-                    // Prevents stationary red pixels from fading into background
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:LEARNING', 5);
+                    // Tracking (frames @ 8Hz)
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:AGE', 8);      // 1.0s
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:MISSED', 16);  // 2.0s
 
-                    // 5. Tracking: Fast to appear (4), slow to disappear (10)
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:AGE', 4);
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:MISSED', 10);
+                    // Blob filtering
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MINAREA', 15);       // 15 pixels
 
-                    // Wait for firmware to process all commands
                     await new Promise(resolve => setTimeout(resolve, 200));
-
-                    // 6. Sync UI to match these new values
                     await this.syncRuntimeParamsFromDevice();
-
                     this.log('Simple Mode defaults applied.');
                 } catch (error) {
                     this.log('ERROR applying defaults: ' + error.message);
@@ -4089,6 +4255,7 @@
                     coldDetection: document.getElementById('coldDetection').checked,
                     algoMode: document.getElementById('algoModeSelect').value,
                     smoothHeatmap: document.getElementById('smoothHeatmap').checked,
+                    displayMotionMap: document.getElementById('displayMotionMap').checked,
                     
                     // Fixed Scale
                     fixedScale: document.getElementById('fixedScale').checked,
@@ -4130,6 +4297,11 @@
                         if (settings.smoothHeatmap !== undefined) {
                             document.getElementById('smoothHeatmap').checked = settings.smoothHeatmap;
                             this.heatmapRenderer.setSmoothing(settings.smoothHeatmap);
+                        }
+
+                        if (settings.displayMotionMap !== undefined) {
+                            document.getElementById('displayMotionMap').checked = settings.displayMotionMap;
+                            this.heatmapRenderer.setDisplayMotionMap(settings.displayMotionMap);
                         }
                         
                         // Fixed Scale
@@ -4185,7 +4357,10 @@
                     thHot: document.getElementById('thHotSlider').value,
                     thCold: document.getElementById('thColdSlider').value,
                     trackAge: document.getElementById('trackAgeSlider').value,
-                    trackMissed: document.getElementById('trackMissedSlider').value
+                    trackMissed: document.getElementById('trackMissedSlider').value,
+                    motionThresh: document.getElementById('motionThreshSlider').value,
+                    motionHyst: document.getElementById('motionHystSlider').value,
+                    motionDensity: document.getElementById('motionDensitySlider').value
                 };
                 localStorage.setItem('runtimeParams', JSON.stringify(params));
             }
@@ -4269,6 +4444,18 @@
                         if (params.trackMissed !== undefined) {
                             document.getElementById('trackMissedSlider').value = params.trackMissed;
                             document.getElementById('trackMissedValue').textContent = params.trackMissed;
+                        }
+                        if (params.motionThresh !== undefined) {
+                            document.getElementById('motionThreshSlider').value = params.motionThresh;
+                            document.getElementById('motionThreshValue').textContent = (params.motionThresh / 50).toFixed(1);
+                        }
+                        if (params.motionHyst !== undefined) {
+                            document.getElementById('motionHystSlider').value = params.motionHyst;
+                            document.getElementById('motionHystValue').textContent = params.motionHyst;
+                        }
+                        if (params.motionDensity !== undefined) {
+                            document.getElementById('motionDensitySlider').value = params.motionDensity;
+                            document.getElementById('motionDensityValue').textContent = params.motionDensity;
                         }
 
                         this.log('Loaded runtime parameters from localStorage');
@@ -4364,22 +4551,25 @@
 
             /**
              * Update connection state UI
+             * @param {boolean} connected - Whether device is connected
+             * @param {string} [partialState] - Optional partial state: 'update_pending' when connected via probe but not initialized
              */
-            updateConnectionState(connected, recoveryMode = false) {
+            updateConnectionState(connected, partialState = null) {
                 const btn = document.getElementById('connectionToggle');
-                btn.textContent = connected ? (recoveryMode ? 'Disconnect (Recovery)' : 'Disconnect') : 'Connect';
+                btn.textContent = connected ? 'Disconnect' : 'Connect';
                 btn.className = connected ? 'danger' : 'primary';
 
                 // Delegate control enabling/disabling to UIManager
                 this.ui.setConnectionState(connected);
-                
-                // Special handling for recovery mode
-                if (recoveryMode) {
+
+                // Handle partial connection states (e.g., probe connection for firmware update)
+                if (partialState === 'update_pending') {
                     const captureBtn = document.getElementById('captureToggle');
                     if (captureBtn) {
                         captureBtn.disabled = true;
-                        captureBtn.title = "Capture disabled in Recovery Mode";
                     }
+                    document.getElementById('sensorStatus').textContent = 'Update pending';
+                    document.getElementById('sensorStatus').style.color = '#f59e0b'; // Orange
                 }
             }
 
@@ -4418,6 +4608,12 @@
              * Auto-check for firmware updates (called after connection)
              */
             async autoCheckForUpdates() {
+                // Skip if no longer connected (race condition with delayed setTimeout)
+                if (!this.serialManager.isConnected()) {
+                    console.log('Auto-update check skipped: not connected');
+                    return;
+                }
+
                 try {
                     console.log('Auto-checking for firmware updates...');
                     const updateInfo = await this.firmwareUpdater.checkForUpdates();
@@ -4447,23 +4643,182 @@
             /**
              * Show update modal
              */
-            showUpdateModal() {
+            async showUpdateModal() {
                 const modal = document.getElementById('updateModal');
                 modal.classList.add('show');
 
                 // Reset modal state
                 this.resetUpdateModal();
 
-                // Auto-check when modal opens (always fresh check)
-                this.checkForUpdate();
+                // Check if connected - if not, probe device first
+                if (this.serialManager.isConnected()) {
+                    // Already connected - normal flow
+                    this.checkForUpdate();
+                } else {
+                    // Not connected - probe device to check responsiveness
+                    await this.probeDeviceForUpdate();
+                }
+            }
+
+            /**
+             * Probe device for firmware update when not connected
+             * Attempts lightweight connection to check device state without full INIT
+             */
+            async probeDeviceForUpdate() {
+                const checkBtn = document.getElementById('checkUpdateBtn');
+                const updateBtn = document.getElementById('startUpdateBtn');
+
+                this.appendUpdateLog('Attempting to connect to device...', 'info');
+                checkBtn.disabled = true;
+                checkBtn.textContent = 'Connecting...';
+
+                try {
+                    // Step 1: Request and open port
+                    await this.serialManager.requestPort();
+                    await this.serialManager.connect(921600);
+
+                    this.appendUpdateLog('Port opened, testing communication...', 'info');
+
+                    // Step 2: Test basic communication
+                    const commWorking = await this.serialManager.testCommunication(5000);
+
+                    if (!commWorking) {
+                        // No response at all - cannot update automatically
+                        this.appendUpdateLog('', 'info');
+                        this.appendUpdateLog('❌ Device not responding to commands.', 'error');
+                        this.appendUpdateLog('', 'info');
+                        this.appendUpdateLog('No automatic update possible.', 'info');
+                        this.appendUpdateLog('', 'info');
+                        this.appendUpdateLog('You can still update manually:', 'info');
+                        this.appendUpdateLog('  1. Select a .hex file below', 'info');
+                        this.appendUpdateLog('  2. Put device in DFU mode (hold BOOT while connecting USB)', 'info');
+                        this.appendUpdateLog('  3. Click "Update Firmware"', 'info');
+
+                        document.getElementById('currentFirmwareVersion').textContent = 'No response';
+                        document.getElementById('latestFirmwareVersion').textContent = '--';
+
+                        await this.serialManager.disconnect();
+                        checkBtn.disabled = true;
+                        checkBtn.textContent = 'No Device';
+                        return;
+                    }
+
+                    this.appendUpdateLog('Device responding!', 'success');
+
+                    // Track that we connected via probe (will disconnect on modal close)
+                    this.connectedViaProbe = true;
+
+                    // Update main UI to reflect partial connection
+                    this.updateConnectionState(true, 'update_pending');
+
+                    // Step 3: Try to get version
+                    let currentVersion = null;
+                    try {
+                        const response = await this.serialManager.sendCommand(':PeopleDetection:VERSION?', 2000);
+                        const versionMatch = response.match(/Version\s+([\d.]+)/);
+                        if (versionMatch) {
+                            currentVersion = versionMatch[1];
+                            this.appendUpdateLog(`Current firmware version: ${currentVersion}`, 'info');
+                            // Update main page ISP Library version
+                            document.getElementById('libraryVersion').textContent = currentVersion;
+                        }
+                    } catch (e) {
+                        this.appendUpdateLog('Could not read firmware version (will update to latest).', 'info');
+                    }
+
+                    // Step 4: Fetch latest release info
+                    this.appendUpdateLog('Checking for latest firmware...', 'info');
+                    let latestRelease;
+                    try {
+                        latestRelease = await this.firmwareUpdater._getLatestRelease();
+                    } catch (error) {
+                        this.appendUpdateLog(`❌ Could not fetch latest release: ${error.message}`, 'error');
+                        this.appendUpdateLog('You can still upload a local .hex file manually.', 'info');
+                        checkBtn.disabled = false;
+                        checkBtn.textContent = 'Retry';
+                        return;
+                    }
+
+                    // Step 5: Determine update availability
+                    const latestVersion = latestRelease.tag_name;
+                    let updateAvailable;
+
+                    if (currentVersion) {
+                        // Compare versions
+                        updateAvailable = this.firmwareUpdater._compareVersions(latestVersion, currentVersion);
+                        document.getElementById('currentFirmwareVersion').textContent = currentVersion;
+                    } else {
+                        // Version unknown - allow update to latest
+                        updateAvailable = true;
+                        document.getElementById('currentFirmwareVersion').textContent = 'Unknown';
+                        this.appendUpdateLog('Version unknown - update to latest recommended.', 'info');
+                    }
+
+                    document.getElementById('latestFirmwareVersion').textContent = latestVersion.replace(/^v/, '');
+
+                    // Get manifest for file size
+                    const manifest = await this.firmwareUpdater._getManifest(latestRelease);
+                    if (manifest) {
+                        const fwArtifact = manifest.artifacts && manifest.artifacts.firmware;
+                        const size = (fwArtifact && fwArtifact.size_bytes) || manifest.binary_size || 'Unknown';
+                        document.getElementById('firmwareSize').textContent =
+                            typeof size === 'number' ? this.formatBytes(size) : size;
+                    }
+
+                    // Store update info
+                    this.currentUpdateInfo = {
+                        updateAvailable: updateAvailable,
+                        current: currentVersion || 'Unknown',
+                        latest: latestVersion,
+                        downloadUrl: updateAvailable ? this.firmwareUpdater._getFirmwareUrl(latestRelease) : null,
+                        manifest: manifest,
+                        releaseNotes: latestRelease.description
+                    };
+
+                    if (updateAvailable) {
+                        this.appendUpdateLog(`✅ Update available: ${latestVersion}`, 'success');
+                        updateBtn.disabled = false;
+                        document.getElementById('updateBadge').style.display = 'flex';
+                    } else {
+                        this.appendUpdateLog('✅ Firmware is up to date!', 'success');
+                        updateBtn.disabled = true;
+                        document.getElementById('updateBadge').style.display = 'none';
+                    }
+
+                    // Keep connection open for update process
+
+                } catch (error) {
+                    this.appendUpdateLog(`❌ Connection failed: ${error.message}`, 'error');
+                    this.appendUpdateLog('', 'info');
+                    this.appendUpdateLog('Manual file upload is still available.', 'info');
+                    console.error('Probe connection error:', error);
+                } finally {
+                    checkBtn.disabled = false;
+                    checkBtn.textContent = 'Check for Updates';
+                }
             }
 
             /**
              * Close update modal
              */
-            closeUpdateModal() {
+            async closeUpdateModal() {
                 const modal = document.getElementById('updateModal');
                 modal.classList.remove('show');
+
+                // If we connected via probe and user is closing without updating,
+                // disconnect to return to previous state
+                if (this.connectedViaProbe && this.serialManager.isConnected()) {
+                    try {
+                        await this.serialManager.disconnect();
+                        this.updateConnectionState(false);
+                        document.getElementById('sensorStatus').textContent = 'Not configured';
+                        document.getElementById('sensorStatus').style.color = '#888';
+                        document.getElementById('libraryVersion').textContent = '--';
+                    } catch (e) {
+                        console.log('Disconnect on modal close:', e);
+                    }
+                    this.connectedViaProbe = false;
+                }
             }
 
             /**
@@ -4577,8 +4932,46 @@
                     return;
                 }
 
-                // Confirm with user
+                // For local file uploads when not connected, try to establish connection
                 const isLocal = this.currentUpdateInfo.isLocalFile;
+                if (isLocal && !this.serialManager.isConnected()) {
+                    this.appendUpdateLog('Local file selected - connecting to device...', 'info');
+
+                    try {
+                        await this.serialManager.requestPort();
+                        await this.serialManager.connect(921600);
+
+                        // Test basic communication
+                        const commWorking = await this.serialManager.testCommunication(5000);
+                        if (commWorking) {
+                            this.appendUpdateLog('Device connected!', 'success');
+                            // Update main UI to show partial connection
+                            this.updateConnectionState(true, 'update_pending');
+                        } else {
+                            // Device not responding - suggest manual DFU
+                            this.appendUpdateLog('⚠️ Device not responding. Use Manual DFU mode.', 'error');
+                            this.appendUpdateLog('', 'info');
+                            this.appendUpdateLog('To enter Manual DFU mode:', 'info');
+                            this.appendUpdateLog('  1. Disconnect USB from device', 'info');
+                            this.appendUpdateLog('  2. Press and HOLD the BOOT button', 'info');
+                            this.appendUpdateLog('  3. While holding BOOT, connect USB', 'info');
+                            this.appendUpdateLog('  4. Release BOOT button', 'info');
+                            this.appendUpdateLog('  5. Click "Update Firmware" again', 'info');
+
+                            document.getElementById('manualDfuInstructions').style.display = 'block';
+
+                            await this.serialManager.disconnect();
+                            return;
+                        }
+                    } catch (error) {
+                        this.appendUpdateLog(`❌ Could not connect: ${error.message}`, 'error');
+                        this.appendUpdateLog('Try using Manual DFU mode instead.', 'info');
+                        document.getElementById('manualDfuInstructions').style.display = 'block';
+                        return;
+                    }
+                }
+
+                // Confirm with user
                 const confirmMessage = isLocal ?
                     `Flash firmware from local file: ${this.currentUpdateInfo.latest}?\n\n` +
                     `⚠️ WARNING:\n` +
@@ -4600,6 +4993,9 @@
                 if (!confirmed) {
                     return;
                 }
+
+                // Clear probe flag - we're committing to the update, don't disconnect on close
+                this.connectedViaProbe = false;
 
                 // Disable buttons during update
                 document.getElementById('checkUpdateBtn').disabled = true;
@@ -4629,6 +5025,12 @@
 
                 this.firmwareUpdater.onComplete = (version) => {
                     this.log(`Firmware update complete: ${version}`, 'SUCCESS');
+
+                    // Device has rebooted - reset main UI to disconnected state
+                    this.updateConnectionState(false);
+                    document.getElementById('sensorStatus').textContent = 'Not configured';
+                    document.getElementById('sensorStatus').style.color = '#888';
+                    document.getElementById('libraryVersion').textContent = '--';
 
                     // Change modal UI to "Update Successful" state
                     const statusDiv = document.getElementById('updateStatus');

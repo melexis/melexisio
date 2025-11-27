@@ -469,8 +469,9 @@ class FirmwareUpdater {
             );
 
             if (!usbDevice) {
-                // Need user permission
-                this._updateStatus('Click "Connect" when browser prompts for USB device...');
+                // Need user permission - prompt to select STM32 bootloader
+                this._updateStatus('Select "STM32 BOOTLOADER" in the browser popup...');
+                this._updateProgress(15, 'Waiting for device selection...');
                 usbDevice = await this.requestDFUDevice();
             }
 
