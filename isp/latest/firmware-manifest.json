@@ -1,14 +1,14 @@
 {
-  "version": "v0.4.0",
-  "build_date": "2025-11-27T11:03:49Z",
-  "commit": "02a2f7a588a8df52c1f42f691a3232f5cab32e13",
-  "commit_short": "02a2f7a5",
-  "branch": "v0.4.0",
+  "version": "v0.4.1",
+  "build_date": "2025-11-28T11:39:44Z",
+  "commit": "148575fef5c637b61047b02d89310b5c9203b883",
+  "commit_short": "148575fe",
+  "branch": "v0.4.1",
   "artifacts": {
     "firmware": {
       "permanent": "melexis_io_fw.hex",
-      "versioned": "melexis_io_fw-v0.4.0.hex",
-      "size_bytes": 734714,
+      "versioned": "melexis_io_fw-v0.4.1.hex",
+      "size_bytes": 736093,
       "type": "hex"
     },
     "web_gui": "index.html"

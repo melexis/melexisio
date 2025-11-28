@@ -590,7 +590,7 @@
             </div>
             <div style="display: flex; gap: 20px; align-items: center;">
                 <button class="primary" id="updateFirmwareBtn"  style="width: auto; padding: 10px 20px; position: relative;">
-                    <span>🔄 Update Firmware</span>
+                    <span>Update Firmware</span>
                     <span id="updateBadge" class="update-badge" style="display: none;">!</span>
                 </button>
                 <div class="library-version">
@@ -682,6 +682,13 @@
                 <div class="control-group slider-group simple-mode-only" style="display: none;">
                     <label>Hot Threshold <span id="thHotValue">1.8</span>°C</label>
                     <input type="range" id="thHotSlider" min="0" max="500" value="90" step="5">
+                </div>
+
+                <div class="control-group simple-mode-only" style="display: none;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="motionValidationCheckbox">
+                        <label for="motionValidationCheckbox">Motion Validation</label>
+                    </div>
                 </div>
 
                 <div class="control-group" id="coldDetectionGroup">
@@ -839,8 +846,8 @@
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Motion Persistence <span id="motionHystValue">120</span> s</label>
-                                <input type="range" id="motionHystSlider" min="1" max="180" value="120" step="1">
+                                <label>Motion Persistence <span id="motionHystValue">60</span> s</label>
+                                <input type="range" id="motionHystSlider" min="1" max="180" value="60" step="1">
                             </div>
 
                             <div class="control-group slider-group">
@@ -952,6 +959,13 @@
                         <span class="version-label">Firmware Size:</span>
                         <span id="firmwareSize">--</span>
                     </div>
+                </div>
+
+                <!-- Windows Driver Note -->
+                <div style="margin: 15px 0; padding: 12px; background: #1e3a5f; border-radius: 6px; border-left: 3px solid #60a5fa; font-size: 0.85rem;">
+                    <strong style="color: #93c5fd;">🪟 Windows Users:</strong>
+                    <span style="color: #cbd5e1;"> First-time setup requires USB drivers from</span>
+                    <a href="https://www.st.com/en/development-tools/stm32cubeprog.html" target="_blank" style="color: #60a5fa; text-decoration: underline; margin-left: 4px;">STM32CubeProgrammer</a>
                 </div>
 
                 <!-- Progress Section (hidden initially) -->
@@ -1147,7 +1161,7 @@
                     fixedMinTemp: document.getElementById('fixedMinTemp'),
                     fixedMaxTemp: document.getElementById('fixedMaxTemp'),
                     fixedScaleControls: document.getElementById('fixedScaleControls'),
-                    
+
                     flipHorizontal: document.getElementById('flipHorizontal'),
                     flipVertical: document.getElementById('flipVertical'),
                     rotate90: document.getElementById('rotate90'),
@@ -1247,7 +1261,7 @@
                         app.saveAppSettings();
                     });
                 }
-                
+
                 // Fixed Scale
                 if (this.el.fixedScale) {
                     this.el.fixedScale.addEventListener('change', (e) => {
@@ -1264,7 +1278,7 @@
                          }
                     });
                 }
-                
+
                 const updateFixedScale = () => {
                     if (app) {
                          app.updateFixedScale();
@@ -1274,7 +1288,7 @@
                          app.saveAppSettings();
                     }
                 };
-                
+
                 if (this.el.fixedMinTemp) this.el.fixedMinTemp.addEventListener('change', updateFixedScale);
                 if (this.el.fixedMaxTemp) this.el.fixedMaxTemp.addEventListener('change', updateFixedScale);
 
@@ -2172,7 +2186,7 @@
                 this.flipY = false;
                 this.rotate90 = false;
                 this.displayMotionMap = false;
-                
+
                 // Fixed scale settings
                 this.fixedScale = true;
                 this.fixedMin = 20.0;
@@ -2286,18 +2300,18 @@
                 if (this.fixedScale) {
                     const tempRange = scaleInfo.maxTemp - scaleInfo.minTemp;
                     const digitRange = scaleInfo.maxDigit - scaleInfo.minDigit;
-                    
+
                     if (Math.abs(tempRange) > 0.01) {
                         const tempToDigit = (t) => {
                             return scaleInfo.minDigit + (t - scaleInfo.minTemp) * digitRange / tempRange;
                         };
-                        
+
                         const dMin = tempToDigit(this.fixedMin);
                         const dMax = tempToDigit(this.fixedMax);
-                        
+
                         effectiveMinDigit = dMin;
                         effectiveDigitRange = dMax - dMin;
-                        
+
                         // Prevent division by zero
                         if (Math.abs(effectiveDigitRange) < 0.01) effectiveDigitRange = 1;
                     }
@@ -2356,7 +2370,7 @@
                             // Get interpolated value
                             const normalized = this.bilinearInterpolate(tx, ty, thermalFrame, effectiveMinDigit, effectiveDigitRange);
                             const color = this.getColor(normalized);
-                            
+
                             // Determine opacity based on motion mask
                             // For smooth rendering, we sample the nearest pixel in the motion mask
                             let alpha = 255;
@@ -2416,7 +2430,7 @@
 
                             const normalized = (digit - effectiveMinDigit) / effectiveDigitRange;
                             let color = this.getColor(normalized);
-                            
+
                             // Apply dimming for static pixels
                             if (this.displayMotionMap && motionMask && !motionMask[sy][sx]) {
                                 // Convert rgb(...) to rgba(..., 0.8)
@@ -2953,7 +2967,32 @@
 
                         const temp = this.thermalParser.digitToTemp(val, scaleInfo);
 
-                        let tooltipText = `<span style="color: #e0e0e0">(${gridX}, ${gridY})</span> <span style="color: #4ade80; font-weight: bold">${temp.toFixed(1)}°C</span>`;
+                        // Calculate normalized value for color (same logic as heatmap renderer)
+                        let effectiveMinDigit = scaleInfo.minDigit;
+                        let effectiveDigitRange = scaleInfo.maxDigit - scaleInfo.minDigit || 1;
+
+                        if (this.heatmapRenderer.fixedScale) {
+                            const tempRange = scaleInfo.maxTemp - scaleInfo.minTemp;
+                            const digitRange = scaleInfo.maxDigit - scaleInfo.minDigit;
+
+                            if (Math.abs(tempRange) > 0.01) {
+                                const tempToDigit = (t) => {
+                                    return scaleInfo.minDigit + (t - scaleInfo.minTemp) * digitRange / tempRange;
+                                };
+
+                                const dMin = tempToDigit(this.heatmapRenderer.fixedMin);
+                                const dMax = tempToDigit(this.heatmapRenderer.fixedMax);
+
+                                effectiveMinDigit = dMin;
+                                effectiveDigitRange = dMax - dMin;
+                                if (Math.abs(effectiveDigitRange) < 0.01) effectiveDigitRange = 1;
+                            }
+                        }
+
+                        const normalized = (val - effectiveMinDigit) / effectiveDigitRange;
+                        const tempColor = this.heatmapRenderer.getColor(normalized);
+
+                        let tooltipText = `<span style="color: #e0e0e0">(${gridX}, ${gridY})</span> <span style="color: ${tempColor}; font-weight: bold; text-shadow: 0 0 2px rgba(0,0,0,0.8)">${temp.toFixed(1)}°C</span>`;
 
                         // Check if hovering over a blob
                         if (this.currentFrameData.blobs) {
@@ -3013,7 +3052,7 @@
             redrawCurrentFrame() {
                 if (this.currentFrameData) {
                      this.heatmapRenderer.render(
-                        this.currentFrameData.thermalFrame, 
+                        this.currentFrameData.thermalFrame,
                         this.currentFrameData.scaleInfo,
                         this.currentFrameData.motionMask
                      );
@@ -3514,7 +3553,7 @@
 
                     // Render heatmap
                     this.heatmapRenderer.render(
-                        data.thermalFrame, 
+                        data.thermalFrame,
                         data.scaleInfo,
                         data.motionMask
                     );
@@ -3971,6 +4010,22 @@
                                 document.getElementById('trackMissedValue').textContent = seconds;
                             }
                         }
+                        // Motion Density
+                        else if (line.includes('motion_density:')) {
+                            const match = line.match(/(\d+)\s+\((\d+)%\)/);
+                            if (match) {
+                                const rawValue = parseInt(match[1]);
+                                const pct = parseInt(match[2]);
+                                document.getElementById('motionDensitySlider').value = pct;
+                                document.getElementById('motionDensityValue').textContent = pct;
+                                // Sync motion validation checkbox (checked = enabled = density > 0)
+                                const checkbox = document.getElementById('motionValidationCheckbox');
+                                if (checkbox) {
+                                    checkbox.checked = (rawValue > 0);
+                                    document.getElementById('motionDensitySlider').disabled = (rawValue === 0);
+                                }
+                            }
+                        }
                     }
 
                     // Save updated params to localStorage
@@ -4143,41 +4198,102 @@
                                 }
                                 await this.updateRuntimeParam(slider.cmd, val);
                                 this.saveRuntimeParams();
+
+                                // Sync checkbox when density slider changes (checked = enabled = density > 0)
+                                if (slider.id === 'motionDensitySlider') {
+                                    const checkbox = document.getElementById('motionValidationCheckbox');
+                                    if (checkbox) {
+                                        checkbox.checked = (parseInt(e.target.value) > 0);
+                                    }
+                                }
                             }
                         });
                     }
                 });
+
+                // Motion validation checkbox (checked = enabled = density 20%, unchecked = disabled = density 0)
+                const motionValidationCheckbox = document.getElementById('motionValidationCheckbox');
+                if (motionValidationCheckbox) {
+                    motionValidationCheckbox.addEventListener('change', async (e) => {
+                        if (this.serialManager.isConnected()) {
+                            const value = e.target.checked ? 51 : 0;  // 51=20% (enabled), 0=disabled
+                            await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', value);
+
+                            // Update the density slider to match
+                            const densitySlider = document.getElementById('motionDensitySlider');
+                            const densityLabel = document.getElementById('motionDensityValue');
+                            if (densitySlider) {
+                                densitySlider.value = e.target.checked ? 20 : 0;
+                                densitySlider.disabled = !e.target.checked;
+                            }
+                            if (densityLabel) {
+                                densityLabel.textContent = e.target.checked ? '20' : '0';
+                            }
+                            this.saveRuntimeParams();
+                        }
+                    });
+                }
             }
 
             /**
-             * Apply default parameters for Simple Mode
+             * Apply parameters for Simple Mode - uses saved params if available, otherwise defaults
              */
             async applySimpleModeDefaults() {
-                this.log('Applying Simple Mode defaults...');
+                // Check for saved runtime params
+                const saved = localStorage.getItem('runtimeParams');
+                let params = null;
+                if (saved) {
+                    try {
+                        params = JSON.parse(saved);
+                        this.log('Restoring saved Simple Mode parameters...');
+                    } catch (e) { params = null; }
+                }
+
+                if (!params) {
+                    this.log('Applying Simple Mode defaults (first run)...');
+                }
+
                 try {
-                    // Thresholds
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:HOT', 90);        // 1.8°C
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:COLD', 0);        // Disabled
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:THRESHOLD:UPPER', 512); // 2.0x hysteresis
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:LEARNING', 26);      // 0.10x BG learning
+                    // Thresholds (slider values sent directly - already in correct units)
+                    const thHot = params?.thHot ?? 90;  // 1.8°C default (degC×50)
+                    const thCold = params?.thCold ?? 0; // Disabled default
+                    const hysteresis = params?.thresholdH ?? 512; // 2.0x default (Q8.8)
+                    const gammaEma = params?.gammaEma ?? 26; // 0.10x default (Q8.8)
 
-                    // Motion
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:THRESH', 50); // 1.0°C
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:HYST', 960);  // 120s @ 8Hz
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', 51);// 20%
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:HOT', thHot);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TH:COLD', thCold);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:THRESHOLD:UPPER', hysteresis);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:LEARNING', gammaEma);
 
-                    // Tracking (frames @ 8Hz)
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:AGE', 8);      // 1.0s
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:MISSED', 16);  // 2.0s
+                    // Motion (disabled by default on first run)
+                    // motionThresh is stored as slider value (0-500, maps to 0-10°C in steps of 0.1°C)
+                    const motionThresh = params?.motionThresh ?? 50; // 1.0°C default (50 = 1.0°C)
+                    const motionHyst = params?.motionHyst ?? 60; // 60s default
+                    // motionDensity is stored as percentage (0-100), convert to raw (0-255)
+                    const motionDensityPct = params?.motionDensity ?? 0; // 0% = disabled by default
+                    const motionDensityRaw = Math.round((motionDensityPct * 255) / 100);
+
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:THRESH', motionThresh);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:HYST', motionHyst * 8); // Convert seconds to frames
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', motionDensityRaw);
+
+                    // Tracking
+                    const trackAge = params?.trackAge ?? 1.0; // 1.0s default
+                    const trackMissed = params?.trackMissed ?? 2.0; // 2.0s default
+
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:AGE', Math.round(trackAge * 8));
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:TRACK:MISSED', Math.round(trackMissed * 8));
 
                     // Blob filtering
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MINAREA', 15);       // 15 pixels
+                    const minArea = params?.minArea ?? 15; // 15 pixels default
+
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MINAREA', minArea);
 
                     await new Promise(resolve => setTimeout(resolve, 200));
                     await this.syncRuntimeParamsFromDevice();
-                    this.log('Simple Mode defaults applied.');
+                    this.log(params ? 'Saved parameters restored.' : 'Defaults applied.');
                 } catch (error) {
-                    this.log('ERROR applying defaults: ' + error.message);
+                    this.log('ERROR applying parameters: ' + error.message);
                 }
             }
 
@@ -4256,12 +4372,12 @@
                     algoMode: document.getElementById('algoModeSelect').value,
                     smoothHeatmap: document.getElementById('smoothHeatmap').checked,
                     displayMotionMap: document.getElementById('displayMotionMap').checked,
-                    
+
                     // Fixed Scale
                     fixedScale: document.getElementById('fixedScale').checked,
                     fixedMinTemp: document.getElementById('fixedMinTemp').value,
                     fixedMaxTemp: document.getElementById('fixedMaxTemp').value,
-                    
+
                     flipHorizontal: document.getElementById('flipHorizontal').checked,
                     flipVertical: document.getElementById('flipVertical').checked,
                     rotate90: document.getElementById('rotate90').checked,
@@ -4303,7 +4419,7 @@
                             document.getElementById('displayMotionMap').checked = settings.displayMotionMap;
                             this.heatmapRenderer.setDisplayMotionMap(settings.displayMotionMap);
                         }
-                        
+
                         // Fixed Scale
                         if (settings.fixedScale !== undefined) {
                             document.getElementById('fixedScale').checked = settings.fixedScale;
@@ -4335,14 +4451,14 @@
             saveRuntimeParams() {
                 // Determine which sliders to read based on active mode
                 const isSimple = (this.algoMode === 2);
-                
+
                 const params = {
                     footprint: document.getElementById('footprintSlider').value,
                     minArea: document.getElementById('minAreaSlider').value,
                     thresholdL: document.getElementById('thresholdLSlider').value,
                     // Use Simple Mode slider if active, otherwise Standard Mode slider
-                    thresholdH: isSimple ? 
-                        document.getElementById('simpleHysteresisSlider').value : 
+                    thresholdH: isSimple ?
+                        document.getElementById('simpleHysteresisSlider').value :
                         document.getElementById('thresholdHSlider').value,
                     tempMin: document.getElementById('tempMinSlider').value,
                     tempMax: document.getElementById('tempMaxSlider').value,
@@ -4351,8 +4467,8 @@
                     percentileL: document.getElementById('percentileLSlider').value,
                     percentileH: document.getElementById('percentileHSlider').value,
                     // Use Simple Mode slider if active
-                    gammaEma: isSimple ? 
-                        document.getElementById('simpleGammaEmaSlider').value : 
+                    gammaEma: isSimple ?
+                        document.getElementById('simpleGammaEmaSlider').value :
                         document.getElementById('gammaEmaSlider').value,
                     thHot: document.getElementById('thHotSlider').value,
                     thCold: document.getElementById('thColdSlider').value,
@@ -4456,6 +4572,12 @@
                         if (params.motionDensity !== undefined) {
                             document.getElementById('motionDensitySlider').value = params.motionDensity;
                             document.getElementById('motionDensityValue').textContent = params.motionDensity;
+                            // Sync motion validation checkbox (checked = enabled = density > 0)
+                            const checkbox = document.getElementById('motionValidationCheckbox');
+                            if (checkbox) {
+                                checkbox.checked = (parseInt(params.motionDensity) > 0);
+                                document.getElementById('motionDensitySlider').disabled = !checkbox.checked;
+                            }
                         }
 
                         this.log('Loaded runtime parameters from localStorage');
