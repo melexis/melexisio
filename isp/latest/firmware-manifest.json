@@ -1,8 +1,8 @@
 {
   "version": "v0.4.1",
-  "build_date": "2025-11-28T11:39:44Z",
-  "commit": "148575fef5c637b61047b02d89310b5c9203b883",
-  "commit_short": "148575fe",
+  "build_date": "2025-11-28T12:07:51Z",
+  "commit": "f1c98b2f27a437536d3e6d66706650cc1150b5b9",
+  "commit_short": "f1c98b2f",
   "branch": "v0.4.1",
   "artifacts": {
     "firmware": {
