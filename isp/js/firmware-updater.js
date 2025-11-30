@@ -29,15 +29,31 @@ class FirmwareUpdater {
         this.TRANSFER_SIZE = 2048;  // 2KB blocks
 
         // Determine update source based on environment
+        // 3 sources: local (localhost), GitHub Pages (melexis.io), GitLab Pages (internal)
+        // Note: file:// protocol doesn't support fetch due to CORS
         const hostname = window.location.hostname;
-        if (hostname.includes('melexis.io') || hostname.includes('github.io')) {
-            // External: Look in relative directory (must be served by Pages)
+        const protocol = window.location.protocol;
+
+        if (protocol === 'file:') {
+            // file:// protocol: fetch doesn't work due to CORS
+            // User should use local HTTP server: python3 -m http.server 8000
+            this.updateSource = 'file';
+            this.PAGES_BASE_URL = '.';
+        } else if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+            // Local HTTP server: use relative path to web/latest/
+            this.updateSource = 'local';
+            this.PAGES_BASE_URL = '.';
+        } else if (hostname.includes('melexis.io') || hostname.includes('github.io')) {
+            // GitHub Pages (external): relative path
+            this.updateSource = 'github';
             this.PAGES_BASE_URL = '.';
         } else {
-            // Internal: Use GitLab Pages
+            // GitLab Pages (internal)
+            this.updateSource = 'gitlab';
             this.PAGES_BASE_URL = 'https://ays.pages.melexis.com/mlx9064x-isp-melexisio';
         }
-        
+
+        console.log(`Firmware update source: ${this.updateSource} (${this.PAGES_BASE_URL})`);
         this.MANIFEST_URL = `${this.PAGES_BASE_URL}/latest/firmware-manifest.json`;
 
         // Fallback: GitLab API configuration (requires authentication for private repos)
@@ -235,21 +251,37 @@ class FirmwareUpdater {
     }
 
     /**
-     * Fetch latest release from GitLab Pages manifest
+     * Fetch latest release from manifest (local, GitHub Pages, or GitLab Pages)
      * @private
      */
     async _getLatestRelease() {
+        const sourceNames = {
+            'file': 'file:// (CORS blocked)',
+            'local': 'local build (web/latest/)',
+            'github': 'GitHub Pages',
+            'gitlab': 'GitLab Pages'
+        };
+        const sourceName = sourceNames[this.updateSource] || this.updateSource;
+
+        // file:// protocol doesn't support fetch - skip gracefully
+        if (this.updateSource === 'file') {
+            console.log('Version check skipped: file:// protocol does not support fetch.');
+            console.log('To enable version check, use a local HTTP server:');
+            console.log('  cd web && python3 -m http.server 8000');
+            console.log('  Then open http://localhost:8000/index.html');
+            throw new Error('Version check unavailable with file:// protocol. Use HTTP server or manual upload.');
+        }
+
         try {
-            // Try GitLab Pages first (no authentication required)
-            console.log('Fetching manifest from Pages:', this.MANIFEST_URL);
+            console.log(`Fetching manifest from ${sourceName}:`, this.MANIFEST_URL);
             const response = await fetch(this.MANIFEST_URL);
 
             if (!response.ok) {
-                throw new Error(`Pages manifest not available: ${response.status}`);
+                throw new Error(`Manifest not available: ${response.status}`);
             }
 
             const manifest = await response.json();
-            console.log('Manifest fetched from Pages:', manifest);
+            console.log(`Manifest fetched from ${sourceName}:`, manifest);
 
             // Convert Pages manifest format to release format
             return {
@@ -266,9 +298,14 @@ class FirmwareUpdater {
                 manifest: manifest
             };
         } catch (error) {
-            console.error('Failed to fetch from Pages:', error);
-            console.log('Firmware manifest not available from Pages. Use local file upload instead.');
-            throw new Error('Could not fetch firmware manifest from GitLab Pages. Use manual file upload.');
+            console.error(`Failed to fetch from ${sourceName}:`, error);
+            if (this.updateSource === 'local') {
+                console.log('Run ./scripts/prepare_local_release.sh to generate web/latest/ artifacts.');
+                throw new Error('Local manifest not found. Run prepare_local_release.sh first.');
+            } else {
+                console.log('Firmware manifest not available. Use local file upload instead.');
+                throw new Error(`Could not fetch manifest from ${sourceName}. Use manual file upload.`);
+            }
         }
     }
 
@@ -471,7 +508,9 @@ class FirmwareUpdater {
             if (!usbDevice) {
                 // Need user permission - prompt to select STM32 bootloader
                 this._updateStatus('Select "STM32 BOOTLOADER" in the browser popup...');
-                this._updateProgress(15, 'Waiting for device selection...');
+                if (this.onProgress) {
+                    this.onProgress(15, 'Waiting for device selection...');
+                }
                 usbDevice = await this.requestDFUDevice();
             }
 

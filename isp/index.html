@@ -152,6 +152,37 @@
             opacity: 0.8;
         }
 
+        /* Toggle button group styles */
+        .toggle-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .toggle-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #555;
+            background: #2a2a2a;
+            color: #888;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            transition: all 0.15s ease;
+        }
+        .toggle-btn:hover {
+            background: #3a3a3a;
+            border-color: #666;
+        }
+        .toggle-btn.active {
+            background: #0066cc;
+            color: white;
+            border-color: #0088ff;
+        }
+        .toggle-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Slider styles */
         .slider-group label {
             display: flex;
@@ -618,6 +649,10 @@
                         <div class="stat-label">Temperature Range</div>
                         <div class="stat-value" id="tempRange" style="font-size: 1rem;">-</div>
                     </div>
+                    <div class="stat-box" id="thAdaptiveBox" style="display: none;">
+                        <div class="stat-label">Hot Threshold</div>
+                        <div class="stat-value" id="thAdaptive">-</div>
+                    </div>
                     <div class="stat-box">
                         <div class="stat-label">ISP Time</div>
                         <div class="stat-value" id="processTime">-</div>
@@ -663,25 +698,31 @@
                            >
                 </div>
 
-                <!-- Preset Configuration -->
+                <!-- Preset Configuration - Toggle Buttons -->
                 <div class="control-group" id="presetConfigGroup">
-                    <label>Preset Configuration</label>
-                    <select id="presetSelect" >
-                        <option value="OBLIQUE|SHORT|LOW">OBLIQUE + SHORT + LOW</option>
-                        <option value="OBLIQUE|SHORT|HIGH">OBLIQUE + SHORT + HIGH</option>
-                        <option value="OBLIQUE|TALL|LOW">OBLIQUE + TALL + LOW</option>
-                        <option value="OBLIQUE|TALL|HIGH">OBLIQUE + TALL + HIGH</option>
-                        <option value="VERTICAL|SHORT|LOW">VERTICAL + SHORT + LOW</option>
-                        <option value="VERTICAL|SHORT|HIGH">VERTICAL + SHORT + HIGH</option>
-                        <option value="VERTICAL|TALL|LOW">VERTICAL + TALL + LOW</option>
-                        <option value="VERTICAL|TALL|HIGH">VERTICAL + TALL + HIGH</option>
-                    </select>
+                    <label>Mount Angle</label>
+                    <div class="toggle-group">
+                        <button id="angleVertical" class="toggle-btn">VERTICAL</button>
+                        <button id="angleOblique" class="toggle-btn active">OBLIQUE</button>
+                    </div>
+
+                    <label>Mount Height</label>
+                    <div class="toggle-group">
+                        <button id="heightShort" class="toggle-btn active">SHORT</button>
+                        <button id="heightTall" class="toggle-btn">TALL</button>
+                    </div>
+
+                    <label>Sensitivity</label>
+                    <div class="toggle-group">
+                        <button id="sensLow" class="toggle-btn active">LOW</button>
+                        <button id="sensHigh" class="toggle-btn">HIGH</button>
+                    </div>
                 </div>
 
                 <!-- Simple Mode Controls (replaces Preset in Simple Mode) -->
                 <div class="control-group slider-group simple-mode-only" style="display: none;">
-                    <label>Hot Threshold <span id="thHotValue">1.8</span>°C</label>
-                    <input type="range" id="thHotSlider" min="0" max="500" value="90" step="5">
+                    <label>Hot Threshold <span id="thHotValue">2.0</span>°C</label>
+                    <input type="range" id="thHotSlider" min="0" max="500" value="100" step="5">
                 </div>
 
                 <div class="control-group simple-mode-only" style="display: none;">
@@ -801,8 +842,8 @@
                         <h4 style="color: #64748b; margin: 10px 0;">Detection</h4>
 
                         <div class="control-group slider-group">
-                            <label>Footprint Size <span id="footprintValue">45</span> px</label>
-                            <input type="range" id="footprintSlider" min="35" max="55" value="45" step="1">
+                            <label>Footprint Size <span id="footprintValue">60</span> px</label>
+                            <input type="range" id="footprintSlider" min="35" max="90" value="60" step="1">
                         </div>
 
                         <div class="control-group slider-group">
@@ -813,14 +854,15 @@
                         <!-- Standard Mode Params -->
                         <div class="standard-mode-only">
                             <div class="control-group slider-group">
-                                <label>Lower Threshold <span id="thresholdLValue">1.0</span>x</label>
-                                <input type="range" id="thresholdLSlider" min="25" max="1024" value="256" step="1">
+                                <label>Cold Threshold <span id="thresholdLValue">1.0</span>×σ</label>
+                                <input type="range" id="thresholdLSlider" min="1" max="1024" value="256" step="1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Upper Threshold <span id="thresholdHValue">1.0</span>x</label>
-                                <input type="range" id="thresholdHSlider" min="25" max="1024" value="256" step="1">
+                                <label>Hot Threshold <span id="thresholdHValue">1.0</span>×σ</label>
+                                <input type="range" id="thresholdHSlider" min="1" max="1024" value="256" step="1">
                             </div>
+
                         </div>
 
                         <!-- Simple Mode Params -->
@@ -850,10 +892,33 @@
                                 <input type="range" id="motionHystSlider" min="1" max="180" value="60" step="1">
                             </div>
 
-                            <div class="control-group slider-group">
-                                <label>Motion Density <span id="motionDensityValue">20</span>%</label>
-                                <input type="range" id="motionDensitySlider" min="0" max="100" value="20" step="1">
+                            <!-- Adaptive Threshold Section -->
+                            <div class="control-group">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="adaptiveThEnableToggle">
+                                    <label for="adaptiveThEnableToggle">Enable Adaptive Threshold</label>
+                                </div>
                             </div>
+
+                            <h5 style="color: #64748b; margin: 15px 0 10px 0; font-size: 0.9em;">Adaptive Threshold (MAD-based)</h5>
+
+                            <div class="control-group slider-group">
+                                <label>K Sigma <span id="adaptiveKSigmaValue">3.0</span>×</label>
+                                <input type="range" id="adaptiveKSigmaSlider" min="24" max="80" value="48" step="1">
+                            </div>
+
+                            <div class="control-group slider-group">
+                                <label>Threshold Min <span id="adaptiveThMinValue">1.8</span>°C</label>
+                                <input type="range" id="adaptiveThMinSlider" min="25" max="150" value="90" step="5">
+                            </div>
+
+                            <div class="control-group slider-group">
+                                <label>Threshold Max <span id="adaptiveThMaxValue">7.0</span>°C</label>
+                                <input type="range" id="adaptiveThMaxSlider" min="100" max="400" value="350" step="10">
+                            </div>
+                            <!-- End Adaptive Threshold -->
+
+                            <h5 style="color: #64748b; margin: 15px 0 10px 0; font-size: 0.9em;">Tracking</h5>
 
                             <div class="control-group slider-group">
                                 <label>Min Track Age <span id="trackAgeValue">1.0</span> s</label>
@@ -861,8 +926,8 @@
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Max Missed <span id="trackMissedValue">2.0</span> s</label>
-                                <input type="range" id="trackMissedSlider" min="0.1" max="10.0" value="2.0" step="0.1">
+                                <label>Max Missed <span id="trackMissedValue">1.0</span> s</label>
+                                <input type="range" id="trackMissedSlider" min="0.1" max="10.0" value="1.0" step="0.1">
                             </div>
                         </div>
                     </div>
@@ -872,13 +937,13 @@
                         <h4 style="color: #64748b; margin: 10px 0;">Temperature Range</h4>
 
                         <div class="control-group slider-group">
-                            <label>Min Temperature <span id="tempMinValue">20.0</span>°C</label>
-                            <input type="range" id="tempMinSlider" min="0" max="1500" value="0" step="50">
+                            <label>Min Temperature <span id="tempMinValue">22.0</span>°C</label>
+                            <input type="range" id="tempMinSlider" min="0" max="1500" value="1100" step="50">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Max Temperature <span id="tempMaxValue">40.0</span>°C</label>
-                            <input type="range" id="tempMaxSlider" min="0" max="2500" value="0" step="50">
+                            <label>Max Temperature <span id="tempMaxValue">33.0</span>°C</label>
+                            <input type="range" id="tempMaxSlider" min="0" max="2500" value="1650" step="50">
                         </div>
                     </div>
 
@@ -1046,6 +1111,39 @@
         </div>
     </div>
 
+    <!-- Firmware Version Warning Modal -->
+    <div id="versionWarningModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Firmware Update Strongly Recommended</h2>
+                <button class="modal-close" onclick="app.closeVersionWarning()">×</button>
+            </div>
+            <div style="padding: 20px;">
+                <p style="margin-bottom: 15px;">
+                    Your device firmware is significantly outdated. Some features may not work correctly.
+                </p>
+                <div class="version-info">
+                    <div class="version-row">
+                        <span class="version-label">Device Version:</span>
+                        <span class="version-value" id="warningCurrentVersion">--</span>
+                    </div>
+                    <div class="version-row">
+                        <span class="version-label">Latest Version:</span>
+                        <span class="version-value new" id="warningLatestVersion">--</span>
+                    </div>
+                </div>
+                <div class="update-buttons" style="margin-top: 20px;">
+                    <button class="primary" onclick="app.closeVersionWarning(); app.showUpdateModal();">
+                        Update Now
+                    </button>
+                    <button class="secondary" onclick="app.closeVersionWarning();">
+                        Continue Anyway
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         /**
          * Application Configuration Constants
@@ -1129,7 +1227,13 @@
                     recordBtn: document.getElementById('recordBtn'),
                     stopRecordBtn: document.getElementById('stopRecordBtn'),
                     saveRecordBtn: document.getElementById('saveRecordBtn'),
-                    presetSelect: document.getElementById('presetSelect'),
+                    // Preset toggle buttons
+                    angleVertical: document.getElementById('angleVertical'),
+                    angleOblique: document.getElementById('angleOblique'),
+                    heightShort: document.getElementById('heightShort'),
+                    heightTall: document.getElementById('heightTall'),
+                    sensLow: document.getElementById('sensLow'),
+                    sensHigh: document.getElementById('sensHigh'),
                     coldDetection: document.getElementById('coldDetection'),
                     sensorMode: document.getElementById('sensorMode'),
                     sensorFps: document.getElementById('sensorFps'),
@@ -1152,8 +1256,13 @@
                     motionThreshValue: document.getElementById('motionThreshValue'),
                     motionHystSlider: document.getElementById('motionHystSlider'),
                     motionHystValue: document.getElementById('motionHystValue'),
-                    motionDensitySlider: document.getElementById('motionDensitySlider'),
-                    motionDensityValue: document.getElementById('motionDensityValue'),
+                    adaptiveThEnableToggle: document.getElementById('adaptiveThEnableToggle'),
+                    adaptiveKSigmaSlider: document.getElementById('adaptiveKSigmaSlider'),
+                    adaptiveKSigmaValue: document.getElementById('adaptiveKSigmaValue'),
+                    adaptiveThMinSlider: document.getElementById('adaptiveThMinSlider'),
+                    adaptiveThMinValue: document.getElementById('adaptiveThMinValue'),
+                    adaptiveThMaxSlider: document.getElementById('adaptiveThMaxSlider'),
+                    adaptiveThMaxValue: document.getElementById('adaptiveThMaxValue'),
                     smoothHeatmap: document.getElementById('smoothHeatmap'),
                     displayMotionMap: document.getElementById('displayMotionMap'),
                     // Fixed Scale Controls
@@ -1221,13 +1330,29 @@
                     this.el.saveRecordBtn.addEventListener('click', () => app.saveRecording());
                 }
 
-                // Preset
-                if (this.el.presetSelect) {
-                    this.el.presetSelect.addEventListener('change', () => {
-                        app.applyPreset();
-                        app.saveAppSettings();
-                    });
-                }
+                // Preset toggle buttons
+                const setupToggle = (btn1, btn2, callback) => {
+                    if (btn1 && btn2) {
+                        btn1.addEventListener('click', () => {
+                            btn1.classList.add('active');
+                            btn2.classList.remove('active');
+                            callback();
+                        });
+                        btn2.addEventListener('click', () => {
+                            btn2.classList.add('active');
+                            btn1.classList.remove('active');
+                            callback();
+                        });
+                    }
+                };
+                const presetCallback = () => {
+                    app.applyPreset();
+                    app.saveAppSettings();
+                };
+                setupToggle(this.el.angleVertical, this.el.angleOblique, presetCallback);
+                setupToggle(this.el.heightShort, this.el.heightTall, presetCallback);
+                setupToggle(this.el.sensLow, this.el.sensHigh, presetCallback);
+
                 if (this.el.coldDetection) {
                     this.el.coldDetection.addEventListener('change', () => {
                         app.applyPreset();
@@ -1475,7 +1600,13 @@
             setConnectionState(connected) {
                 const controls = [
                     this.el.captureToggle,
-                    this.el.presetSelect,
+                    // Preset toggle buttons
+                    this.el.angleVertical,
+                    this.el.angleOblique,
+                    this.el.heightShort,
+                    this.el.heightTall,
+                    this.el.sensLow,
+                    this.el.sensHigh,
                     // this.el.sensorMode, // Always disabled per user request
                     this.el.sensorFps,
                     this.el.applySensorConfigBtn
@@ -1496,7 +1627,15 @@
              */
             setCaptureState(capturing) {
                 if (this.el.recordBtn) this.el.recordBtn.disabled = !capturing;
-                if (this.el.presetSelect) this.el.presetSelect.disabled = capturing;
+                // Disable preset toggle buttons during capture
+                const presetBtns = [
+                    this.el.angleVertical, this.el.angleOblique,
+                    this.el.heightShort, this.el.heightTall,
+                    this.el.sensLow, this.el.sensHigh
+                ];
+                presetBtns.forEach(el => {
+                    if (el) el.disabled = capturing;
+                });
             }
         }
 
@@ -1974,6 +2113,7 @@
                         tempMin: data.meta.temp_min,
                         tempMax: data.meta.temp_max,
                         processingTime: data.meta.time,
+                        thAdaptive: data.meta.th_adaptive || 0, // Adaptive threshold in °C
                         scaleInfo: {
                             minTemp: data.meta.temp_min,
                             maxTemp: data.meta.temp_max,
@@ -2713,7 +2853,8 @@
                             centroidY: blob.cy,
                             area: blob.area,
                             id: blob.id, // Keep original ID for consistent coloring
-                            act: blob.act // Pass activity status
+                            act: blob.act, // Pass activity status
+                            valid: blob.valid // Pass validity for Simple mode coloring
                         });
 
                         // Populate blobLabels from blob mask
@@ -2769,16 +2910,20 @@
                     // Use firmware ID if available, otherwise index
                     const blobId = (box.id !== undefined) ? box.id : index;
 
-                    // Get blob status
-                    // box.act comes from firmware JSON ("true" or "false" string)
-                    const isActive = (box.act === "true" || box.act === true);
-
-                    // Get blob-specific color
-                    // Active = Green, Inactive = Red
-                    const blobColor = isActive ? 'rgba(0, 255, 0, 1.0)' : 'rgba(255, 50, 50, 1.0)';
+                    // Get blob-specific color based on mode
+                    // Simple mode (algoMode=2): Green=valid, Red=invalid (based on is_valid_person)
+                    // Default mode (algoMode=0,1): Always green (all detected blobs are valid)
+                    let blobColor;
+                    if (app.algoMode === 2) {
+                        // Simple mode: use validity flag
+                        const isValid = (box.valid === "true" || box.valid === true);
+                        blobColor = isValid ? 'rgba(0, 255, 0, 1.0)' : 'rgba(255, 50, 50, 1.0)';
+                    } else {
+                        // Default mode: all blobs are valid (green)
+                        blobColor = 'rgba(0, 255, 0, 1.0)';
+                    }
 
                     // Draw contour (outline of blob mask)
-                    // User requested green outline only -> Update: Now dynamic based on activity
                     this.drawBlobContour(foregroundMask, blobLabels, blobId, blobColor);
 
                     // Draw centroid crosshair
@@ -2865,6 +3010,7 @@
                 this.captureInterval = null;
                 this.frameCount = 0;
                 this.captureInProgress = false;  // Prevent overlapping requests
+                this.pendingParamUpdates = new Map();  // Queue params during capture
 
                 // Timing metrics
                 this.lastFrameStartTime = 0;
@@ -3162,6 +3308,8 @@
                         if (versionMatch) {
                             const version = versionMatch[1];
                             document.getElementById('libraryVersion').textContent = 'v' + version;
+                            // Check for significant version mismatch (async, non-blocking)
+                            this.checkVersionCompatibility(version);
                         }
                     } catch (error) {
                         this.log('Note: Could not get library version');
@@ -3613,6 +3761,9 @@
                 } finally {
                     // Always clear the in-progress flag
                     this.captureInProgress = false;
+
+                    // Process any parameter updates that were queued during capture
+                    await this.processPendingParamUpdates();
                 }
             }
 
@@ -3626,6 +3777,16 @@
                     `${data.tempMin.toFixed(1)}-${data.tempMax.toFixed(1)}°C`;
                 document.getElementById('processTime').textContent =
                     `${data.processingTime.toFixed(1)} ms`;
+
+                // Show adaptive threshold only in advanced mode
+                const thAdaptiveBox = document.getElementById('thAdaptiveBox');
+                const thAdaptive = document.getElementById('thAdaptive');
+                if (this.ui.advancedMode && data.thAdaptive && data.thAdaptive > 0) {
+                    thAdaptiveBox.style.display = 'block';
+                    thAdaptive.textContent = `${data.thAdaptive.toFixed(2)}°C`;
+                } else {
+                    thAdaptiveBox.style.display = 'none';
+                }
             }
 
             /**
@@ -3732,8 +3893,10 @@
 
                 // Preset controls are disabled during capture, so this only runs when stopped
                 try {
-                    const preset = document.getElementById('presetSelect').value;
-                    const [angle, height, sensitivity] = preset.split('|');
+                    // Read from toggle buttons
+                    const angle = document.getElementById('angleOblique').classList.contains('active') ? 'OBLIQUE' : 'VERTICAL';
+                    const height = document.getElementById('heightTall').classList.contains('active') ? 'TALL' : 'SHORT';
+                    const sensitivity = document.getElementById('sensHigh').classList.contains('active') ? 'HIGH' : 'LOW';
                     const coldDetection = document.getElementById('coldDetection').checked;
 
                     this.log('Applying preset configuration...');
@@ -3957,8 +4120,11 @@
                             const match = line.match(/(-?\d+)\s+\(([\d.]+)\s*(?:degC|°C)\)/);
                             if (match) {
                                 const value = parseInt(match[1]);
-                                document.getElementById('thHotSlider').value = value;
-                                document.getElementById('thHotValue').textContent = match[2];
+                                // Use default 100 (2.0°C) if device reports 0 (uninitialized)
+                                const thHot = value > 0 ? value : 100;
+                                const thHotDisplay = value > 0 ? match[2] : '2.0';
+                                document.getElementById('thHotSlider').value = thHot;
+                                document.getElementById('thHotValue').textContent = thHotDisplay;
                             }
                         }
                         // Cold Threshold (Simple mode)
@@ -3984,8 +4150,8 @@
                             const match = line.match(/(\d+)\s+frames/);
                             if (match) {
                                 const frames = parseInt(match[1]);
-                                const seconds = (frames / this.frameRate).toFixed(1);
-                                // Update slider with seconds, but ensure it respects min/max
+                                // Use default 60s if device reports 0 (uninitialized)
+                                const seconds = frames > 0 ? (frames / this.frameRate).toFixed(1) : '60.0';
                                 document.getElementById('motionHystSlider').value = seconds;
                                 document.getElementById('motionHystValue').textContent = seconds;
                             }
@@ -4010,20 +4176,61 @@
                                 document.getElementById('trackMissedValue').textContent = seconds;
                             }
                         }
-                        // Motion Density
-                        else if (line.includes('motion_density:')) {
-                            const match = line.match(/(\d+)\s+\((\d+)%\)/);
+                        // Motion Validation
+                        else if (line.includes('motion_validation:')) {
+                            const match = line.match(/(\d+)\s+\((\w+)\)/);
                             if (match) {
-                                const rawValue = parseInt(match[1]);
-                                const pct = parseInt(match[2]);
-                                document.getElementById('motionDensitySlider').value = pct;
-                                document.getElementById('motionDensityValue').textContent = pct;
-                                // Sync motion validation checkbox (checked = enabled = density > 0)
+                                const value = parseInt(match[1]);
                                 const checkbox = document.getElementById('motionValidationCheckbox');
                                 if (checkbox) {
-                                    checkbox.checked = (rawValue > 0);
-                                    document.getElementById('motionDensitySlider').disabled = (rawValue === 0);
+                                    checkbox.checked = (value > 0);
                                 }
+                            }
+                        }
+                        // Adaptive threshold enable
+                        else if (line.includes('enable_adaptive_th:')) {
+                            const match = line.match(/(\d+)/);
+                            if (match) {
+                                const value = parseInt(match[1]);
+                                const checkbox = document.getElementById('adaptiveThEnableToggle');
+                                if (checkbox) {
+                                    checkbox.checked = (value === 1);
+                                    // Enable/disable related sliders
+                                    ['adaptiveKSigmaSlider', 'adaptiveThMinSlider', 'adaptiveThMaxSlider'].forEach(id => {
+                                        const slider = document.getElementById(id);
+                                        if (slider) slider.disabled = !checkbox.checked;
+                                    });
+                                    // Disable Hot Threshold slider when adaptive is enabled
+                                    const thHotSlider = document.getElementById('thHotSlider');
+                                    if (thHotSlider) thHotSlider.disabled = checkbox.checked;
+                                }
+                            }
+                        }
+                        // Adaptive K sigma (Q4.4)
+                        else if (line.includes('adaptive_k_sigma:')) {
+                            const match = line.match(/(\d+)\s+\(([\d.]+)x\)/);
+                            if (match) {
+                                const value = parseInt(match[1]);
+                                document.getElementById('adaptiveKSigmaSlider').value = value;
+                                document.getElementById('adaptiveKSigmaValue').textContent = match[2];
+                            }
+                        }
+                        // Adaptive threshold min
+                        else if (line.includes('adaptive_th_min:')) {
+                            const match = line.match(/(-?\d+)\s+\(([\d.]+)\s*(?:degC|°C)\)/);
+                            if (match) {
+                                const value = parseInt(match[1]);
+                                document.getElementById('adaptiveThMinSlider').value = value;
+                                document.getElementById('adaptiveThMinValue').textContent = match[2];
+                            }
+                        }
+                        // Adaptive threshold max
+                        else if (line.includes('adaptive_th_max:')) {
+                            const match = line.match(/(-?\d+)\s+\(([\d.]+)\s*(?:degC|°C)\)/);
+                            if (match) {
+                                const value = parseInt(match[1]);
+                                document.getElementById('adaptiveThMaxSlider').value = value;
+                                document.getElementById('adaptiveThMaxValue').textContent = match[2];
                             }
                         }
                     }
@@ -4060,13 +4267,13 @@
                         id: 'thresholdLSlider',
                         labelId: 'thresholdLValue',
                         cmd: ':PeopleDetection:TUNE:THRESHOLD:LOWER',
-                        format: (v) => (v / 256).toFixed(2)
+                        format: (v) => { const x = v / 256; return x < 0.1 ? x.toFixed(3) : x.toFixed(2); }
                     },
                     {
                         id: 'thresholdHSlider',
                         labelId: 'thresholdHValue',
                         cmd: ':PeopleDetection:TUNE:THRESHOLD:UPPER',
-                        format: (v) => (v / 256).toFixed(2)
+                        format: (v) => { const x = v / 256; return x < 0.1 ? x.toFixed(3) : x.toFixed(2); }
                     },
                     {
                         id: 'tempMinSlider',
@@ -4148,13 +4355,6 @@
                         isTime: true
                     },
                     {
-                        id: 'motionDensitySlider',
-                        labelId: 'motionDensityValue',
-                        cmd: ':PeopleDetection:TUNE:MOTION:DENSITY',
-                        format: (v) => v,
-                        convert: (v) => Math.round(v * 255 / 100)  // Convert % to 0-255
-                    },
-                    {
                         id: 'trackAgeSlider',
                         labelId: 'trackAgeValue',
                         cmd: ':PeopleDetection:TUNE:TRACK:AGE',
@@ -4167,6 +4367,24 @@
                         cmd: ':PeopleDetection:TUNE:TRACK:MISSED',
                         format: (v) => v,
                         isTime: true
+                    },
+                    {
+                        id: 'adaptiveKSigmaSlider',
+                        labelId: 'adaptiveKSigmaValue',
+                        cmd: ':PeopleDetection:TUNE:ADAPTIVE:K',
+                        format: (v) => (v / 16).toFixed(1)  // Q4.4 to float
+                    },
+                    {
+                        id: 'adaptiveThMinSlider',
+                        labelId: 'adaptiveThMinValue',
+                        cmd: ':PeopleDetection:TUNE:ADAPTIVE:MIN',
+                        format: (v) => (v / 50).toFixed(1)  // degCx50 to degC
+                    },
+                    {
+                        id: 'adaptiveThMaxSlider',
+                        labelId: 'adaptiveThMaxValue',
+                        cmd: ':PeopleDetection:TUNE:ADAPTIVE:MAX',
+                        format: (v) => (v / 50).toFixed(1)  // degCx50 to degC
                     }
                 ];
 
@@ -4198,40 +4416,51 @@
                                 }
                                 await this.updateRuntimeParam(slider.cmd, val);
                                 this.saveRuntimeParams();
-
-                                // Sync checkbox when density slider changes (checked = enabled = density > 0)
-                                if (slider.id === 'motionDensitySlider') {
-                                    const checkbox = document.getElementById('motionValidationCheckbox');
-                                    if (checkbox) {
-                                        checkbox.checked = (parseInt(e.target.value) > 0);
-                                    }
-                                }
                             }
                         });
                     }
                 });
 
-                // Motion validation checkbox (checked = enabled = density 20%, unchecked = disabled = density 0)
+                // Motion validation checkbox
                 const motionValidationCheckbox = document.getElementById('motionValidationCheckbox');
                 if (motionValidationCheckbox) {
                     motionValidationCheckbox.addEventListener('change', async (e) => {
                         if (this.serialManager.isConnected()) {
-                            const value = e.target.checked ? 51 : 0;  // 51=20% (enabled), 0=disabled
-                            await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', value);
-
-                            // Update the density slider to match
-                            const densitySlider = document.getElementById('motionDensitySlider');
-                            const densityLabel = document.getElementById('motionDensityValue');
-                            if (densitySlider) {
-                                densitySlider.value = e.target.checked ? 20 : 0;
-                                densitySlider.disabled = !e.target.checked;
-                            }
-                            if (densityLabel) {
-                                densityLabel.textContent = e.target.checked ? '20' : '0';
-                            }
+                            const value = e.target.checked ? 1 : 0;
+                            await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:VALIDATION', value);
                             this.saveRuntimeParams();
                         }
                     });
+                }
+
+                // Adaptive threshold enable checkbox
+                const adaptiveThEnableToggle = document.getElementById('adaptiveThEnableToggle');
+                if (adaptiveThEnableToggle) {
+                    adaptiveThEnableToggle.addEventListener('change', async (e) => {
+                        if (this.serialManager.isConnected()) {
+                            const value = e.target.checked ? 1 : 0;
+                            await this.updateRuntimeParam(':PeopleDetection:TUNE:ADAPTIVE:ENABLE', value);
+                        }
+
+                        // Enable/disable the related sliders (always, even if not connected)
+                        const adaptiveSliders = ['adaptiveKSigmaSlider', 'adaptiveThMinSlider', 'adaptiveThMaxSlider'];
+                        adaptiveSliders.forEach(id => {
+                            const slider = document.getElementById(id);
+                            if (slider) slider.disabled = !e.target.checked;
+                        });
+
+                        // Disable Hot Threshold slider when adaptive is enabled (it's overridden)
+                        const thHotSlider = document.getElementById('thHotSlider');
+                        if (thHotSlider) thHotSlider.disabled = e.target.checked;
+
+                        if (this.serialManager.isConnected()) {
+                            this.saveRuntimeParams();
+                        }
+                    });
+
+                    // Set initial state based on checkbox default
+                    const thHotSlider = document.getElementById('thHotSlider');
+                    if (thHotSlider) thHotSlider.disabled = adaptiveThEnableToggle.checked;
                 }
             }
 
@@ -4255,7 +4484,7 @@
 
                 try {
                     // Thresholds (slider values sent directly - already in correct units)
-                    const thHot = params?.thHot ?? 90;  // 1.8°C default (degC×50)
+                    const thHot = params?.thHot ?? 100;  // 2.0°C default (degC×50)
                     const thCold = params?.thCold ?? 0; // Disabled default
                     const hysteresis = params?.thresholdH ?? 512; // 2.0x default (Q8.8)
                     const gammaEma = params?.gammaEma ?? 26; // 0.10x default (Q8.8)
@@ -4266,16 +4495,13 @@
                     await this.updateRuntimeParam(':PeopleDetection:TUNE:LEARNING', gammaEma);
 
                     // Motion (disabled by default on first run)
-                    // motionThresh is stored as slider value (0-500, maps to 0-10°C in steps of 0.1°C)
                     const motionThresh = params?.motionThresh ?? 50; // 1.0°C default (50 = 1.0°C)
                     const motionHyst = params?.motionHyst ?? 60; // 60s default
-                    // motionDensity is stored as percentage (0-100), convert to raw (0-255)
-                    const motionDensityPct = params?.motionDensity ?? 0; // 0% = disabled by default
-                    const motionDensityRaw = Math.round((motionDensityPct * 255) / 100);
+                    const motionValidation = params?.motionValidation ?? 0; // Disabled by default
 
                     await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:THRESH', motionThresh);
                     await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:HYST', motionHyst * 8); // Convert seconds to frames
-                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:DENSITY', motionDensityRaw);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:MOTION:VALIDATION', motionValidation);
 
                     // Tracking
                     const trackAge = params?.trackAge ?? 1.0; // 1.0s default
@@ -4289,6 +4515,21 @@
 
                     await this.updateRuntimeParam(':PeopleDetection:TUNE:MINAREA', minArea);
 
+                    // Adaptive threshold (disabled by default)
+                    const adaptiveEnable = params?.adaptiveEnable ?? 0; // Disabled by default
+                    const adaptiveK = params?.adaptiveK ?? 48; // 3.0x default (Q4.4)
+                    const adaptiveMin = params?.adaptiveMin ?? 90; // 1.8°C default (degCx50)
+                    const adaptiveMax = params?.adaptiveMax ?? 350; // 7.0°C default (degCx50)
+
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:ADAPTIVE:ENABLE', adaptiveEnable);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:ADAPTIVE:K', adaptiveK);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:ADAPTIVE:MIN', adaptiveMin);
+                    await this.updateRuntimeParam(':PeopleDetection:TUNE:ADAPTIVE:MAX', adaptiveMax);
+
+                    // Disable Hot Threshold slider if adaptive is enabled
+                    const thHotSlider = document.getElementById('thHotSlider');
+                    if (thHotSlider) thHotSlider.disabled = (adaptiveEnable === 1);
+
                     await new Promise(resolve => setTimeout(resolve, 200));
                     await this.syncRuntimeParamsFromDevice();
                     this.log(params ? 'Saved parameters restored.' : 'Defaults applied.');
@@ -4298,9 +4539,23 @@
             }
 
             /**
-             * Update a runtime parameter
+             * Update a runtime parameter (queued if capture in progress)
              */
             async updateRuntimeParam(command, value) {
+                // If capture is in progress, queue the update to prevent serial corruption
+                if (this.captureInProgress) {
+                    this.pendingParamUpdates.set(command, value);
+                    console.debug(`Queued param update: ${command} ${value}`);
+                    return;
+                }
+
+                await this.sendParamUpdate(command, value);
+            }
+
+            /**
+             * Actually send a parameter update command
+             */
+            async sendParamUpdate(command, value) {
                 try {
                     const cmd = `${command} ${value}`;
                     this.log(`Updating runtime parameter: ${cmd}`);
@@ -4314,6 +4569,22 @@
                     }
                 } catch (error) {
                     this.log('ERROR updating runtime parameter: ' + error.message);
+                }
+            }
+
+            /**
+             * Process any queued parameter updates (called between frames)
+             */
+            async processPendingParamUpdates() {
+                if (this.pendingParamUpdates.size === 0) return;
+
+                // Copy and clear queue to prevent race conditions
+                const updates = new Map(this.pendingParamUpdates);
+                this.pendingParamUpdates.clear();
+
+                console.debug(`Processing ${updates.size} queued param updates`);
+                for (const [command, value] of updates) {
+                    await this.sendParamUpdate(command, value);
                 }
             }
 
@@ -4367,7 +4638,10 @@
             saveAppSettings() {
                 const settings = {
                     frameRate: this.frameRate,
-                    preset: document.getElementById('presetSelect').value,
+                    // Preset toggle states
+                    presetAngle: document.getElementById('angleOblique').classList.contains('active') ? 'OBLIQUE' : 'VERTICAL',
+                    presetHeight: document.getElementById('heightTall').classList.contains('active') ? 'TALL' : 'SHORT',
+                    presetSensitivity: document.getElementById('sensHigh').classList.contains('active') ? 'HIGH' : 'LOW',
                     coldDetection: document.getElementById('coldDetection').checked,
                     algoMode: document.getElementById('algoModeSelect').value,
                     smoothHeatmap: document.getElementById('smoothHeatmap').checked,
@@ -4400,7 +4674,32 @@
                             this.updateFrameRate(settings.frameRate);
                             document.getElementById('frameRateSlider').value = settings.frameRate;
                         }
-                        if (settings.preset) document.getElementById('presetSelect').value = settings.preset;
+                        // Load preset toggle states
+                        if (settings.presetAngle) {
+                            const isOblique = settings.presetAngle === 'OBLIQUE';
+                            document.getElementById('angleOblique').classList.toggle('active', isOblique);
+                            document.getElementById('angleVertical').classList.toggle('active', !isOblique);
+                        }
+                        if (settings.presetHeight) {
+                            const isTall = settings.presetHeight === 'TALL';
+                            document.getElementById('heightTall').classList.toggle('active', isTall);
+                            document.getElementById('heightShort').classList.toggle('active', !isTall);
+                        }
+                        if (settings.presetSensitivity) {
+                            const isHigh = settings.presetSensitivity === 'HIGH';
+                            document.getElementById('sensHigh').classList.toggle('active', isHigh);
+                            document.getElementById('sensLow').classList.toggle('active', !isHigh);
+                        }
+                        // Legacy migration: convert old preset string to new toggles
+                        if (settings.preset && !settings.presetAngle) {
+                            const [angle, height, sensitivity] = settings.preset.split('|');
+                            document.getElementById('angleOblique').classList.toggle('active', angle === 'OBLIQUE');
+                            document.getElementById('angleVertical').classList.toggle('active', angle !== 'OBLIQUE');
+                            document.getElementById('heightTall').classList.toggle('active', height === 'TALL');
+                            document.getElementById('heightShort').classList.toggle('active', height !== 'TALL');
+                            document.getElementById('sensHigh').classList.toggle('active', sensitivity === 'HIGH');
+                            document.getElementById('sensLow').classList.toggle('active', sensitivity !== 'HIGH');
+                        }
                         if (settings.coldDetection !== undefined) document.getElementById('coldDetection').checked = settings.coldDetection;
 
                         // Algo mode requires UI update
@@ -4476,7 +4775,11 @@
                     trackMissed: document.getElementById('trackMissedSlider').value,
                     motionThresh: document.getElementById('motionThreshSlider').value,
                     motionHyst: document.getElementById('motionHystSlider').value,
-                    motionDensity: document.getElementById('motionDensitySlider').value
+                    motionValidation: document.getElementById('motionValidationCheckbox')?.checked ? 1 : 0,
+                    adaptiveEnable: document.getElementById('adaptiveThEnableToggle')?.checked ? 1 : 0,
+                    adaptiveK: document.getElementById('adaptiveKSigmaSlider').value,
+                    adaptiveMin: document.getElementById('adaptiveThMinSlider').value,
+                    adaptiveMax: document.getElementById('adaptiveThMaxSlider').value
                 };
                 localStorage.setItem('runtimeParams', JSON.stringify(params));
             }
@@ -4569,15 +4872,38 @@
                             document.getElementById('motionHystSlider').value = params.motionHyst;
                             document.getElementById('motionHystValue').textContent = params.motionHyst;
                         }
-                        if (params.motionDensity !== undefined) {
-                            document.getElementById('motionDensitySlider').value = params.motionDensity;
-                            document.getElementById('motionDensityValue').textContent = params.motionDensity;
-                            // Sync motion validation checkbox (checked = enabled = density > 0)
+                        if (params.motionValidation !== undefined) {
                             const checkbox = document.getElementById('motionValidationCheckbox');
                             if (checkbox) {
-                                checkbox.checked = (parseInt(params.motionDensity) > 0);
-                                document.getElementById('motionDensitySlider').disabled = !checkbox.checked;
+                                checkbox.checked = (params.motionValidation > 0);
                             }
+                        }
+                        // Adaptive threshold parameters
+                        if (params.adaptiveEnable !== undefined) {
+                            const checkbox = document.getElementById('adaptiveThEnableToggle');
+                            if (checkbox) {
+                                checkbox.checked = (parseInt(params.adaptiveEnable) === 1);
+                                // Enable/disable related sliders
+                                ['adaptiveKSigmaSlider', 'adaptiveThMinSlider', 'adaptiveThMaxSlider'].forEach(id => {
+                                    const slider = document.getElementById(id);
+                                    if (slider) slider.disabled = !checkbox.checked;
+                                });
+                                // Disable Hot Threshold slider when adaptive is enabled
+                                const thHotSlider = document.getElementById('thHotSlider');
+                                if (thHotSlider) thHotSlider.disabled = checkbox.checked;
+                            }
+                        }
+                        if (params.adaptiveK !== undefined) {
+                            document.getElementById('adaptiveKSigmaSlider').value = params.adaptiveK;
+                            document.getElementById('adaptiveKSigmaValue').textContent = (params.adaptiveK / 16).toFixed(1);
+                        }
+                        if (params.adaptiveMin !== undefined) {
+                            document.getElementById('adaptiveThMinSlider').value = params.adaptiveMin;
+                            document.getElementById('adaptiveThMinValue').textContent = (params.adaptiveMin / 50).toFixed(1);
+                        }
+                        if (params.adaptiveMax !== undefined) {
+                            document.getElementById('adaptiveThMaxSlider').value = params.adaptiveMax;
+                            document.getElementById('adaptiveThMaxValue').textContent = (params.adaptiveMax / 50).toFixed(1);
                         }
 
                         this.log('Loaded runtime parameters from localStorage');
@@ -4707,7 +5033,11 @@
                 document.getElementById('recordBtn').disabled = !capturing;
 
                 // Disable preset controls during capture to prevent race conditions
-                document.getElementById('presetSelect').disabled = capturing;
+                const presetBtns = ['angleVertical', 'angleOblique', 'heightShort', 'heightTall', 'sensLow', 'sensHigh'];
+                presetBtns.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = capturing;
+                });
                 document.getElementById('coldDetection').disabled = capturing;
             }
 
@@ -4940,6 +5270,55 @@
                         console.log('Disconnect on modal close:', e);
                     }
                     this.connectedViaProbe = false;
+                }
+            }
+
+            /**
+             * Check if version difference is significant (major or minor changed)
+             * @returns {boolean} true if major or minor version differs
+             */
+            isSignificantVersionDiff(latest, current) {
+                latest = (latest || '').toString().trim().replace(/^v/, '');
+                current = (current || '').toString().trim().replace(/^v/, '');
+
+                const latestParts = latest.split('.').map(p => parseInt(p, 10) || 0);
+                const currentParts = current.split('.').map(p => parseInt(p, 10) || 0);
+
+                // Different if major or minor differs
+                return (latestParts[0] !== currentParts[0]) || (latestParts[1] !== currentParts[1]);
+            }
+
+            /**
+             * Show version warning modal
+             */
+            showVersionWarning(currentVersion, latestVersion) {
+                document.getElementById('warningCurrentVersion').textContent = currentVersion;
+                document.getElementById('warningLatestVersion').textContent = latestVersion.replace(/^v/, '');
+                document.getElementById('versionWarningModal').classList.add('show');
+            }
+
+            /**
+             * Close version warning modal
+             */
+            closeVersionWarning() {
+                document.getElementById('versionWarningModal').classList.remove('show');
+            }
+
+            /**
+             * Check firmware version compatibility on connect
+             */
+            async checkVersionCompatibility(deviceVersion) {
+                try {
+                    const latestRelease = await this.firmwareUpdater._getLatestRelease();
+                    if (latestRelease && latestRelease.tag_name) {
+                        const latestVersion = latestRelease.tag_name;
+                        if (this.isSignificantVersionDiff(latestVersion, deviceVersion)) {
+                            this.showVersionWarning(deviceVersion, latestVersion);
+                        }
+                    }
+                } catch (error) {
+                    // Silently fail - network issues shouldn't block connection
+                    console.log('Version check skipped:', error.message);
                 }
             }
 
