@@ -9,10 +9,11 @@ Complete reference for all tuning parameters in the MLX9064x Thermal Viewer.
 1. [Enabling Advanced Mode](#enabling-advanced-mode)
 2. [Frame Rate Control](#frame-rate-control)
 3. [Sensor Configuration](#sensor-configuration)
-4. [Default Mode Parameters](#default-mode-parameters)
-5. [Simple Mode Parameters](#simple-mode-parameters)
-6. [Tuning Scenarios](#tuning-scenarios)
-7. [Reset to Defaults](#reset-to-defaults)
+4. [Shared Parameters](#shared-parameters) *(both modes)*
+5. [Default Mode Parameters](#default-mode-parameters)
+6. [Simple Mode Parameters](#simple-mode-parameters)
+7. [Tuning Scenarios](#tuning-scenarios)
+8. [Reset to Defaults](#reset-to-defaults)
 
 ---
 
@@ -21,13 +22,13 @@ Complete reference for all tuning parameters in the MLX9064x Thermal Viewer.
 Add `?advanced` to the URL:
 
 ```
-file:///path/to/index.html?advanced
+https://www.melexis.io/isp/?advanced
 ```
 
-Or if served via web server:
+Or on internal GitLab Pages:
 
 ```
-http://localhost:8080/index.html?advanced
+https://ays.pages.melexis.com/mlx9064x-isp-melexisio/?advanced
 ```
 
 **What changes:**
@@ -72,17 +73,17 @@ Click **Apply** to send new sensor configuration to the device.
 
 ---
 
-## Default Mode Parameters
+## Shared Parameters
 
-*Visible when Algorithm Mode = Default*
+*Available in both Default and Simple modes*
 
-### Detection Parameters
+These parameters affect detection in both algorithm modes.
 
-#### Footprint Size
+### Footprint Size
 
 | Range | Default | Unit |
 |-------|---------|------|
-| 35 - 55 | 45 | pixels |
+| 35 - 90 | 60 | pixels |
 
 **What it does**: Expected size of one person in pixels.
 
@@ -97,7 +98,7 @@ Click **Apply** to send new sensor configuration to the device.
 
 ---
 
-#### Min Blob Area
+### Min Blob Area
 
 | Range | Default | Unit |
 |-------|---------|------|
@@ -115,33 +116,41 @@ Click **Apply** to send new sensor configuration to the device.
 
 ---
 
-#### Cold Threshold
+## Default Mode Parameters
+
+*These parameters are only visible when Algorithm Mode = Default*
+
+### Cold Threshold
 
 | Range | Default | Display |
 |-------|---------|---------|
-| 0.5 - 4.0 | 1.0× | Multiplier |
+| 0.004 - 4.0 | 1.0× | Multiplier |
 
-**What it does**: Sensitivity for detecting cold objects below background.
+**What it does**: Controls how much colder than background a region must be to trigger cold detection.
+
+**How it works**: The algorithm calculates the scene's typical temperature variation (noise level). This multiplier sets the detection threshold relative to that noise. At 1.0×, regions must be colder than the noise level. At 2.0×, they must be twice as cold. Values below 0.5× are for advanced debugging only.
 
 **Effect:**
-- **Lower value** → More sensitive to cold
-- **Higher value** → Less sensitive to cold
+- **Lower value** → More sensitive to cold (detects smaller temperature differences)
+- **Higher value** → Less sensitive (only detects significantly colder regions)
 
 **Note:** Cold detection must be enabled in presets for this to have effect.
 
 ---
 
-#### Hot Threshold
+### Hot Threshold
 
 | Range | Default | Display |
 |-------|---------|---------|
-| 0.5 - 4.0 | 1.0× | Multiplier |
+| 0.004 - 4.0 | 1.0× | Multiplier |
 
-**What it does**: Sensitivity for detecting warm objects above background.
+**What it does**: Controls how much warmer than background a region must be to detect as a person.
+
+**How it works**: The algorithm calculates the scene's typical temperature variation (noise level). This multiplier sets the detection threshold relative to that noise. At 1.0×, people must be warmer than the noise level. At 2.0×, they must be twice as warm. Values below 0.5× are for advanced debugging only.
 
 **Effect:**
-- **Lower value** → More sensitive to heat (detects cooler people)
-- **Higher value** → Less sensitive (only detects warmer people)
+- **Lower value** → More sensitive (detects people with smaller temperature difference from background)
+- **Higher value** → Less sensitive (only detects people who are significantly warmer)
 
 **When to adjust:**
 - Missing people → Decrease
@@ -155,9 +164,9 @@ Click **Apply** to send new sensor configuration to the device.
 
 | Range | Default | Display |
 |-------|---------|---------|
-| 0 - 30°C | Auto (20°C) | Celsius |
+| 0 - 30°C | 22.0°C | Celsius |
 
-**What it does**: Ignore pixels colder than this temperature.
+**What it does**: Ignore pixels colder than this temperature. Set to 0 for Auto (defaults to 20°C internally).
 
 **When to adjust:**
 - Detecting cold floor/walls → Increase
@@ -169,9 +178,9 @@ Click **Apply** to send new sensor configuration to the device.
 
 | Range | Default | Display |
 |-------|---------|---------|
-| 30 - 50°C | Auto (40°C) | Celsius |
+| 0 - 50°C | 33.0°C | Celsius |
 
-**What it does**: Ignore pixels hotter than this temperature.
+**What it does**: Ignore pixels hotter than this temperature. Set to 0 for Auto (defaults to 40°C internally).
 
 **When to adjust:**
 - Detecting hot equipment → Decrease
@@ -207,9 +216,9 @@ Click **Apply** to send new sensor configuration to the device.
 
 ---
 
-### Advanced LoG Parameters
+### Advanced Blob Detection Parameters
 
-*For expert tuning only*
+*For expert tuning only. These control the internal blob detection algorithm.*
 
 #### Cold Gate
 
@@ -247,7 +256,7 @@ Click **Apply** to send new sensor configuration to the device.
 
 ## Simple Mode Parameters
 
-*Visible when Algorithm Mode = Simple*
+*These parameters are only visible when Algorithm Mode = Simple*
 
 ### Hot Threshold
 
@@ -283,13 +292,29 @@ Click **Apply** to send new sensor configuration to the device.
 
 | Range | Default | Display |
 |-------|---------|---------|
-| 1.0 - 4.0 | 1.0× | Multiplier |
+| 1.0 - 4.0 | 1.0× | Multiplier of Hot Threshold |
 
-**What it does**: Additional threshold for confirming detections.
+**What it does**: Sets a second, higher threshold for confirming new detections.
+
+**How it works**: To avoid flickering, the algorithm uses two thresholds. A blob must first exceed this "strong" threshold (Hot Threshold × this multiplier) to be initially detected. Once detected, it only needs to stay above the regular Hot Threshold to remain detected. This prevents detections from appearing and disappearing rapidly when temperatures hover near the threshold.
 
 **Effect:**
-- **Higher value** → Requires stronger signal to confirm detection (reduces flickering)
-- **Lower value** → Confirms detections more easily
+- **Higher value** → Requires stronger initial signal to start detection (more stable, but may miss weak signals)
+- **Lower value** → Easier to start new detections (more responsive, but may flicker)
+
+---
+
+### BG Learning
+
+| Range | Default | Display |
+|-------|---------|---------|
+| 0.01 - 0.50 | 0.10× | Multiplier |
+
+**What it does**: How quickly the background model adapts to changes. Same parameter as Default mode's Learning Rate.
+
+**Effect:**
+- **Lower value** → Slower adaptation, preserves standing people longer
+- **Higher value** → Faster adaptation, absorbs stationary people
 
 ---
 
@@ -357,12 +382,14 @@ Auto-adjusts detection sensitivity based on scene conditions.
 
 | Range | Default | Effect |
 |-------|---------|--------|
-| 1.5 - 5.0 | 3.0× | Sigma multiplier for threshold |
+| 1.5 - 5.0 | 3.0× | Multiplier for noise-based threshold |
 
-- **Lower value** → More sensitive (lower threshold)
-- **Higher value** → Less sensitive (higher threshold)
+**How it works**: The algorithm measures the scene's background noise level (sigma). The adaptive threshold is set to K × sigma. At 3.0×, temperatures must be 3 times the noise level above background to be detected. This automatically adjusts for noisy vs quiet scenes.
 
-**Recommendation:** Start with 3.0, adjust based on false positive rate.
+- **Lower value** → More sensitive (detects smaller differences, but more false positives in noisy scenes)
+- **Higher value** → Less sensitive (only strong signals detected, fewer false positives)
+
+**Recommendation:** Start with 3.0, decrease if missing people, increase if too many false detections.
 
 ---
 

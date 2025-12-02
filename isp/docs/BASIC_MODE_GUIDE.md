@@ -9,10 +9,11 @@ Complete reference for all standard controls in the MLX9064x Thermal Viewer.
 1. [Connection Controls](#connection-controls)
 2. [Capture Controls](#capture-controls)
 3. [Algorithm Mode](#algorithm-mode)
-4. [Preset Configuration](#preset-configuration)
-5. [Display Statistics](#display-statistics)
-6. [Visualization Options](#visualization-options)
-7. [Recording](#recording)
+4. [Simple Mode Configuration](#simple-mode-configuration) *(Simple mode only)*
+5. [Preset Configuration](#preset-configuration) *(Default mode only)*
+6. [Display Statistics](#display-statistics)
+7. [Visualization Options](#visualization-options)
+8. [Recording](#recording)
 
 ---
 
@@ -66,6 +67,57 @@ Choose how people are detected:
 
 > **Switching modes** requires the algorithm to reinitialize. Detection may pause briefly.
 
+### What Changes Per Mode
+
+| Feature | Default Mode | Simple Mode |
+|---------|--------------|-------------|
+| Configuration | Preset options (angle, height, sensitivity) | Hot Threshold slider + Motion Validation |
+| Detection Method | Scene analysis finds warm bodies automatically | Direct temperature threshold you control |
+| Best For | Accurate counting with minimal setup | Fine-tuned control, experimental scenes |
+
+**Default mode** analyzes the thermal scene to build a background model and detect people as warm regions that stand out. Configure it using the Preset options below.
+
+**Simple mode** uses a direct temperature difference from background. Configure it using the Simple Mode options below.
+
+---
+
+## Simple Mode Configuration
+
+*Only available in Simple mode*
+
+When you select Simple mode, these controls appear instead of Preset Configuration:
+
+### Hot Threshold
+
+| Range | Default | Unit |
+|-------|---------|------|
+| 0 - 10.0 | 2.0 | °C |
+
+**What it does**: Sets how much warmer than the background a region must be to detect as a person.
+
+**How it works**: The algorithm learns what the "empty" scene looks like (the background). When something warmer appears, it's detected if the temperature difference exceeds this threshold. A person typically appears 2-5°C warmer than the background.
+
+**When to adjust:**
+- **Missing people?** → Decrease (try 1.5°C or lower)
+- **False detections from warm objects?** → Increase (try 2.5-3.0°C)
+
+### Motion Validation
+
+| State | Behavior |
+|-------|----------|
+| **Off** (default) | Detects all warm regions above threshold |
+| **On** | Only detects warm regions that have recently moved |
+
+**How it works**: When enabled, a warm region must show temperature changes (motion) to be counted as a person. Static warm objects like radiators, monitors, or sunlit areas are ignored.
+
+**When to enable**:
+- Scene has static heat sources causing false detections
+- You only need to count people who are moving
+
+**When to keep off**:
+- You need to detect standing/stationary people
+- Scene has no problematic static heat sources
+
 ---
 
 ## Preset Configuration
@@ -81,7 +133,7 @@ Presets automatically configure detection parameters based on your installation:
 | **Vertical** | Sensor mounted on ceiling, looking straight down |
 | **Oblique** | Sensor mounted on wall, looking at an angle |
 
-**Effect**: Adjusts how the system interprets blob shapes.
+**How it works**: When looking straight down (Vertical), people appear as round shapes. When looking at an angle (Oblique), people appear elongated. This setting helps the algorithm correctly identify person shapes for your installation.
 
 ### Mount Height
 
@@ -90,7 +142,7 @@ Presets automatically configure detection parameters based on your installation:
 | **Short** | Sensor is less than 2.5 meters from floor |
 | **Tall** | Sensor is 2.5 meters or higher |
 
-**Effect**: Adjusts expected person size in pixels. Higher mounts see smaller people.
+**How it works**: The further the sensor is from people, the smaller they appear in the thermal image. This setting tells the algorithm how large a person should look, so it can count them correctly.
 
 ### Sensitivity
 
@@ -105,10 +157,10 @@ Presets automatically configure detection parameters based on your installation:
 
 | State | Behavior |
 |-------|----------|
-| **Off** (default) | Only detects warm objects |
-| **On** | Also detects cold shadows (e.g., air conditioning draft) |
+| **Off** (default) | Only detects warm objects (people, heat sources) |
+| **On** | Also detects cold regions (useful in some special scenarios) |
 
-**When to enable**: Environments with significant cold air flow that creates detection shadows.
+**How it works**: Normally, people are warmer than the background and show up as "hot spots". In some environments (e.g., strong air conditioning), cold air can create distinct cold regions. Enable this only if instructed for specific use cases. Most installations should leave this **Off**.
 
 ### Applying Presets
 
@@ -141,9 +193,9 @@ Presets are applied automatically when you change any toggle. The system may bri
 | State | Effect |
 |-------|--------|
 | **Off** | Shows only temperature data |
-| **On** | Overlays motion detection (areas with recent movement) |
+| **On** | Highlights areas with recent movement, dims static areas |
 
-**Use case**: Debugging detection issues, understanding what triggers motion.
+**How it works**: The system tracks which areas have had temperature changes (motion). When enabled, areas with recent motion appear at full brightness, while static (non-moving) areas appear slightly muted/faded. This helps you see which regions the algorithm considers "active" - useful for understanding why certain areas trigger detections.
 
 ### Fixed Color Scale
 
@@ -224,10 +276,15 @@ The JSON file contains:
 - Avoid pointing directly at heat sources (radiators, sunlight)
 - Ensure people walk through the field of view
 
-### Improving Detection
-- **Missing people?** Try increasing sensitivity or checking temperature range
-- **False detections?** Lower sensitivity or enable motion validation
-- **Inconsistent counts?** Check mount height setting matches your installation
+### Improving Detection (Default Mode)
+- **Missing people?** Try increasing Sensitivity to **High**
+- **False detections?** Lower Sensitivity to **Low**, or check if a heat source (radiator, sunlight) is in view
+- **Inconsistent counts?** Verify Mount Height and Mount Angle match your actual installation
+
+### Improving Detection (Simple Mode)
+- **Missing people?** Lower the Hot Threshold (try 1.5°C or below)
+- **False detections from static objects?** Enable **Motion Validation** to ignore non-moving heat sources
+- **False detections from warm objects?** Increase Hot Threshold (try 2.5-3.0°C)
 
 ### Performance
 - Close other browser tabs for best frame rate
@@ -238,7 +295,3 @@ The JSON file contains:
 ## Related Guides
 
 - **[Firmware Update](FIRMWARE_UPDATE.md)** - Update device firmware
-
----
-
-*Need more control? Add `?advanced` to the URL to access [Advanced Mode](ADVANCED_MODE_GUIDE.md).*
