@@ -4,24 +4,15 @@
   <meta charset="utf-8" />
   <title>Melexis.IO - Firmware Update</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Montserrat font from Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap 5 CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <!-- Shared Melexis styles -->
+  <link href="styles/melexis.css" rel="stylesheet">
   <style>
-    :root {
-      --mlx-blue: #00ADEF;
-      --mlx-dark: #232A34;
-      --mlx-bg: #1A2027;
-      --mlx-panel: #232A34;
-      --mlx-panel-border: #2D3742;
-      --mlx-muted: #A9B8C9;
-      --mlx-white: #fff;
-    }
     body {
-      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
-      background: var(--mlx-bg);
-      color: var(--mlx-white);
+      font-family: var(--mx-font-sans);
+      background: var(--mx-bg);
+      color: var(--mx-text);
       margin: 0;
       line-height: 1.7;
     }
@@ -31,8 +22,8 @@
           font-size: 14px; /* base font size */
       justify-content: center;
       padding: .75rem 1rem;
-      border-bottom: 1px solid var(--mlx-panel-border);
-      background: var(--mlx-panel);
+      border-bottom: 1px solid var(--mx-panel-border);
+      background: var(--mx-royal-blue);
     }
     #header .banner {
       display: block;
@@ -46,15 +37,16 @@
       padding: 2rem 1rem;
     }
     .help-panel {
-      background: var(--mlx-panel);
-      border: 1px solid var(--mlx-panel-border);
-      border-radius: 1rem;
+      background: var(--mx-panel-bg);
+      border: 1px solid var(--mx-border);
+      border-radius: 2px;
       padding: 1.7rem 1.5rem;
       margin-bottom: 2rem;
-      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+      box-shadow: var(--mx-shadow-soft);
     }
     .back-link {
-      color: var(--mlx-muted);
+      color: var(--mx-text);
+      opacity: .8;
       text-decoration: none;
       font-size: 0.98rem;
       display: inline-block;
@@ -64,11 +56,11 @@
       transition: color 0.2s;
     }
     .back-link:hover {
-      color: var(--mlx-blue);
+      color: var(--mx-royal-blue);
       text-decoration: underline;
     }
     h1 {
-      color: var(--mlx-blue);
+      color: var(--mx-electric-green);
       font-size: 2.6rem;
       font-weight: 700;
       margin-bottom: 2.2rem;
@@ -76,17 +68,17 @@
       letter-spacing: -0.01em;
     }
     h2 {
-      color: var(--mlx-blue);
+      color: var(--mx-electric-green);
       font-size: 1.45rem;
       font-weight: 600;
       margin-top: 2.2rem;
       margin-bottom: 1.1rem;
-      border-bottom: 1px solid var(--mlx-panel-border);
+      border-bottom: 1px solid var(--mx-panel-border);
       padding-bottom: 0.5rem;
       letter-spacing: 0.01em;
     }
     h3 {
-      color: var(--mlx-white);
+      color: var(--mx-text);
       font-size: 1.15rem;
       font-weight: 600;
       margin-top: 1.5rem;
@@ -94,25 +86,26 @@
       letter-spacing: 0.01em;
     }
     .muted {
-      color: var(--mlx-muted);
+      color: var(--mx-text-muted);
       font-size: 0.97rem;
     }
     ul, ol { padding-left: 1.5rem; }
     li { margin-bottom: 0.5rem; }
     code {
-      background: #232A34;
-      color: #00ADEF;
+      background: var(--mx-panel-bg);
+      color: var(--mx-royal-blue);
       padding: 0.18rem 0.38rem;
+      border: 1px solid var(--mx-panel-border);
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.98em;
     }
     .kbd {
-      background: #232A34;
-      color: var(--mlx-blue);
+      background: var(--mx-panel-bg);
+      color: var(--mx-royal-blue);
       padding: 0.18rem 0.5rem;
       border-radius: 0.25rem;
-      border: 1px solid var(--mlx-panel-border);
+      border: 1px solid var(--mx-panel-border);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.97em;
     }
@@ -126,20 +119,20 @@
     .warning h4 { color: #ffc107; margin: 0 0 .5rem 0; }
     /* Buttons and links */
     a.btn, button.btn {
-      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-family: var(--mx-font-sans);
       font-weight: 600;
-      border-radius: 2rem;
+      border-radius: 2px;
       letter-spacing: 0.01em;
       transition: background 0.2s, color 0.2s;
     }
     a.btn-primary, .btn-primary {
-      background: var(--mlx-blue);
-      border-color: var(--mlx-blue);
+      background: var(--mx-royal-blue);
+      border-color: var(--mx-royal-blue);
       color: #fff;
     }
     a.btn-primary:hover, .btn-primary:hover {
-      background: #008ec1;
-      border-color: #008ec1;
+      background: var(--mx-royal-blue-600);
+      border-color: var(--mx-royal-blue-600);
       color: #fff;
     }
     /* Responsive tweaks */
@@ -158,7 +151,7 @@
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>
     <div class="muted" style="margin-bottom: .5rem;">
-      See also: <a href="help.html" class="back-link">Help</a> · <a href="build.html" class="back-link">Build firmware</a> · <a href="help/html/index.html" class="back-link" target="_blank" rel="noopener noreferrer">SCPI Help</a> · <a href="help/melexisio_scpi_commands.pdf" class="back-link" target="_blank" rel="noopener noreferrer">SCPI Commands (PDF)</a>
+      See also: <a href="help.html" class="back-link">Help</a> · <a href="build.html" class="back-link">Build firmware</a> · <a href="help/index.html" class="back-link" target="_blank" rel="noopener noreferrer">SCPI Help</a> · <a href="help/melexisio_scpi_commands.pdf" class="back-link" target="_blank" rel="noopener noreferrer">SCPI Commands (PDF)</a>
     </div>
 
     <h1>Firmware Update Guide</h1>
@@ -344,7 +337,7 @@ sudo udevadm trigger
 # Unplug and re-plug the device (or reset to DFU) to apply</code></pre>
     </div>
 
-    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--panel-border);">
+    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--mx-panel-border);">
       <a href="index.html" class="back-link">← Back to app</a>
     </div>
   </div>
@@ -352,8 +345,8 @@ sudo udevadm trigger
   <!-- DFU Buttons Modal -->
   <div class="modal fade" id="dfuButtonsModal" tabindex="-1" aria-labelledby="dfuButtonsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content" style="background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--text-on-green);">
-        <div class="modal-header" style="border-bottom: 1px solid var(--panel-border);">
+      <div class="modal-content" style="background: var(--mx-panel-bg); border: 1px solid var(--mx-panel-border); color: var(--mx-text); border-radius: 2px;">
+        <div class="modal-header" style="border-bottom: 1px solid var(--mx-panel-border);">
           <h5 class="modal-title" id="dfuButtonsModalLabel">Enter DFU using buttons</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: invert(1) contrast(200%);"></button>
         </div>
@@ -361,7 +354,7 @@ sudo udevadm trigger
           <p class="muted mb-2">Press and hold Boot, then click Reset.</p>
           <img src="media/buttons.png" alt="Board buttons: Boot and Reset" class="img-fluid rounded" style="max-height: 70vh; width: 100%; object-fit: contain;" />
         </div>
-        <div class="modal-footer" style="border-top: 1px solid var(--panel-border);">
+        <div class="modal-footer" style="border-top: 1px solid var(--mx-panel-border);">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
