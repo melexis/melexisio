@@ -4,22 +4,11 @@
   <meta charset="utf-8" />
   <title>Melexis.IO - Build Firmware</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Montserrat font (Melexis corporate) -->
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap 5 CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="/styles/melexis.css" rel="stylesheet">
   <style>
-    :root { 
-      color-scheme: light dark; 
-      font-size: 14px; /* base font size */
-      --theme-green: #00ADEF; /* Melexis blue */
-      --bg-green: #1A2027; /* dark background */
-      --text-on-green: #E9F2FF;
-      --panel-bg: #232A34;
-      --panel-bg-solid: #232A34;
-      --panel-border: #2D3742;
-      --muted-on-green: #A9B8C9;
-    }
+    :root { color-scheme: light dark; font-size: 14px; }
 
     /* Header bar (match index.html) */
     #header {
@@ -27,8 +16,9 @@
       align-items: center;
       justify-content: center;
       padding: .75rem 1rem;
-      border-bottom: 1px solid var(--panel-border);
-      background: var(--panel-bg);
+      border-bottom: 1px solid var(--mx-border);
+      background: var(--mx-royal-blue);
+      color: #FFFFFF;
     }
     #header .banner {
       display: block;
@@ -38,10 +28,10 @@
     }
     
     body {
-      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-family: var(--mx-font-sans);
       margin: 0;
-      background: var(--bg-green);
-      color: var(--text-on-green);
+      background: var(--mx-bg);
+      color: var(--mx-text);
       line-height: 1.6;
     }
     
@@ -52,7 +42,7 @@
     }
     
     .back-link {
-      color: var(--muted-on-green);
+      color: var(--mx-text);
       text-decoration: none;
       font-size: 0.9rem;
       display: inline-block;
@@ -60,12 +50,12 @@
     }
     
     .back-link:hover {
-      color: var(--theme-green);
+      color: var(--mx-link);
       text-decoration: underline;
     }
     
     h1 {
-      color: var(--theme-green);
+      color: var(--mx-electric-green);
       font-size: 2.6rem;
       font-weight: 700;
       margin-bottom: 2.2rem;
@@ -74,18 +64,18 @@
     }
     
     h2 {
-      color: var(--theme-green);
+      color: var(--mx-electric-green);
       font-size: 1.45rem;
       font-weight: 600;
       margin-top: 2.2rem;
       margin-bottom: 1.1rem;
-      border-bottom: 1px solid var(--panel-border);
+      border-bottom: 1px solid var(--mx-border);
       padding-bottom: 0.5rem;
       letter-spacing: 0.01em;
     }
 
     h3 {
-      color: var(--text-on-green);
+      color: var(--mx-text);
       font-size: 1.2rem;
       font-weight: 600;
       margin-top: 1.5rem;
@@ -93,42 +83,45 @@
     }
 
     .help-panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 1rem;
+      background: var(--mx-bg);
+      border: 1px solid var(--mx-border);
+      border-radius: 2px;
       padding: 1.7rem 1.5rem;
       margin-bottom: 2rem;
       box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
     }
 
     .muted {
-      color: var(--muted-on-green);
+      color: var(--mx-text);
       font-size: 0.9rem;
     }
 
     ul, ol { padding-left: 1.5rem; }
     li { margin-bottom: 0.5rem; }
     code {
-      background: rgba(0,0,0,0.3);
-      color: #E9F2FF;
+      background: #0A0E20;
+      color: #BBD2F7;
       padding: 0.2rem 0.4rem;
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     .kbd {
-      background: rgba(255,255,255,0.1);
-      color: var(--text-on-green);
+      background: #0A0E20;
+      color: var(--mx-electric-green);
       padding: 0.2rem 0.5rem;
       border-radius: 0.25rem;
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--mx-border);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.9em;
+    }
+    p { 
+      color: var(--mx-text);
     }
   </style>
 </head>
 <body>
   <header id="header" role="banner">
-    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
+    <span class="banner" style="font-weight:600;font-size:1.4rem;letter-spacing:.03em;">Melexis.io</span>
   </header>
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>

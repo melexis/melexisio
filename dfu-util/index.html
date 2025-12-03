@@ -27,16 +27,8 @@
     <p>
       <span id="status"></span>
     </p>
-    <p>
-      <label for="vid">Vendor ID (hex):</label>
-      <input list="vendor_ids" type="text" name="vid" id="vid" maxlength="6" size="8" pattern="0x[A-Fa-f0-9]{1,4}"/>
-      <datalist id="vendor_ids">
-        <option value="0x0483">STM32 DFU bootloader</option>
-        <option value="0x1209">dapboot DFU bootloader</option>
-        <option value="0x0D28">mbed DAPLink</option>
-        <option value="0x1EAF">LeafLabs Maple/stm32duino bootloader</option>
-      </datalist>
-    </p>
+    <!-- Vendor ID selection hidden, default set to 0x0483 -->
+    <input type="hidden" name="vid" id="vid" value="0x0483" />
     <p>
       <button id="connect">Connect</button>
     </p>

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../dfuse-tool"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "melexisio"
+	}
+}

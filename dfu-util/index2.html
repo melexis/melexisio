@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>STM32 DFU Bin Upload</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="sakura.css" />
+  <script src="dfu.js"></script>
+  <script src="dfuse.js"></script>
+  <script src="FileSaver.js"></script>
+  <script src="dfu-util.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0d1116;
+      color: #f5f7ff;
+      margin: 0;
+      padding: 2rem;
+    }
+    .card {
+      max-width: 560px;
+      margin: 0 auto;
+      background: #161c24;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    .card h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #7dd3fc;
+    }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.4rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    #connect2 {
+      background: #2563eb;
+      color: #fff;
+    }
+    #upload2 {
+      background: #22c55e;
+      color: #102418;
+    }
+    input[type="file"] {
+      width: 100%;
+      margin-bottom: 1rem;
+      color: #f5f7ff;
+    }
+    .progress {
+      width: 100%;
+      height: 8px;
+      background: #1f2a37;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: #38bdf8;
+      transition: width 0.15s ease-out;
+    }
+    pre {
+      background: #05070b;
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 180px;
+      max-height: 280px;
+      overflow: auto;
+      font-size: 0.85rem;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>STM32 DFU Bin Upload</h1>
+    <p>Connect an STM32 DFU device (VID 0x0483, alt setting 0) and upload a <code>.bin</code> image using the dfu-util transfer core.</p>
+    <div class="actions">
+      <button id="connect2">Connect Device</button>
+      <button id="upload2" disabled>Upload .bin</button>
+    </div>
+    <label for="binFile" class="sr-only">Firmware (.bin)</label>
+    <input type="file" id="binFile" accept=".bin" />
+    <div class="progress" aria-hidden="true"><div id="progressBar" class="progress-bar"></div></div>
+    <pre id="log"></pre>
+  </div>
+
+  <!-- Hidden stubs to satisfy dfu-util.js DOM lookups -->
+  <div id="dfu-util-stubs" hidden>
+    <span id="status"></span>
+    <div id="usbInfo"></div>
+    <div id="dfuInfo"></div>
+    <input type="hidden" id="vid" value="0x0483" />
+    <button id="connect"></button>
+    <button id="detach"></button>
+    <button id="download"></button>
+    <button id="upload"></button>
+    <form id="configForm"></form>
+    <input type="number" id="transferSize" value="1024" />
+    <div id="dfuseFields"></div>
+    <input type="text" id="dfuseStartAddress" />
+    <input type="number" id="dfuseUploadSize" />
+    <input type="file" id="firmwareFile" />
+    <div id="downloadLog"></div>
+    <div id="uploadLog"></div>
+    <dialog id="interfaceDialog"><form id="interfaceForm"><button id="selectInterface" type="submit"></button></form></dialog>
+  </div>
+
+  <script>
+    const VID = 0x0483;
+    const ALT_SETTING = 0;
+    const TRANSFER_SIZE = 1024;
+    const BASE_ADDRESS = 0x08000000;
+    const logView = document.getElementById('log');
+    const progressBar = document.getElementById('progressBar');
+    const connectBtn = document.getElementById('connect2');
+    const uploadBtn = document.getElementById('upload2');
+    const fileInput = document.getElementById('binFile');
+    let dfuDevice = null;
+
+    function log(msg) {
+      logView.textContent += msg + '\n';
+      logView.scrollTop = logView.scrollHeight;
+    }
+
+    function setProgress(pct) {
+      progressBar.style.width = Math.max(0, Math.min(100, pct)).toFixed(2) + '%';
+    }
+
+    function formatAddr(addr) {
+      return '0x' + addr.toString(16).toUpperCase().padStart(8, '0');
+    }
+
+    function attachLoggers(device) {
+      device.logInfo = msg => log(msg);
+      device.logWarning = msg => log('WARN: ' + msg);
+      device.logError = msg => log('ERR: ' + msg);
+      device.logDebug = () => {};
+      device.logProgress = (done, total) => {
+        if (typeof total === 'number' && total > 0) {
+          setProgress((done / total) * 100);
+        }
+      };
+    }
+
+    async function connectDevice() {
+      log('Requesting STM32 DFU device...');
+      const selected = await navigator.usb.requestDevice({ filters: [{ vendorId: VID }] });
+      const interfaces = dfu.findDeviceDfuInterfaces(selected)
+        .filter(settings => settings.alternate &&
+                settings.alternate.alternateSetting === ALT_SETTING &&
+                settings.alternate.interfaceProtocol === 0x02);
+      if (!interfaces.length) {
+        throw new Error('No DFU interface with alt setting 0 found.');
+      }
+      const chosen = interfaces[0];
+      dfuDevice = new dfu.Device(selected, chosen);
+      attachLoggers(dfuDevice);
+      await dfuDevice.open();
+      log(`Connected: ${selected.productName || 'STM32'} (VID 0x${selected.vendorId.toString(16)}, PID 0x${selected.productId.toString(16)})`);
+      uploadBtn.disabled = false;
+      setProgress(0);
+    }
+
+    function buildCommandPayload(cmd, value) {
+      const payload = new ArrayBuffer(5);
+      const view = new DataView(payload);
+      view.setUint8(0, cmd);
+      view.setUint32(1, value >>> 0, true);
+      return payload;
+    }
+
+    async function sendSpecialCommand(cmd, value) {
+      const payload = buildCommandPayload(cmd, value);
+      await dfuDevice.download(payload, 0);
+      await dfuDevice.poll_until_idle(dfu.dfuDNLOAD_IDLE);
+    }
+
+    async function ensureIdleState() {
+      try {
+        const state = await dfuDevice.getState();
+        if (state === dfu.dfuERROR) {
+          await dfuDevice.clearStatus();
+        }
+      } catch (err) {
+        log('WARN: Unable to query state (' + err + ')');
+      }
+    }
+
+    async function performDownload(data, startingBlock) {
+      let bytesSent = 0;
+      let transaction = startingBlock;
+      const total = data.byteLength;
+      dfuDevice.logInfo('Copying data from browser to DFU device');
+      dfuDevice.logProgress(0, total);
+      while (bytesSent < total) {
+        const chunkSize = Math.min(TRANSFER_SIZE, total - bytesSent);
+        const chunk = data.slice(bytesSent, bytesSent + chunkSize);
+        let bytesWritten = 0;
+        let status;
+        try {
+          bytesWritten = await dfuDevice.download(chunk, transaction++);
+          status = await dfuDevice.poll_until_idle(dfu.dfuDNLOAD_IDLE);
+        } catch (err) {
+          throw 'Error during DFU download: ' + err;
+        }
+        if (status.status !== dfu.STATUS_OK) {
+          throw `DFU DOWNLOAD failed state=${status.state}, status=${status.status}`;
+        }
+        bytesSent += bytesWritten;
+        dfuDevice.logProgress(bytesSent, total);
+      }
+      dfuDevice.logInfo('Wrote ' + bytesSent + ' bytes');
+      try {
+        await dfuDevice.download(new ArrayBuffer(0), transaction++);
+      } catch (err) {
+        throw 'Error during final DFU download: ' + err;
+      }
+      dfuDevice.logInfo('Manifesting new firmware');
+      try {
+        const finalStatus = await dfuDevice.poll_until(state => (state === dfu.dfuIDLE || state === dfu.dfuMANIFEST_WAIT_RESET));
+        if (finalStatus.status !== dfu.STATUS_OK) {
+          throw `DFU MANIFEST failed state=${finalStatus.state}, status=${finalStatus.status}`;
+        }
+      } catch (err) {
+        if (!/Device (unavailable|was disconnected)/.test(String(err))) {
+          throw 'Error during DFU manifest: ' + err;
+        }
+        dfuDevice.logWarning('Unable to poll final manifestation status');
+      }
+      try {
+        await dfuDevice.device_.reset();
+      } catch (err) {
+        if (!/Device (unavailable|was disconnected)/.test(String(err))) {
+          throw 'Error during reset for manifestation: ' + err;
+        }
+      }
+    }
+
+    async function uploadFirmware() {
+      if (!dfuDevice) {
+        log('Connect a DFU device first.');
+        return;
+      }
+      if (!fileInput.files.length) {
+        log('Select a .bin firmware first.');
+        return;
+      }
+      const file = fileInput.files[0];
+      if (!/\.bin$/i.test(file.name)) {
+        log('Only .bin files are supported.');
+        return;
+      }
+      const firmware = await file.arrayBuffer();
+      log(`Uploading ${file.name} (${firmware.byteLength} bytes)...`);
+      setProgress(0);
+      try {
+        await ensureIdleState();
+        log('Setting base address to ' + formatAddr(BASE_ADDRESS));
+        await sendSpecialCommand(0x21, BASE_ADDRESS);
+        await performDownload(firmware, 1);
+        log('Upload complete.');
+      } catch (err) {
+        log('ERR: ' + err);
+      }
+    }
+
+    connectBtn.addEventListener('click', () => {
+      connectBtn.disabled = true;
+      connectDevice().catch(err => {
+        log('ERR: ' + err.message);
+      }).finally(() => {
+        connectBtn.disabled = false;
+      });
+    });
+
+    uploadBtn.addEventListener('click', () => {
+      uploadFirmware().catch(err => log('ERR: ' + err.message));
+    });
+  </script>
+</body>
+</html>
