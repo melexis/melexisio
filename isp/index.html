@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLX9064x Thermal Viewer</title>
-    <link href="../styles/melexis.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -14,9 +13,9 @@
         }
 
         body {
-            font-family: var(--mx-font-sans);
-            background: var(--mx-bg);
-            color: var(--mx-text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #2a2e2e;
+            color: #e0e0e0;
             padding: 20px;
         }
 
@@ -31,9 +30,8 @@
             align-items: center;
             margin-bottom: 30px;
             padding: 20px;
-            background: var(--mx-royal-blue);
-            color: #FFFFFF;
-            border-radius: 2px;
+            background: linear-gradient(135deg, #00354b 0%, #65bba9 100%);
+            border-radius: 10px;
         }
 
         h1 {
@@ -83,18 +81,17 @@
         }
 
         .panel {
-            background: var(--mx-bg);
-            border: 1px solid var(--mx-border);
-            border-radius: 2px;
+            background: #3e4242;
+            border-radius: 10px;
             padding: 20px;
-            box-shadow: var(--mx-shadow);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
         .panel-title {
             font-size: 1.2rem;
             margin-bottom: 15px;
-            color: var(--mx-electric-green);
-            border-bottom: 2px solid var(--mx-electric-green);
+            color: #65bba9;
+            border-bottom: 2px solid #65bba9;
             padding-bottom: 5px;
         }
 
@@ -106,8 +103,8 @@
 
         #thermalCanvas {
             background: #000;
-            border-radius: 2px;
-            box-shadow: 0 0 12px rgba(0, 53, 75, 0.35);
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(101, 187, 169, 0.3);
             max-width: 100%;
             height: auto;
         }
@@ -121,10 +118,9 @@
         }
 
         .stat-box {
-            background: var(--mx-bg);
-            border: 1px solid var(--mx-border);
+            background: #2a2e2e;
             padding: 15px;
-            border-radius: 2px;
+            border-radius: 8px;
             text-align: center;
         }
 
@@ -137,7 +133,7 @@
         .stat-value {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--mx-electric-green);
+            color: #65bba9;
         }
 
         .stat-value.large {
@@ -165,22 +161,22 @@
         .toggle-btn {
             flex: 1;
             padding: 8px;
-            border: 1px solid var(--mx-border);
-            background: var(--mx-bg);
-            color: var(--mx-text);
+            border: 1px solid #5a6060;
+            background: #3e4242;
+            color: #888;
             cursor: pointer;
-            border-radius: 2px;
+            border-radius: 4px;
             font-size: 0.85rem;
             transition: all 0.15s ease;
         }
         .toggle-btn:hover {
-            background: var(--mx-royal-blue-500);
-            border-color: var(--mx-royal-blue-500);
+            background: #4a4e4e;
+            border-color: #6a7070;
         }
         .toggle-btn.active {
-            background: var(--mx-royal-blue-700);
-            color: #FFFFFF;
-            border-color: var(--mx-royal-blue-700);
+            background: #00354b;
+            color: white;
+            border-color: #65bba9;
         }
         .toggle-btn:disabled {
             opacity: 0.5;
@@ -254,27 +250,27 @@
         }
 
         button.primary {
-            background: var(--mx-royal-blue);
-            color: #E8ECF7;
+            background: #00354b;
+            color: white;
         }
 
         button.primary:hover {
-            background: #0A4E68;
+            background: #004a6b;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0, 53, 75, 0.4);
         }
 
         button.secondary {
-            background: var(--mx-electric-green);
-            color: #0B1D3A;
+            background: #65bba9;
+            color: #1a1a1a;
         }
 
         button.secondary:hover {
-            background: var(--mx-accent-2);
+            background: #54a898;
         }
 
         button.danger {
-            background: var(--mx-coral-red);
+            background: #db4140;
             color: white;
         }
 
@@ -291,19 +287,19 @@
         select, input[type="range"] {
             width: 100%;
             padding: 8px;
-            border-radius: 2px;
-            border: 1px solid var(--mx-border);
-            background: var(--mx-bg);
-            color: #1a1a1a;
+            border-radius: 6px;
+            border: 1px solid #5a6060;
+            background: #2a2e2e;
+            color: #e0e0e0;
             font-size: 0.9rem;
         }
 
         input[type="number"] {
             padding: 6px 8px;
-            border-radius: 2px;
-            border: 1px solid var(--mx-border);
-            background: var(--mx-bg);
-            color: #1a1a1a;
+            border-radius: 4px;
+            border: 1px solid #65bba9;
+            background: #b2c4cb;
+            color: #00354b;
             font-size: 0.9rem;
             font-weight: 600;
         }
@@ -336,17 +332,17 @@
         }
 
         .status.connected {
-            background: var(--mx-electric-green);
-            color: #0B1D3A;
+            background: #65bba9;
+            color: #1a1a1a;
         }
 
         .status.disconnected {
-            background: var(--mx-coral-red);
+            background: #db4140;
             color: white;
         }
 
         .status.capturing {
-            background: var(--mx-gold-yellow);
+            background: #eea320;
             color: #1a1a1a;
             animation: pulse 2s infinite;
         }
@@ -510,7 +506,7 @@
         }
 
         .version-value.new {
-            color: #00354b;
+            color: #65bba9;
         }
 
         .update-progress {
