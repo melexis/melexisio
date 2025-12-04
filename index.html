@@ -44,7 +44,7 @@
     }
 
   #sidebar h2 { margin: .25rem 0; font-size: 1.05rem; }
-  .muted { opacity: 1; font-size: .8em; color: var(--mx-text-muted); }
+  .muted { opacity: 1; font-size: .8em; color: var(--mx-text); }
     #historyList {
       display: flex; flex-direction: column; gap: .25rem; max-height: 40vh; overflow: auto; margin-top: .25rem;
     }
@@ -120,7 +120,7 @@
     .btn-outline-info:hover { background: var(--mx-link); color:#002a38; }
   .nav-tabs { border-color: var(--mx-border); }
   .nav-tabs .nav-link {
-    color: var(--mx-text-muted);
+    color: var(--mx-text);
     background: transparent;
     border: 1px solid transparent;
     border-top-left-radius: 2px;
@@ -143,7 +143,7 @@
     border-color: transparent;
   }
   .tab-content {
-    background: var(--mx-royal-blue-500);
+    background: var(--mx-teal);
     border:1px solid var(--mx-border);
     border-top: none;
     padding: .5rem .5rem;
@@ -223,29 +223,27 @@
             <div id="log" aria-live="polite"></div>
             <div id="row" class="d-flex flex-column gap-2">
               <div class="d-flex flex-nowrap align-items-center gap-1 w-100 tx-bar">
-                <button id="clear" class="btn btn-outline-warning btn-sm">Clear</button>
-                <button id="save" class="btn btn-outline-info btn-sm">Save...</button>
+                <button id="clear" class="btn btn-primary btn-sm">Clear</button>
+                <button id="save" class="btn btn-primary btn-sm">Save...</button>
                 <input id="tx" class="form-control form-control-sm" type="text" placeholder="Type text to send" style="flex:1 1 auto;" />
-                <button id="send" class="btn btn-success btn-sm">Send</button>
+                <button id="send" class="btn btn-primary btn-sm">Send</button>
               </div>
             </div>
           </div>
           <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0 0 0.5rem;border:0;">
             <h2>Commands</h2>
-            <button id="cmd-id" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
-            <button id="cmd-info" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
-            <button id="cmd-log" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
-            <button id="cmd-help" class="btn btn-outline-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
+            <button id="cmd-id" class="btn btn-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
+            <button id="cmd-info" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
+            <button id="cmd-log" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
+            <button id="cmd-help" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
             <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
             <hr />
             <h2>History</h2>
-            <div class="muted">History records only text input (tx). Select to recall and resend.</div>
             <select id="historyCombo" class="form-select form-select-sm w-100" size="6" aria-live="polite" title="Command history"></select>
             <div class="d-flex gap-2 mt-2">
-              <button id="resendSelected" class="btn btn-outline-primary btn-sm flex-grow-1">Resend selected</button>
-              <button id="clearHistory" class="btn btn-outline-secondary btn-sm">Clear</button>
+              <button id="resendSelected" class="btn btn-primary btn-sm">Resend</button>
+              <button id="clearHistory" class="btn btn-primary btn-sm">Clear</button>
             </div>
-            <div class="muted">Buttons enable when connected.</div>
           </div>
         </div>
       </div>
@@ -605,6 +603,8 @@
       const eepromLoadBtn = $('eepromLoad');
       if (eepromLoadBtn) eepromLoadBtn.addEventListener('click', () => alert('TODO: EEPROM load (implement device command)'));
       // summary removed
+      // Initialize status hint for users before connecting
+      setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
     });
 
     // Cookie utils (no regex to avoid escaping issues)
@@ -972,7 +972,7 @@
       } catch (err) {
         console.error('Connect failed:', err);
         alert('Failed to connect: ' + err.message);
-        setStatus('Disconnected');
+        setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
         setCommandButtonsEnabled(false);
       }
     }
@@ -1040,7 +1040,7 @@
       } catch (err) {
         console.error('Connect (filtered) failed:', err);
         alert('Failed to connect: ' + err.message);
-        setStatus('Disconnected');
+        setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
         setCommandButtonsEnabled(false);
       }
     }
@@ -1082,7 +1082,7 @@
         connPortLabel = '';
         connDescription = '';
         awaitingIdnFirstLine = false;
-        setStatus('Disconnected');
+        setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
       }
     }
 

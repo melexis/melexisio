@@ -13,7 +13,8 @@
   --mx-coral-red: #DB4140;    /* Secondary */
   --mx-charcoal-grey: #3e4242;/* Secondary */
   --mx-steel-grey: #b2c4cb;   /* Secondary */
-
+  --mx-teal: #2C6D7F;
+  
   /* Derived UI tokens */
   --mx-bg: #FFFFFF; /* use white background as requested */
   --mx-surface: #1c2123;
@@ -22,7 +23,7 @@
   --mx-accent: var(--mx-electric-green);
   --mx-accent-soft: rgba(101, 187, 169, 0.85); /* softer accent for containers */
   --mx-accent-2: #8fd6c7;
-  --mx-link: #65BBA9;
+  --mx-link: #00354b; 
   --mx-border: #2b3133;
   --mx-success: var(--mx-electric-green);
   --mx-warning: var(--mx-gold-yellow);
@@ -143,9 +144,8 @@ a:hover { color: var(--mx-accent-2); text-decoration: underline; }
   line-height: 1.2;
 }
 
-/* Compact action buttons: Clear, Save..., Send */
-#clear, #save, #send {
-  padding: 0; /* remove padding for compact look */
+/* Compact action buttons: Clear, Save..., Send */#clear, #save, #send {
+  padding: 0.5rem 0.9rem; /* remove padding for compact look */
 }
 
 .btn-secondary {
