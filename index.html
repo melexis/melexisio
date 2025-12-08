@@ -10,7 +10,7 @@
   <style>
     /* Use shared variables from styles/melexis.css instead of redefining :root */
     /* Make the page a column flex layout */
-    body {
+    /* body {
       font-family: var(--mx-font-sans);
       margin: 0;
       display: flex;
@@ -18,23 +18,50 @@
       min-height: 100vh;
         background: var(--mx-bg);
         color: var(--mx-text);
+    } */
+
+    body {
+      font-family: var(--mx-font-sans);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: var(--mx-bg); 
+      color: var(--mx-text);
+      background-image: url("/styles/background.jpg"); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: center center; 
+      background-attachment: fixed; 
     }
     /* Header bar */
-    #header {
+    /* #header {
       display: flex;
       align-items: center;
       justify-content: center;
       padding: .75rem 1rem;
       border-bottom: 1px solid var(--mx-border);
-      background: var(--mx-royal-blue);
+      background: linear-gradient(135deg, #00354b 35%, #65bba9 100%);
       color: #FFFFFF;
+    } */
+    
+    #header {
+        display: flex;
+        justify-content: space-between;
+        /* align-items: center; */
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: linear-gradient(165deg, #00354b 45%, #65bba9 100%);
+        color: #FFFFFF;
     }
-    #header .banner {
+
+    /* #header .banner {
       display: block;
       max-height: 72px;
       height: auto;
       width: auto;
-    }
+    } */
 
     /* App area */
     #app {
@@ -43,8 +70,7 @@
       min-height: 0;
     }
 
-  #sidebar h2 { margin: .25rem 0; font-size: 1.05rem; }
-  .muted { opacity: 1; font-size: .8em; color: var(--mx-text); }
+  .muted { opacity: 1; font-size: .8em; color: var(--mx-white); }
     #historyList {
       display: flex; flex-direction: column; gap: .25rem; max-height: 40vh; overflow: auto; margin-top: .25rem;
     }
@@ -78,10 +104,10 @@
       overflow-wrap: anywhere;        /* allow breaks inside long tokens */
       word-break: break-word;         /* fallback for older engines */
       overflow: auto;    /* scrollbars when content expands */
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--mx-white);
       padding: .5rem;
-      background: #000; /* black background for log */
-      color: #D9E2F2;       /* default: response (RX) gray */
+      background: #FFFFFF; /* black background for log */
+      color: #000000;       /* default: response (RX) gray */
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
 
@@ -102,21 +128,22 @@
   .tx-bar .btn, .tx-bar .form-control { padding-top: .2rem; padding-bottom: .2rem; line-height: 1.0; }
   .tx-bar { min-height: 0; }
     /* Themed elements */
-    .btn-primary { background-color: var(--mx-royal-blue); border-color: var(--mx-royal-blue); }
-    .btn-primary:hover, .btn-primary:focus { background-color: #0A4E68; border-color: #0A4E68; }
-    .btn-secondary { background-color: var(--mx-steel-grey); border-color: var(--mx-border); color: var(--mx-text); }
+    .btn-primary { background-color: var(--mx-royal-blue); }
+    .btn-primary:hover, .btn-primary:focus { background-color: #0A4E68;}
+    .btn-secondary { background-color: var(--mx-steel-grey);  color: var(--mx-text); }
     .btn-secondary:hover { background-color: #9bb1b8; }
-    .btn-success { background: var(--mx-electric-green); border-color: var(--mx-electric-green); color:#0B1D3A; }
-    .btn-success:hover { background: #8fd6c7; border-color: #8fd6c7; }
-    .btn-outline-primary { color: var(--mx-text); border-color: var(--mx-royal-blue); }
+    .btn.btn-primary.w-100 { margin-bottom: 0.4rem;}
+    .btn-success { background: var(--mx-electric-green); color:#0B1D3A; }
+    .btn-success:hover { background: #8fd6c7; }
+    .btn-outline-primary { color: var(--mx-text); }
     .btn-outline-primary:hover { background: var(--mx-royal-blue); color:#E8ECF7; }
-    .btn-outline-danger { color: var(--mx-error); border-color: var(--mx-error); }
+    .btn-outline-danger { color: var(--mx-error); }
     .btn-outline-danger:hover { background: var(--mx-error); color:#FFFFFF; }
-    .btn-outline-secondary { color: var(--mx-text-muted); border-color: var(--mx-border); }
+    .btn-outline-secondary { color: var(--mx-text-muted);}
     .btn-outline-secondary:hover { background: var(--mx-border); color:#E8ECF7; }
     .btn-outline-warning { color: var(--mx-warning); border-color: var(--mx-warning); }
     .btn-outline-warning:hover { background: var(--mx-warning); color:#3a2d00; }
-    .btn-outline-info { color: var(--mx-link); border-color: var(--mx-link); }
+    .btn-outline-info { color: var(--mx-link); }
     .btn-outline-info:hover { background: var(--mx-link); color:#002a38; }
   .nav-tabs { border-color: var(--mx-border); }
   .nav-tabs .nav-link {
@@ -143,7 +170,8 @@
     border-color: transparent;
   }
   .tab-content {
-    background: var(--mx-teal);
+    /* background: var(--mx-steel-grey); */
+    background: linear-gradient(165deg, var(--mx-royal-blue-500) 0%, #65bba9 100%);
     border:1px solid var(--mx-border);
     border-top: none;
     padding: .5rem .5rem;
@@ -158,8 +186,8 @@
     color: #1a1a1a;
     border-radius: 0 0 2px 2px;
   }
-  .form-control, .form-select { background: var(--mx-bg); border:1px solid var(--mx-border); color: #1a1a1a; }
-  .form-control:focus, .form-select:focus { background:#ffffff; color:#000; border-color: var(--mx-accent); box-shadow:0 0 0 .15rem rgba(101,187,169,0.25); }
+  .form-control, .form-select { background: var(--mx-bg); border:1px solid var(--mx-white); color: #1a1a1a; }
+  .form-control:focus, .form-select:focus { background:#ffffff; color:#000; border-color: var(--mx-royal-blue); box-shadow:0 0 0 .15rem rgba(101,187,169,0.25); }
   /* Keep disabled inputs readable (Bootstrap may set light bg/text) */
   .form-control:disabled, .form-select:disabled {
     background:#f4f7f8 !important;
@@ -183,21 +211,27 @@
   </style>
 </head>
 <body>
-  <header id="header" role="banner">
-    <span class="banner" style="font-weight:600;font-size:1.4rem;letter-spacing:.03em;">Melexis.io</span>
+  <header id="header">
+    <div>
+      <span class="banner" style="font-weight:600;font-size:2.4rem;letter-spacing:.03em;">Melexis.io</span>
+    </div>
+    <div style="display: flex; gap: 20px; align-items: center; margin-left: auto;">
+          <button id="connect" class="btn btn-primary btn-sm">Connect</button>
+          <button id="disconnect" class="btn btn-secondary btn-sm" disabled>Disconnect</button>
+          <!-- <span id="status" class="muted small"></span> -->
+    </div>
   </header>
 
   <div id="app">
     <!-- Sidebar removed: content moved to Terminal tab -->
-
     <main id="main">
-      <fieldset>
+      <!-- <fieldset>
         <div class="controls d-flex flex-wrap align-items-end gap-2">
-          <button id="connect" class="btn btn-primary btn-sm">Connect…</button>
+          <button id="connect" class="btn btn-primary btn-sm">Connect</button>
           <button id="disconnect" class="btn btn-secondary btn-sm" disabled>Disconnect</button>
           <span id="status" class="muted small"></span>
         </div>
-      </fieldset>
+      </fieldset> -->
 
       <ul class="nav nav-tabs bootstrap-tabs" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -224,26 +258,27 @@
             <div id="row" class="d-flex flex-column gap-2">
               <div class="d-flex flex-nowrap align-items-center gap-1 w-100 tx-bar">
                 <button id="clear" class="btn btn-primary btn-sm">Clear</button>
-                <button id="save" class="btn btn-primary btn-sm">Save...</button>
+                <button id="save" class="btn btn-primary btn-sm">Save</button>
                 <input id="tx" class="form-control form-control-sm" type="text" placeholder="Type text to send" style="flex:1 1 auto;" />
                 <button id="send" class="btn btn-primary btn-sm">Send</button>
               </div>
+              <hr />
+              <h3>History</h3>
+              <select id="historyCombo" class="form-select form-select-sm w-100" size="6" aria-live="polite" title="Command history"></select>
+              <div class="d-flex gap-2 mt-2">
+                <button id="clearHistory" class="btn btn-primary btn-sm">Clear history</button>
+                <button id="resendSelected" class="btn btn-primary btn-sm">Resend</button>
+              </div>
+
             </div>
           </div>
-          <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0 0 0.5rem;border:0;">
-            <h2>Commands</h2>
-            <button id="cmd-id" class="btn btn-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
-            <button id="cmd-info" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
-            <button id="cmd-log" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
-            <button id="cmd-help" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
-            <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
-            <hr />
-            <h2>History</h2>
-            <select id="historyCombo" class="form-select form-select-sm w-100" size="6" aria-live="polite" title="Command history"></select>
-            <div class="d-flex gap-2 mt-2">
-              <button id="resendSelected" class="btn btn-primary btn-sm">Resend</button>
-              <button id="clearHistory" class="btn btn-primary btn-sm">Clear</button>
-            </div>
+          <div id="sidebar" style="min-width:150px;max-width:150px;flex:0 0 0;padding:0 1rem 0 0;border:0;">
+            <h3>Commands</h3>
+            <button id="cmd-id" class="btn btn-primary w-100 btn-sm" title='Send "*IDN?"'>Id</button>
+            <button id="cmd-info" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:INFO"' >Info</button>
+            <button id="cmd-log" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:LOG"'>Log</button>
+            <button id="cmd-help" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:HELP"' >Help</button>
+            <button id="cmd-rst" class="btn btn-primary w-100 btn-sm" title='Send "*RST"' >Reset</button>
           </div>
         </div>
       </div>
@@ -386,15 +421,11 @@
       <!-- Thermal Viewer now opens as a separate page (isp/index.html); tab pane removed -->
       
       </div>
-      <p class="muted">
-        Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
-      </p>
       <p>
         <a href="help.html" class="muted" style="margin-right:1rem;">Help</a>
-        <a href="firmware.html" class="muted" style="margin-right:1rem;">Firmware update</a>
-    <a href="build.html" class="muted" style="margin-right:1rem;">Build firmware</a>
-    <a href="help/html/index.html" class="muted" style="margin-right:1rem;" target="_blank" rel="noopener noreferrer">SCPI Help</a>
-    <a href="help/melexisio_scpi_commands.pdf" class="muted" target="_blank" rel="noopener noreferrer">SCPI Commands (PDF)</a>
+        <a href="firmware.html" class="muted" style="margin-right:1rem;">Firmware Update Help</a>
+        <!-- <a href="build.html" class="muted" style="margin-right:1rem;">Build firmware</a> -->
+        <a href="help/html/index.html" class="muted" style="margin-right:1rem;" target="_blank" rel="noopener noreferrer">SCPI Commands Help</a>
       </p>
     </main>
   </div>
@@ -604,7 +635,7 @@
       if (eepromLoadBtn) eepromLoadBtn.addEventListener('click', () => alert('TODO: EEPROM load (implement device command)'));
       // summary removed
       // Initialize status hint for users before connecting
-      setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
+      setStatus('Disconnected.');
     });
 
     // Cookie utils (no regex to avoid escaping issues)

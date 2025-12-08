@@ -14,12 +14,14 @@
   --mx-charcoal-grey: #3e4242;/* Secondary */
   --mx-steel-grey: #b2c4cb;   /* Secondary */
   --mx-teal: #2C6D7F;
+  --mx-black: #000000;
+  --mx-white: #FFFFFF;
   
   /* Derived UI tokens */
   --mx-bg: #FFFFFF; /* use white background as requested */
   --mx-surface: #1c2123;
-  --mx-text: #3e4242;
-  --mx-text-muted: var(--mx-steel-grey);
+  --mx-text: #FFFFFF;
+  --mx-text-muted: var(--mx-white);
   --mx-accent: var(--mx-electric-green);
   --mx-accent-soft: rgba(101, 187, 169, 0.85); /* softer accent for containers */
   --mx-accent-2: #8fd6c7;
@@ -164,9 +166,9 @@ a:hover { color: var(--mx-accent-2); text-decoration: underline; }
 input[type="text"], input[type="number"], input[type="email"], input[type="file"], select, textarea {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  background: #0c1022;
-  color: var(--mx-text);
-  border: 1px solid var(--mx-border);
+  background: var(--mx-white);
+  color: var(--mx-black);
+  border: 1px solid var(--mx-white);
   border-radius: var(--mx-radius);
 }
 
