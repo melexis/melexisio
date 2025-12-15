@@ -9,21 +9,29 @@
   <!-- Shared Melexis styles -->
   <link href="styles/melexis.css" rel="stylesheet">
   <style>
-    body {
+ body {
       font-family: var(--mx-font-sans);
-      background: var(--mx-bg);
-      color: var(--mx-text);
       margin: 0;
-      line-height: 1.7;
-    }
-    #header {
       display: flex;
-          color-scheme: light dark; 
-          font-size: 14px; /* base font size */
-      justify-content: center;
-      padding: .75rem 1rem;
-      border-bottom: 1px solid var(--mx-panel-border);
-      background: var(--mx-royal-blue);
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: var(--mx-bg); 
+      color: var(--mx-text);
+      background-image: url("/styles/background.jpg"); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: center center; 
+      background-attachment: fixed; 
+    }
+    
+    #header {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: transparent;
+        color: #FFFFFF;
     }
     #header .banner {
       display: block;
@@ -37,16 +45,15 @@
       padding: 2rem 1rem;
     }
     .help-panel {
-      background: var(--mx-panel-bg);
-      border: 1px solid var(--mx-border);
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
       border-radius: 2px;
       padding: 1.7rem 1.5rem;
       margin-bottom: 2rem;
-      box-shadow: var(--mx-shadow-soft);
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
     }
     .back-link {
-      color: var(--mx-text);
-      opacity: .8;
+      color: var(--mx-white);
       text-decoration: none;
       font-size: 0.98rem;
       display: inline-block;
@@ -56,7 +63,7 @@
       transition: color 0.2s;
     }
     .back-link:hover {
-      color: var(--mx-royal-blue);
+      color: var(--mx-white);
       text-decoration: underline;
     }
     h1 {
@@ -73,12 +80,12 @@
       font-weight: 600;
       margin-top: 2.2rem;
       margin-bottom: 1.1rem;
-      border-bottom: 1px solid var(--mx-panel-border);
+      border-bottom: 1px solid var(--mx-border);
       padding-bottom: 0.5rem;
       letter-spacing: 0.01em;
     }
     h3 {
-      color: var(--mx-text);
+      color: var(--mx-white);
       font-size: 1.15rem;
       font-weight: 600;
       margin-top: 1.5rem;
@@ -86,54 +93,73 @@
       letter-spacing: 0.01em;
     }
     .muted {
-      color: var(--mx-text-muted);
+      color: var(--mx-white);
       font-size: 0.97rem;
     }
     ul, ol { padding-left: 1.5rem; }
     li { margin-bottom: 0.5rem; }
     code {
-      background: var(--mx-panel-bg);
-      color: var(--mx-royal-blue);
+      background: #232A34;
+      color: #00ADEF;
       padding: 0.18rem 0.38rem;
-      border: 1px solid var(--mx-panel-border);
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.98em;
     }
     .kbd {
-      background: var(--mx-panel-bg);
-      color: var(--mx-royal-blue);
+      background: #232A34;
+      color: var(--mlx-blue);
       padding: 0.18rem 0.5rem;
       border-radius: 0.25rem;
-      border: 1px solid var(--mx-panel-border);
+      border: 1px solid var(--mlx-panel-border);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.97em;
+    }
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      background: transparent;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .feature-item {
+      /* background: var(--mx-bg); */
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
+      border-radius: 2px;
+      padding: 1rem;
+    }
+    .feature-item h4 {
+      color: var(--mx-electric-green);
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
     }
     .warning {
       background: rgba(255, 193, 7, 0.09);
       border: 1px solid #ffe082;
-      border-radius: 0.5rem;
+      border-radius: 2px;
       padding: 1rem;
       margin: 1rem 0;
     }
-    .warning h4 { color: #ffc107; margin: 0 0 .5rem 0; }
+    .warning h4 {
+      color: var(--mx-gold-yellow);
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
     /* Buttons and links */
     a.btn, button.btn {
-      font-family: var(--mx-font-sans);
+      font-family: 'Lato', 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
       font-weight: 600;
       border-radius: 2px;
       letter-spacing: 0.01em;
-      transition: background 0.2s, color 0.2s;
+      /* transition: background 0.2s, color 0.2s; */
     }
     a.btn-primary, .btn-primary {
-      background: var(--mx-royal-blue);
-      border-color: var(--mx-royal-blue);
-      color: #fff;
+      background-color: var(--mx-electric-green-800);
     }
     a.btn-primary:hover, .btn-primary:hover {
-      background: var(--mx-royal-blue-600);
-      border-color: var(--mx-royal-blue-600);
-      color: #fff;
+      background-color: var(--mx-electric-green);
     }
     /* Responsive tweaks */
     @media (max-width: 600px) {
@@ -146,7 +172,7 @@
 </head>
 <body>
   <header id="header" role="banner">
-    <img src="media/banner.png" alt="Melexis.IO" class="banner" />
+    <span class="banner" style="font-weight:600;font-size:2.4rem;letter-spacing:.03em;">Melexis.IO</span>
   </header>
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>
@@ -188,7 +214,7 @@
           <ul>
             <li>From Terminal: send command <code>:SYST:DFU 42</code></li>
             <li>Using buttons: press and hold <span class="kbd">Boot</span>, then click <span class="kbd">Reset</span>
-              <button type="button" class="btn btn-outline-info btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#dfuButtonsModal">Show image</button>
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dfuButtonsModal">Show image</button>
             </li>
           </ul>
           <div class="muted">In DFU mode, the device re-enumerates as an STM32 DFU device over USB.</div>
@@ -247,7 +273,7 @@ Permanent (user) PATH:
       <h2>Update using dfu-util (Windows)</h2>
       <ol>
         <li>
-          Install WinUSB driver for the DFU device using <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener">Zadig</a>:
+          Install WinUSB driver for the DFU device using <a href="https://zadig.akeo.ie/" target="_blank" rel="noopener" class="muted">Zadig</a>:
           <ul>
             <li>Run Zadig → Options → <strong>List All Devices</strong></li>
             <li>Select <strong>STM32 Bootloader</strong> from the list</li>
@@ -255,7 +281,7 @@ Permanent (user) PATH:
           </ul>
         </li>
         <li>
-          Download <a href="https://github.com/dfu-util/dfu-util/releases" target="_blank" rel="noopener">dfu-util for Windows</a> and extract it (e.g., to <code>C:\Tools\dfu-util\</code>).
+          Download <a href="https://github.com/dfu-util/dfu-util/releases" target="_blank" rel="noopener" class="muted">dfu-util for Windows</a> and extract it (e.g., to <code>C:\Tools\dfu-util\</code>).
           <div class="muted">Add the folder to PATH or run commands from inside the extracted directory.</div>
         </li>
         <li>

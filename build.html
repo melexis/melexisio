@@ -11,14 +11,29 @@
     :root { color-scheme: light dark; font-size: 14px; }
 
     /* Header bar (match index.html) */
-    #header {
+ body {
+      font-family: var(--mx-font-sans);
+      margin: 0;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: .75rem 1rem;
-      border-bottom: 1px solid var(--mx-border);
-      background: var(--mx-royal-blue);
-      color: #FFFFFF;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: var(--mx-bg); 
+      color: var(--mx-text);
+      background-image: url("/styles/background.jpg"); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: center center; 
+      background-attachment: fixed; 
+    }
+    
+    #header {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: transparent;
+        color: #FFFFFF;
     }
     #header .banner {
       display: block;
@@ -26,34 +41,33 @@
       height: auto;
       width: auto;
     }
-    
-    body {
-      font-family: var(--mx-font-sans);
-      margin: 0;
-      background: var(--mx-bg);
-      color: var(--mx-text);
-      line-height: 1.6;
-    }
-    
     .container {
-      max-width: 800px;
+      max-width: 820px;
       margin: 0 auto;
       padding: 2rem 1rem;
     }
-    
+    .help-panel {
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
+      border-radius: 2px;
+      padding: 1.7rem 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+    }
     .back-link {
-      color: var(--mx-text);
+      color: var(--mx-white);
       text-decoration: none;
-      font-size: 0.9rem;
+      font-size: 0.98rem;
       display: inline-block;
       margin-bottom: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: color 0.2s;
     }
-    
     .back-link:hover {
-      color: var(--mx-link);
+      color: var(--mx-white);
       text-decoration: underline;
     }
-    
     h1 {
       color: var(--mx-electric-green);
       font-size: 2.6rem;
@@ -62,7 +76,6 @@
       text-align: center;
       letter-spacing: -0.01em;
     }
-    
     h2 {
       color: var(--mx-electric-green);
       font-size: 1.45rem;
@@ -73,49 +86,93 @@
       padding-bottom: 0.5rem;
       letter-spacing: 0.01em;
     }
-
     h3 {
-      color: var(--mx-text);
-      font-size: 1.2rem;
+      color: var(--mx-white);
+      font-size: 1.15rem;
       font-weight: 600;
       margin-top: 1.5rem;
       margin-bottom: 0.75rem;
+      letter-spacing: 0.01em;
     }
-
-    .help-panel {
-      background: var(--mx-bg);
-      border: 1px solid var(--mx-border);
-      border-radius: 2px;
-      padding: 1.7rem 1.5rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
-    }
-
     .muted {
-      color: var(--mx-text);
-      font-size: 0.9rem;
+      color: var(--mx-white);
+      font-size: 0.97rem;
     }
-
     ul, ol { padding-left: 1.5rem; }
     li { margin-bottom: 0.5rem; }
     code {
-      background: #0A0E20;
-      color: #BBD2F7;
-      padding: 0.2rem 0.4rem;
+      background: #232A34;
+      color: #00ADEF;
+      padding: 0.18rem 0.38rem;
       border-radius: 0.25rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.98em;
     }
     .kbd {
-      background: #0A0E20;
-      color: var(--mx-electric-green);
-      padding: 0.2rem 0.5rem;
+      background: #232A34;
+      color: var(--mlx-blue);
+      padding: 0.18rem 0.5rem;
       border-radius: 0.25rem;
-      border: 1px solid var(--mx-border);
+      border: 1px solid var(--mlx-panel-border);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.9em;
+      font-size: 0.97em;
     }
-    p { 
-      color: var(--mx-text);
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      background: transparent;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .feature-item {
+      /* background: var(--mx-bg); */
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
+      border-radius: 2px;
+      padding: 1rem;
+    }
+    .feature-item h4 {
+      color: var(--mx-electric-green);
+      margin-top: 0;
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+    .warning {
+      background: rgba(255, 193, 7, 0.09);
+      border: 1px solid #ffe082;
+      border-radius: 2px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .warning h4 {
+      color: var(--mx-gold-yellow);
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+    /* Buttons and links */
+    a.btn, button.btn {
+      font-family: 'Lato', 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-weight: 600;
+      border-radius: 2px;
+      letter-spacing: 0.01em;
+      /* transition: background 0.2s, color 0.2s; */
+    }
+    a.btn-primary, .btn-primary {
+      background: var(--mx-royal-blue);
+      border-color: var(--mx-royal-blue);
+      color: #fff;
+    }
+    a.btn-primary:hover, .btn-primary:hover {
+      background: var(--mx-white);
+      border-color: #0A4E68;
+      color: #fff;
+    }
+    /* Responsive tweaks */
+    @media (max-width: 600px) {
+      .container { padding: 1.2rem 0.3rem; }
+      .help-panel { padding: 1.1rem 0.5rem; }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.1rem; }
     }
   </style>
 </head>
@@ -134,7 +191,7 @@
     <div class="help-panel">
       <h2>Clone the repository</h2>
       <ul>
-  <li>Clone <a href="https://github.com/icis4/melexisio" target="_blank" rel="noopener noreferrer">https://github.com/icis4/melexisio</a> repository to your machine or download and extract the <a href="https://github.com/icis4/melexisio/archive/refs/heads/master.zip">ZIP archive</a>.</li>
+  <li>Clone <a href="https://github.com/icis4/melexisio" target="_blank" rel="noopener noreferrer" class="muted">https://github.com/icis4/melexisio</a> repository to your machine or download and extract the <a href="https://github.com/icis4/melexisio/archive/refs/heads/master.zip">ZIP archive</a>.</li>
         <li>Use the pre-generated folder <code>melexis_io_fw</code> in this repo as your working project folder. It already contains the project configuration files (<code>.ioc</code> and <code>.extSettings</code>) and all generated and patched source files.</li>
       </ul>
       <p>Next: <a href="#cubeide">Use STM32CubeIDE</a> · <a href="#build-windows">Build on Windows (MSYS2 MinGW64)</a> · <a href="#build-linux">Build on Linux</a></p>
@@ -144,7 +201,7 @@
       <h2>Build from scratch (STM32CubeMX)</h2>
       <ol>
         <li>
-          Download and install <strong><a href="https://www.st.com/en/development-tools/stm32cubemx.html" target="_blank" rel="noopener noreferrer">STM32CubeMX</a></strong> version <strong>6.15 or newer</strong> from STMicroelectronics.
+          Download and install <strong><a href="https://www.st.com/en/development-tools/stm32cubemx.html" target="_blank" rel="noopener noreferrer" class="muted">STM32CubeMX</a></strong> version <strong>6.15 or newer</strong> from STMicroelectronics.
           <div class="muted">Tip: Make sure the version is 6.15+.</div>
         </li>
         <li>
@@ -288,7 +345,7 @@ MEMORY
       <h2 id="build-windows">Build on Windows (MSYS2 MinGW64)</h2>
       <ol>
         <li>
-          Install <a href="https://www.msys2.org/" target="_blank" rel="noopener noreferrer">MSYS2</a> and update the package database and core system.
+          Install <a href="https://www.msys2.org/" target="_blank" rel="noopener noreferrer" class="muted">MSYS2</a> and update the package database and core system.
           <div class="muted">Follow MSYS2's first-run update steps (run update, restart the shell if prompted, and update again).</div>
         </li>
         <li>
