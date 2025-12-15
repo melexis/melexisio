@@ -10,19 +10,27 @@
   <style>
     body {
       font-family: var(--mx-font-sans);
-      background: var(--mx-bg);
-      color: var(--mx-text);
       margin: 0;
-      line-height: 1.7;
-    }
-    #header {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: .75rem 1rem;
-      border-bottom: 1px solid var(--mx-border);
-      background: var(--mx-royal-blue);
-      color: #FFFFFF;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: var(--mx-bg); 
+      color: var(--mx-text);
+      background-image: url("/styles/background.jpg"); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: center center; 
+      background-attachment: fixed; 
+    }
+    
+    #header {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: transparent;
+        color: #FFFFFF;
     }
     #header .banner {
       display: block;
@@ -36,15 +44,15 @@
       padding: 2rem 1rem;
     }
     .help-panel {
-      background: var(--mx-bg);
-      border: 1px solid var(--mx-border);
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
       border-radius: 2px;
       padding: 1.7rem 1.5rem;
       margin-bottom: 2rem;
       box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
     }
     .back-link {
-      color: var(--mx-text);
+      color: var(--mx-white);
       text-decoration: none;
       font-size: 0.98rem;
       display: inline-block;
@@ -54,7 +62,7 @@
       transition: color 0.2s;
     }
     .back-link:hover {
-      color: var(--mx-link);
+      color: var(--mx-white);
       text-decoration: underline;
     }
     h1 {
@@ -76,7 +84,7 @@
       letter-spacing: 0.01em;
     }
     h3 {
-      color: var(--mx-text);
+      color: var(--mx-white);
       font-size: 1.15rem;
       font-weight: 600;
       margin-top: 1.5rem;
@@ -84,7 +92,7 @@
       letter-spacing: 0.01em;
     }
     .muted {
-      color: var(--mx-text);
+      color: var(--mx-white);
       font-size: 0.97rem;
     }
     ul, ol { padding-left: 1.5rem; }
@@ -109,12 +117,14 @@
     .feature-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      background: transparent;
       gap: 1rem;
       margin: 1rem 0;
     }
     .feature-item {
-      background: var(--mx-bg);
-      border: 1px solid var(--mx-border);
+      /* background: var(--mx-bg); */
+      background: transparent;
+      border: 1px solid var(--mx-electric-green);
       border-radius: 2px;
       padding: 1rem;
     }
@@ -132,17 +142,17 @@
       margin: 1rem 0;
     }
     .warning h4 {
-      color: #ffc107;
+      color: var(--mx-gold-yellow);
       margin-top: 0;
       margin-bottom: 0.5rem;
     }
     /* Buttons and links */
     a.btn, button.btn {
-      font-family: 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
+      font-family: 'Lato', 'Montserrat', Arial, 'Helvetica Neue', sans-serif;
       font-weight: 600;
       border-radius: 2px;
       letter-spacing: 0.01em;
-      transition: background 0.2s, color 0.2s;
+      /* transition: background 0.2s, color 0.2s; */
     }
     a.btn-primary, .btn-primary {
       background: var(--mx-royal-blue);
@@ -150,7 +160,7 @@
       color: #fff;
     }
     a.btn-primary:hover, .btn-primary:hover {
-      background: #0A4E68;
+      background: var(--mx-white);
       border-color: #0A4E68;
       color: #fff;
     }
@@ -165,7 +175,7 @@
 </head>
 <body>
   <header id="header" role="banner">
-    <span class="banner" style="font-weight:600;font-size:1.4rem;letter-spacing:.03em;">Melexis.io</span>
+    <span class="banner" style="font-weight:600;font-size:2.4rem;letter-spacing:.03em;">Melexis.IO</span>
   </header>
   <div class="container">
     <a href="index.html" class="back-link">← Back to app</a>
@@ -188,8 +198,8 @@
     <div class="help-panel">
       <h2>Related pages</h2>
       <ul>
-        <li><a href="firmware.html">Firmware update</a> — Step-by-step guide to flash the device (includes HEX download link).</li>
-        <li><a href="build.html">Build firmware</a> — Sources overview and STM32CubeIDE build instructions.</li>
+        <li><a href="firmware.html" class="muted">Firmware update</a> — Step-by-step guide to flash the device (includes HEX download link).</li>
+        <li><a href="build.html" class="muted">Build firmware</a> — Sources overview and STM32CubeIDE build instructions.</li>
       </ul>
     </div>
 

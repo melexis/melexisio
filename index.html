@@ -7,33 +7,32 @@
   <!-- Bootstrap 5 CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <link href="/styles/melexis.css" rel="stylesheet">
+  
+  
   <style>
-    /* Use shared variables from styles/melexis.css instead of redefining :root */
-    /* Make the page a column flex layout */
     body {
       font-family: var(--mx-font-sans);
       margin: 0;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-        background: var(--mx-bg);
-        color: var(--mx-text);
+      background-color: var(--mx-bg); 
+      color: var(--mx-white);
+      background-image: url("/styles/background.jpg"); 
+      background-repeat: no-repeat; 
+      background-size: cover; 
+      background-position: center center; 
+      background-attachment: fixed; 
     }
-    /* Header bar */
+    
     #header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: .75rem 1rem;
-      border-bottom: 1px solid var(--mx-border);
-      background: var(--mx-royal-blue);
-      color: #FFFFFF;
-    }
-    #header .banner {
-      display: block;
-      max-height: 72px;
-      height: auto;
-      width: auto;
+        display: flex;
+        justify-content: space-between;
+        justify-content: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: transparent;
+        color: #FFFFFF;
     }
 
     /* App area */
@@ -43,16 +42,18 @@
       min-height: 0;
     }
 
-  #sidebar h2 { margin: .25rem 0; font-size: 1.05rem; }
-  .muted { opacity: 1; font-size: .8em; color: var(--mx-text); }
+    .muted { opacity: 1; font-size: 14px; color: var(--mx-white); }
+
     #historyList {
       display: flex; flex-direction: column; gap: .25rem; max-height: 40vh; overflow: auto; margin-top: .25rem;
     }
+
     .hist-item {
       text-align: left; padding: .35rem .5rem; border: 1px solid var(--mx-border); background: var(--mx-surface);
       border-radius: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      color: var(--mx-text);
+      color: var(--mx-white);
     }
+
     .hist-item:hover { background: rgba(255,255,255,0.12); }
 
     #main {
@@ -62,199 +63,284 @@
       flex-direction: column;
       min-height: 0;
     }
-  fieldset { margin: 0 0 6px 0; background: var(--mx-bg); border:1px solid var(--mx-border); border-radius: 2px; }
-  legend { padding: 0 .5rem; font-weight:600; }
+
+    fieldset { 
+      padding: 5px;
+      background: transparent; 
+      border:1px solid var(--mx-electric-green); 
+    }
+
+    legend { padding: 0 .5rem; font-weight:600; }
+
     .bootstrap-tabs { margin-top: 6px; }
     /* Remove custom tab styling (handled by Bootstrap) */
-  .bootstrap-tabs .nav-link { cursor: pointer; }
+    .bootstrap-tabs .nav-link { cursor: pointer; }
 
-    /* Fixed-height log with scrollbars */
+      /* Fixed-height log with scrollbars */
     #log {
       width: 100%;
-      height: 50vh;      /* reduced to 50% viewport height */
+      height: 45vh;      /* reduced to 50% viewport height */
       max-height: calc(100vh - 260px); /* safeguard relative to other UI */
       box-sizing: border-box;
       white-space: pre-wrap;          /* preserve newlines */
       overflow-wrap: anywhere;        /* allow breaks inside long tokens */
       word-break: break-word;         /* fallback for older engines */
       overflow: auto;    /* scrollbars when content expands */
-      border: 1px solid var(--panel-border);
+      border: 1px solid var(--mx-white);
       padding: .5rem;
-      background: #000; /* black background for log */
-      color: #D9E2F2;       /* default: response (RX) gray */
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--mx-white); /* black background for log */
+      color: var(--mx-black);       /* default: response (RX) gray */
+      font-family: 'Lato', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
     }
 
-    /* Color coding for log entries */
-  .log-echo { color: #4db2ff; }    /* brighter blue for local echo (TX) */
-  .log-rx   { color: #d9dedc; }    /* light gray for device response (RX) */
-  .log-okprompt { color: #59ffb0; }/* bright mint for "(OK)>" prompts */
-  .log-badprompt { color: #ff7a7a; }/* softer red for non-OK prompts */
-  .log-error { color: #ff5252; }   /* vivid error red */
-    
+      /* Color coding for log entries */
+    .log-echo { color: var(--mx-royal-blue-600) }    /* brighter blue for local echo (TX) */
+    .log-rx   { color: var(--mx-black) }    /* light gray for device response (RX) */
+    .log-okprompt { color: var(--mx-electric-green) }/* bright mint for "(OK)>" prompts */
+    .log-badprompt { color: var(--mx-coral-red) }/* softer red for non-OK prompts */
+    .log-error { color: var(--mx-coral-red-800)  }   /* vivid error red */
+
     #row { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
+
     input[type="text"] { flex: 1 1 320px; }
-  .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin:4px; }
+
+    .controls { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin:4px; }
+
     .spacer { flex: 1 1 auto; }
+
     button { cursor: pointer; }
-    button { cursor: pointer; }
-  /* Compact TX bar */
-  .tx-bar .btn, .tx-bar .form-control { padding-top: .2rem; padding-bottom: .2rem; line-height: 1.0; }
-  .tx-bar { min-height: 0; }
+    /* Compact TX bar */
+    .tx-bar .btn, .tx-bar .form-control { padding-top: .2rem; padding-bottom: .2rem; line-height: 1.0; }
+    .tx-bar { min-height: 0; }
     /* Themed elements */
-    .btn-primary { background-color: var(--mx-royal-blue); border-color: var(--mx-royal-blue); }
-    .btn-primary:hover, .btn-primary:focus { background-color: #0A4E68; border-color: #0A4E68; }
-    .btn-secondary { background-color: var(--mx-steel-grey); border-color: var(--mx-border); color: var(--mx-text); }
+    .btn-primary { background-color: var(--mx-electric-green-800); }
+    .btn-primary:hover, .btn-primary:focus { background-color: var(--mx-electric-green);}
+    .btn.btn-primary.w-100 { margin-bottom: 0.4rem;}
+    .btn-secondary { background-color: var(--mx-steel-grey);  color: var(--mx-white); }
     .btn-secondary:hover { background-color: #9bb1b8; }
-    .btn-success { background: var(--mx-electric-green); border-color: var(--mx-electric-green); color:#0B1D3A; }
-    .btn-success:hover { background: #8fd6c7; border-color: #8fd6c7; }
-    .btn-outline-primary { color: var(--mx-text); border-color: var(--mx-royal-blue); }
+    .btn-success { background: var(--mx-electric-green); color:#0B1D3A; }
+    .btn-success:hover { background: #8fd6c7; }
+    .btn-outline-primary { color: var(--mx-white); }
     .btn-outline-primary:hover { background: var(--mx-royal-blue); color:#E8ECF7; }
-    .btn-outline-danger { color: var(--mx-error); border-color: var(--mx-error); }
+    .btn-outline-danger { color: var(--mx-error); }
     .btn-outline-danger:hover { background: var(--mx-error); color:#FFFFFF; }
-    .btn-outline-secondary { color: var(--mx-text-muted); border-color: var(--mx-border); }
+    .btn-outline-secondary { color: var(--mx-text-muted);}
     .btn-outline-secondary:hover { background: var(--mx-border); color:#E8ECF7; }
     .btn-outline-warning { color: var(--mx-warning); border-color: var(--mx-warning); }
     .btn-outline-warning:hover { background: var(--mx-warning); color:#3a2d00; }
-    .btn-outline-info { color: var(--mx-link); border-color: var(--mx-link); }
+    .btn-outline-info { color: var(--mx-link); }
     .btn-outline-info:hover { background: var(--mx-link); color:#002a38; }
-  .nav-tabs { border-color: var(--mx-border); }
-  .nav-tabs .nav-link {
-    color: var(--mx-text);
-    background: transparent;
-    border: 1px solid transparent;
-    border-top-left-radius: 2px;
-    border-top-right-radius: 2px;
-  }
-  .nav-tabs .nav-link:hover {
-    color: var(--mx-text);
-    background: rgba(0,0,0,0.15);
-    border-color: transparent;
-  }
-  .nav-tabs .nav-link.active {
-    color: #FFFFFF;
-    background: var(--mx-royal-blue-700);
-    border-color: var(--mx-royal-blue-700) var(--mx-royal-blue-700) transparent;
-    box-shadow: 0 2px 0 0 var(--mx-royal-blue-700);
-  }
-  .nav-tabs .nav-link:hover {
-    color: var(--mx-text);
-    background: var(--mx-royal-blue-600);
-    border-color: transparent;
-  }
-  .tab-content {
-    background: var(--mx-teal);
-    border:1px solid var(--mx-border);
-    border-top: none;
-    padding: .5rem .5rem;
-    border-radius: 0 0 2px 2px;
-    /* Fit within page and allow scrolling when overflowing */
-    max-height: calc(100vh - 260px);
-    overflow: auto;
-  }
-  /* Make Settings tab lighter for forms */
-  .tab-content #tab2 {
-    background: var(--mx-bg);
-    color: #1a1a1a;
-    border-radius: 0 0 2px 2px;
-  }
-  .form-control, .form-select { background: var(--mx-bg); border:1px solid var(--mx-border); color: #1a1a1a; }
-  .form-control:focus, .form-select:focus { background:#ffffff; color:#000; border-color: var(--mx-accent); box-shadow:0 0 0 .15rem rgba(101,187,169,0.25); }
-  /* Keep disabled inputs readable (Bootstrap may set light bg/text) */
-  .form-control:disabled, .form-select:disabled {
-    background:#f4f7f8 !important;
-    color:#3e4242 !important;
-    opacity: 1 !important; /* avoid dimming text */
-    border-color: var(--mx-border) !important;
-  }
-  /* Chromium/WebKit sometimes ignores color on disabled text */
-  input.form-control:disabled::-webkit-text-fill-color { color:#3e4242; }
-  /* Placeholder tint when disabled */
-  .form-control:disabled::placeholder { color:#b2c4cb; }
-  input::placeholder { color:#b2c4cb; }
-  hr { border-color: var(--mx-border); }
-    select, input[type="number"] { width: 8rem; }
-    @media (max-width: 800px) {
-      #sidebar { width: 180px; }
-      select, input[type="number"] { width: 7rem; }
+
+    .nav-tabs { 
+      border-color: transparent;
     }
 
-    .section-title { margin: 0 0 .5rem 0; font-weight: 600; }
+    .nav-tabs .nav-link {
+      color: var(--mx-white);
+      background: transparent;
+      border: 1px solid transparent;
+      border-top-left-radius: 2px;
+      border-top-right-radius: 2px;
+    }
+
+    .nav-tabs .nav-link:hover {
+      color: var(--mx-white);
+      background: rgba(0,0,0,0.15);
+      border-color: transparent;
+    }
+
+    .nav-tabs .nav-link.active {
+      color: #FFFFFF;
+      background: var(--mx-electric-green-800);
+      border-color: var(--mx-electric-green-800) var(--mx-electric-green-800) transparent;
+      box-shadow: 0 2px 0 0 var(--mx-electric-green-800);
+    }
+
+    .nav-tabs .nav-link:hover {
+      color: var(--mx-white);
+      background: var(--mx-electric-green);
+      border-color: transparent;
+    }
+
+    .tab-content {
+      background: transparent;
+      border-top: none;
+      padding: .5rem .5rem;
+      border-radius: 0 0 2px 2px;
+      /* Fit within page and allow scrolling when overflowing */
+      max-height: calc(100vh - 260px);
+      overflow: auto;
+    }
+
+    .form-control { 
+      background: var(--mx-white); 
+      border:1px solid var(--mx-white); 
+      color: var(--mx-black); 
+    }
+    .form-control:focus { 
+      background: var(--mx-white); 
+      color:var(--mx-black); 
+      border-color: var(--mx-electric-green); 
+      box-shadow:0 0 0 .15rem rgba(101,187,169,0.25); 
+    }
+    .form-control:disabled {
+      background: var(--mx-white) !important;
+      color: var(--mx-black) !important;
+      opacity: 1 !important; /* avoid dimming text */
+      border-color: var(--mx-electric-green) !important;
+    }
+
+    .form-select {
+      border:1px solid var(--mx-white); 
+      color: var(--mx-black); 
+    }
+    .form-select:focus{
+      color: var(--mx-black); 
+      border-color: var(--mx-electric-green); 
+      box-shadow:0 0 0 .15rem rgba(101,187,169,0.25); 
+    }
+    .form-select:disabled{
+      color: var(--mx-black) !important;
+      opacity: 1 !important; /* avoid dimming text */
+      border-color: transparent !important;
+    }
+
+
+    /* Chromium/WebKit sometimes ignores color on disabled text */
+    input.form-control:disabled::-webkit-text-fill-color { color:#3e4242; }
+
+    /* Placeholder tint when disabled */
+    .form-control:disabled::placeholder { color:#b2c4cb; }
+
+    input::placeholder { color:#b2c4cb; }
+
+    hr { border-color: var(--mx-border); }
+      select, input[type="number"] { width: 8rem; }
+      @media (max-width: 800px) {
+        #sidebar { width: 180px; }
+        select, input[type="number"] { width: 7rem; }
+      }
+      .section-title { margin: 0 0 .5rem 0; font-weight: 600; }
+
+    hr {
+    height: 2px;
+    background-color: var(--mx-electric-green); /* A nice blue color */
+    width: 50%; /* Only 50% of the container width */
+    margin: 20px auto; /* Add vertical space and auto-center horizontally */
+    }
+
+    .container-flex-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center; 
+      gap: 10px; 
+      width: 140px;
+    }
+
+    /* Style for the copyright bar */
+    .footer-bottom {
+      color: #fff;
+      font-size: 14px;
+      position: relative;
+      text-align: center;
+      z-index: 2;
+    }
+
+    #resend {
+      width: 120px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+    }
+
+    #irChartRunning, #irRunning {
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:var(--mx-steel-grey);
+      box-shadow:0 0 4px #0D1A2B;
+      transition:background-color .2s, box-shadow .2s;
+    }
+ 
   </style>
+
 </head>
 <body>
-  <header id="header" role="banner">
-    <span class="banner" style="font-weight:600;font-size:1.4rem;letter-spacing:.03em;">Melexis.io</span>
-  </header>
-
-  <div id="app">
-    <!-- Sidebar removed: content moved to Terminal tab -->
-
-    <main id="main">
-      <fieldset>
-        <div class="controls d-flex flex-wrap align-items-end gap-2">
-          <button id="connect" class="btn btn-primary btn-sm">Connect…</button>
-          <button id="disconnect" class="btn btn-secondary btn-sm" disabled>Disconnect</button>
+  <header id="header">
+    <div style="display: flex; gap: 20px; align-items: center; margin-right: auto;">
+      <button id="connect" class="btn btn-primary btn-sm">Connect</button>
+      <button id="disconnect" class="btn btn-primary btn-sm" disabled>Disconnect</button>
+    </div>
+    <div>
+      <span class="banner" style="font-weight:600;font-size:2.4rem;letter-spacing:.03em;">Melexis.IO</span>
+    </div>
+    <div style="display: flex; gap: 20px; align-items: center; margin-left: auto;">
           <span id="status" class="muted small"></span>
-        </div>
-      </fieldset>
-
-      <ul class="nav nav-tabs bootstrap-tabs" id="mainTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="terminal-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button" role="tab" aria-controls="tab1" aria-selected="true">Terminal</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button" role="tab" aria-controls="tab2" aria-selected="false">Settings</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="irchart-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">IR Chart</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <a class="nav-link" id="thermal-link" href="isp/index.html" role="tab" aria-controls="tab6" aria-selected="false">MLX9064x Thermal Viewer</a>
-        </li>
-      </ul>
-      <div class="tab-content pt-3" id="mainTabsContent">
+    </div>
+  </header>
+  <div id="app">
+  <main id="main">
+    <ul class="nav nav-tabs bootstrap-tabs" id="mainTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="terminal-tab" data-bs-toggle="tab" data-bs-target="#tab1" type="button" role="tab" aria-controls="tab1" aria-selected="true">Terminal</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#tab2" type="button" role="tab" aria-controls="tab2" aria-selected="false">Settings</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ir-tab" data-bs-toggle="tab" data-bs-target="#tab4" type="button" role="tab" aria-controls="tab4" aria-selected="false">IR Image</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="irchart-tab" data-bs-toggle="tab" data-bs-target="#tab5" type="button" role="tab" aria-controls="tab5" aria-selected="false">IR Chart</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link" id="thermal-link" href="isp/index.html" role="tab" aria-controls="tab6" aria-selected="false">MLX9064x Thermal Viewer</a>
+      </li>
+    </ul>
+    <div class="tab-content pt-3" id="mainTabsContent">
       <div class="tab-pane fade show active" id="tab1" role="tabpanel" aria-labelledby="terminal-tab">
         <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start;">
           <div style="flex:1 1 0;min-width:320px;">
             <div id="log" aria-live="polite"></div>
             <div id="row" class="d-flex flex-column gap-2">
               <div class="d-flex flex-nowrap align-items-center gap-1 w-100 tx-bar">
-                <button id="clear" class="btn btn-primary btn-sm">Clear</button>
-                <button id="save" class="btn btn-primary btn-sm">Save...</button>
-                <input id="tx" class="form-control form-control-sm" type="text" placeholder="Type text to send" style="flex:1 1 auto;" />
-                <button id="send" class="btn btn-primary btn-sm">Send</button>
+                <button id="clear" class="btn btn-primary btn-sm" >Clear</button>
+                <button id="save" class="btn btn-primary btn-sm" >Save</button>
+                <input id="tx" class="form-control form-control-sm" type="text" placeholder="Type command to send" style="flex:1 1 auto;" />
+                <button id="send" class="btn btn-primary btn-sm" disabled>Send</button>
               </div>
+              <hr />   
+              <div class="d-flex" >
+                <div class="container-flex-col">
+                  <h3>History</h3>
+                  <button id="clear-history" class="btn btn-primary btn-sm" >Clear History</button>
+                  <button id="resend" class="btn btn-primary btn-sm" disabled>Resend</button>
+                </div>
+                <select id="historyCombo" class="form-select form-select-sm" size="2" aria-live="polite" title="Command history"></select>
+              </div>              
             </div>
           </div>
-          <div id="sidebar" style="min-width:200px;max-width:260px;flex:0 0 220px;padding:0 0 0 0.5rem;border:0;">
-            <h2>Commands</h2>
-            <button id="cmd-id" class="btn btn-primary btn-sm w-100 mb-1" title='Send "*IDN?"' disabled>ID</button>
-            <button id="cmd-info" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:INFO"' disabled>INFO</button>
-            <button id="cmd-log" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:LOG"' disabled>Log</button>
-            <button id="cmd-help" class="btn btn-primary btn-sm w-100 mb-1" title='Send ":SYST:HELP"' disabled>Help</button>
-            <button id="cmd-rst" class="btn btn-outline-danger btn-sm w-100 mb-2" title='Send "*RST"' disabled>Reset</button>
-            <hr />
-            <h2>History</h2>
-            <select id="historyCombo" class="form-select form-select-sm w-100" size="6" aria-live="polite" title="Command history"></select>
-            <div class="d-flex gap-2 mt-2">
-              <button id="resendSelected" class="btn btn-primary btn-sm">Resend</button>
-              <button id="clearHistory" class="btn btn-primary btn-sm">Clear</button>
-            </div>
+          <div id="sidebar" style="min-width:150px;max-width:150px;flex:0 0 0;padding:0 1rem 0 0;border:0;">
+            <h3>Commands</h3>
+            <button id="cmd-id" class="btn btn-primary w-100 btn-sm" title='Send "*IDN?"' disabled>Id</button>
+            <button id="cmd-info" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:INFO"' disabled>Info</button>
+            <button id="cmd-log" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:LOG"' disabled>Log</button>
+            <button id="cmd-help" class="btn btn-primary w-100 btn-sm" title='Send ":SYST:HELP"' disabled>Help</button>
+            <button id="cmd-rst" class="btn btn-primary w-100 btn-sm" title='Send "*RST"' disabled>Reset</button>
           </div>
         </div>
       </div>
       <div class="tab-pane fade" id="tab2" role="tabpanel" aria-labelledby="settings-tab">
-        <div class="p-3">
+        <div class="p-3"> 
           <h5 class="mb-2">Settings</h5>
-          <div class="row g-3">
+          <div class="row g-3">   
             <div class="col-12 col-lg-6">
-              <fieldset class="p-2" style="border-radius:.5rem;">
+              <fieldset class="p-2" style="border-radius:2px;">
                 <legend class="float-none w-auto px-2 small mb-0">Connection</legend>
-                <div class="d-flex flex-wrap align-items-end gap-3 mb-2 mt-1">
+                <div class="d-flex flex-wrap align-items-end gap-3 p-2">
                   <label class="form-label mb-0">Baud:
                     <input id="baud" class="form-control form-control-sm" type="number" value="115200" min="50" step="50" />
                   </label>
@@ -276,42 +362,50 @@
                       <option>1</option>
                       <option selected>2</option>
                     </select>
-                  </label>
+                  </label> 
                   <label class="form-label mb-0">Flow:
                     <select id="flow" class="form-select form-select-sm">
                       <option value="none" selected>none</option>
                       <option value="hardware">hardware (RTS/CTS)</option>
                     </select>
                   </label>
+                  <p class="small mt-2 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are saved and restored (localStorage).</p>
                 </div>
               </fieldset>
-              <p class="small mt-2 mb-0">Baud rate, data bits, parity, stop bits, and flow control selections are saved and restored (localStorage).</p>
             </div>
             <div class="col-12 col-lg-6">
-              <fieldset class="p-2 mb-3" style="border-radius:.5rem;">
+              <fieldset class="p-2 mb-3" style="border-radius:2px;">
                 <legend class="float-none w-auto px-2 small mb-0">Input options</legend>
-                <div class="d-flex flex-wrap align-items-center gap-3 mt-1">
-                  <label class="form-label mb-0">EOL:
+                <div class="d-flex flex-wrap align-items-center gap-3 p-2">  
+                  <label class="form-label mb-0 d-flex align-items-center gap-1"> EOL:
                     <select id="eol" class="form-select form-select-sm" title="End-of-line to append on send" style="max-width:100px;">
                       <option value="">No EOL</option>
                       <option value="\n" selected>LF</option>
                       <option value="\r">CR</option>
                       <option value="\r\n">CRLF</option>
                     </select>
+                  </label>  
+                  <label class="form-check form-check-inline mb-0">
+                    <input id="echo" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Local echo</span>
+                  </label> 
+                  <label class="form-check form-check-inline mb-0">
+                    <input id="enterSend" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Enter sends</span>
                   </label>
-                  <label class="form-check form-check-inline mb-0"><input id="echo" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Local echo</span></label>
-                  <label class="form-check form-check-inline mb-0"><input id="enterSend" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Enter sends</span></label>
-                  <label class="form-check form-check-inline mb-0"><input id="autoScroll" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Auto-scroll</span></label>
+                  <label class="form-check form-check-inline mb-0">
+                    <input id="autoScroll" class="form-check-input" type="checkbox" checked /><span class="form-check-label"> Auto-scroll</span>
+                  </label>
                 </div>
               </fieldset>
-              <fieldset class="p-2" style="border-radius:.5rem;">
+            </div>
+            <div class="col-12 col-lg-6">
+              <fieldset class="p-2" style="border-radius:2px;">
                 <legend class="float-none w-auto px-2 small mb-0">Actions</legend>
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-                  <button id="resetSerialSettings" class="btn btn-outline-warning btn-sm">Reset to defaults</button>
-                  <button id="exportSettings" class="btn btn-outline-info btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
-                  <button id="importSettings" class="btn btn-outline-secondary btn-sm" title="Import settings bundle JSON">Import settings</button>
-                  <button id="eepromSave" class="btn btn-outline-primary btn-sm" title="Save current settings to device EEPROM" disabled>Save to EEPROM</button>
-                  <button id="eepromLoad" class="btn btn-outline-primary btn-sm" title="Load settings from device EEPROM" disabled>Load from EEPROM</button>
+                  <button id="resetSerialSettings" class="btn btn-primary btn-sm">Reset to defaults</button>
+                  <button id="exportSettings" class="btn btn-primary btn-sm" title="Download settings bundle (commands + parameters + IR)">Export settings</button>
+                  <button id="importSettings" class="btn btn-primary btn-sm" title="Import settings bundle JSON">Import settings</button>
+                  <button id="eepromSave" class="btn btn-primary btn-sm" title="Save current settings to device EEPROM" disabled>Save to EEPROM</button>
+                  <button id="eepromLoad" class="btn btn-primary btn-sm" title="Load settings from device EEPROM" disabled>Load from EEPROM</button>
                   <input id="importSettingsFile" type="file" accept="application/json" style="display:none;" />
                 </div>
               </fieldset>
@@ -335,22 +429,20 @@
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Automatically fit color scale to current frame">
               <input id="irAutoScale" type="checkbox" class="form-check-input" checked /> Auto-scale
             </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (read-only when Auto-scale)">
-              Min:
-              <input id="irMinInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="10.00" />
-            </label>
-            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (read-only when Auto-scale)">
-              Max:
-              <input id="irMaxInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="40.00" />
-            </label>
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show grid lines over heatmap (for scale x1/x2)">
               <input id="irShowGrid" type="checkbox" class="form-check-input" /> Grid
             </label>
             <label class="form-label mb-0 d-flex align-items-center gap-1" title="Show numeric cell values (scale x1 only to avoid clutter)">
               <input id="irShowValues" type="checkbox" class="form-check-input" /> Values
             </label>
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual minimum (read-only when Auto-scale)">Min:
+              <input id="irMinInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="10.00" />
+            </label>
+            <label class="form-label mb-0 d-flex align-items-center gap-1" title="Manual maximum (read-only when Auto-scale)">Max: 
+              <input id="irMaxInput" type="number" class="form-control form-control-sm" style="max-width:90px;" min="0" max="50" step="0.01" value="40.00" />
+            </label>
           </div>
-          <div class="mt-2 small d-flex flex-wrap align-items-center gap-3">
+          <div class="mt-2 small d-flex flex-wrap align-items-center gap-3">  
             <label class="form-label mb-0 d-flex align-items-center gap-1">Scale:
               <select id="irScaleSelect" class="form-select form-select-sm" style="max-width:70px;">
                 <option value="1" selected>x1</option>
@@ -358,49 +450,47 @@
                 <option value="4">x4</option>
               </select>
             </label>
-            <button id="irRead" class="btn btn-outline-primary btn-sm">Read</button>
-            <button id="irContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-            <span id="irRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
-            <button id="irSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
-            <button id="irExportData" class="btn btn-outline-secondary btn-sm">Export data</button>
-            <button id="irRecStart" class="btn btn-outline-danger btn-sm">Start rec</button>
-            <button id="irRecStop" class="btn btn-outline-secondary btn-sm" disabled>Stop rec</button>
+            <button id="irRead" class="btn btn-primary btn-sm">Read</button>
+            <button id="irContinuous" class="btn btn-primary btn-sm" data-active="0">Continuous</button>   
+            <span id="irRunning" title="Running status"></span>
+            <button id="irSaveImage" class="btn btn-primary btn-sm">Save image</button>
+            <button id="irExportData" class="btn btn-primary btn-sm">Export data</button>
+            <button id="irRecStart" class="btn btn-primary btn-sm">Start recording</button>
+            <button id="irRecStop" class="btn btn-primary btn-sm" disabled>Stop recording</button>
           </div>
         </div>
       </div>
       <div class="tab-pane fade" id="tab5" role="tabpanel" aria-labelledby="irchart-tab">
-  <div class="p-3" id="irChartContainer" style="max-height:70vh;overflow:auto;">
-          <div class="d-flex flex-column gap-3">
-            <canvas id="irChart" width="1200" height="400" style="border:1px solid var(--mx-border);border-radius:2px;background:#0002;width:100%;display:block;"></canvas>
+        <div class="p-3" id="irChartContainer" style="max-height:80vh;overflow:auto;">
+          <div class="d-flex flex-column gap-3">  
+            <canvas id="irChart" width="1200" height="400" style="border:1px solid transparent;border-radius:2px;background:#0002;width:100%;display:block;"></canvas>
             <div class="small d-flex flex-wrap align-items-center gap-3">
-              <button id="irChartRead" class="btn btn-outline-primary btn-sm">Read</button>
-              <button id="irChartContinuous" class="btn btn-outline-secondary btn-sm position-relative" data-active="0">Continuous</button>
-              <span id="irChartRunning" style="width:10px;height:10px;border-radius:50%;background:#0D1A2B;box-shadow:0 0 4px #0D1A2B;transition:background-color .2s, box-shadow .2s;" title="Running status"></span>
-              <button id="irChartClear" class="btn btn-outline-warning btn-sm">Clear</button>
-              <button id="irChartExport" class="btn btn-outline-secondary btn-sm">Export CSV</button>
-              <button id="irChartSaveImage" class="btn btn-outline-info btn-sm">Save image</button>
+              <button id="irChartRead" class="btn btn-primary btn-sm">Read</button>
+              <button id="irChartContinuous" class="btn btn-primary btn-sm" data-active="0">Continuous</button>
+              <span id="irChartRunning" title="Running status"></span>
+              <button id="irChartClear" class="btn btn-primary btn-sm">Clear</button>
+              <button id="irChartExport" class="btn btn-primary btn-sm">Export CSV</button>
+              <button id="irChartSaveImage" class="btn btn-primary btn-sm">Save image</button>
             </div>
           </div>
         </div>
       </div>
-      <!-- Thermal Viewer now opens as a separate page (isp/index.html); tab pane removed -->
-      
-      </div>
-      <p class="muted">
-        Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.
-      </p>
-      <p>
-        <a href="help.html" class="muted" style="margin-right:1rem;">Help</a>
-        <a href="firmware.html" class="muted" style="margin-right:1rem;">Firmware update</a>
-    <a href="build.html" class="muted" style="margin-right:1rem;">Build firmware</a>
-    <a href="help/html/index.html" class="muted" style="margin-right:1rem;" target="_blank" rel="noopener noreferrer">SCPI Help</a>
-    <a href="help/melexisio_scpi_commands.pdf" class="muted" target="_blank" rel="noopener noreferrer">SCPI Commands (PDF)</a>
-      </p>
-    </main>
+      <!-- Thermal Viewer now opens as a separate page (isp/index.html); -->
+    </div>
+  </main>
   </div>
 
+  <footer>   
+      <hr class="green-line" />
+      <div class="footer-bottom">
+          <p>Copyright &copy; 2025 Melexis. All rights reserved. <a href="https://www.melexis.com/en/legal/terms-of-use" class="muted" style="margin:0px 7.5px;">Terms of use</a> <a href="help.html" class="muted" style="margin-right:7.5px;">Help</a> <a href="firmware.html" class="muted" style="margin-right:7.5px;">Firmware Update</a> <a href="help/html/index.html" class="muted" target="_blank" rel="noopener noreferrer">SCPI Commands</a></p>
+      </div>
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF" crossorigin="anonymous"></script>
+  
   <script>
   // Serial
   let port, reader, writer, reading = false;
@@ -604,7 +694,7 @@
       if (eepromLoadBtn) eepromLoadBtn.addEventListener('click', () => alert('TODO: EEPROM load (implement device command)'));
       // summary removed
       // Initialize status hint for users before connecting
-      setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
+      setStatus('Disconnected');
     });
 
     // Cookie utils (no regex to avoid escaping issues)
@@ -764,9 +854,9 @@
     function setStatus(msg) { $('status').textContent = msg || ''; }
     function updateConnectedStatus() {
       const statusBase = 'Connected';
-      const labelPart = connPortLabel ? ' (' + connPortLabel + ')' : '';
-      const descPart = connDescription ? ' – ' + connDescription : '';
-      setStatus(statusBase + labelPart + descPart);
+      // const descParts = connDescription.split(',');
+      // const descLabel = connDescription ? ' – ' + descParts[3] : '';
+      setStatus(statusBase);
       const st = $('status');
       if (st) {
         st.title = [
@@ -944,6 +1034,13 @@
 
     $('connect').disabled = true;
     $('disconnect').disabled = false;
+    $('send').disabled = false;
+    $('cmd-id').disabled = false;
+    $('cmd-info').disabled = false;
+    $('cmd-log').disabled = false;
+    $('cmd-help').disabled = false;
+    $('cmd-rst').disabled = false;
+    $('resend').disabled = false;
     setCommandButtonsEnabled(true);
     connPortLabel = formatPortLabel(port);
     connDescription = '';
@@ -1015,6 +1112,13 @@
 
         $('connect').disabled = true;
         $('disconnect').disabled = false;
+        $('send').disabled = false;
+        $('cmd-id').disabled = false;
+        $('cmd-info').disabled = false;
+        $('cmd-log').disabled = false;
+        $('cmd-help').disabled = false;
+        $('cmd-rst').disabled = false;
+        $('resend').disabled = false;
         setCommandButtonsEnabled(true);
         connPortLabel = formatPortLabel(port);
         connDescription = '';
@@ -1078,11 +1182,18 @@
         textEncoder = null;
         $('connect').disabled = false;
         $('disconnect').disabled = true;
+        $('send').disabled = true;
+        $('cmd-id').disabled = true;
+        $('cmd-info').disabled = true;
+        $('cmd-log').disabled = true;
+        $('cmd-help').disabled = true;
+        $('cmd-rst').disabled = true;
+        $('resend').disabled = true;
         setCommandButtonsEnabled(false);
         connPortLabel = '';
         connDescription = '';
         awaitingIdnFirstLine = false;
-        setStatus('Disconnected. Works in Chrome/Edge desktop. Requires HTTPS or localhost. Only one app can hold the port at a time.');
+        setStatus('Disconnected');
       }
     }
 
@@ -1345,7 +1456,7 @@
       if (historyIndex !== -1) historyIndex = -1;
     });
 
-    $('clearHistory').addEventListener('click', clearHistory);
+    $('clear-history').addEventListener('click', clearHistory);
 
     window.addEventListener('beforeunload', disconnect);
 
@@ -1379,13 +1490,13 @@
       if (!ind || !btn) return;
       const running = btn.getAttribute('data-active') === '1';
       if (!running) {
-        ind.style.background = '#0d2219';
-        ind.style.boxShadow = '0 0 4px #0d2219';
+        ind.style.background = '#b2c4cb';
+        ind.style.boxShadow = '0 0 4px #b2c4cb';
         ind.title = 'Continuous inactive';
         return;
       }
-      ind.style.background = '#59ffb0';
-      ind.style.boxShadow = '0 0 6px #59ffb0';
+      ind.style.background = '#65BBA9';
+      ind.style.boxShadow = '0 0 6px #65BBA9';
       ind.title = 'Continuous running';
     }
 
@@ -1970,9 +2081,9 @@
         plugins: [chartBackgroundPlugin],
         data: {
           datasets: [
-            { label: 'Min',  data: irChartData.min,  borderColor: '#5AA3FF', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
-            { label: 'Mean', data: irChartData.mean, borderColor: '#59ffb0', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
-            { label: 'Max',  data: irChartData.max,  borderColor: '#ff7a7a', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 }
+            { label: 'Min',  data: irChartData.min,  borderColor: '#00354B', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Mean', data: irChartData.mean, borderColor: '#65BBA9', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 },
+            { label: 'Max',  data: irChartData.max,  borderColor: '#DB4140', backgroundColor: 'transparent', tension: 0.2, pointRadius: 0 }
           ]
         },
         options: {
@@ -2018,12 +2129,12 @@
       if (!ind || !btn) return;
       const running = btn.getAttribute('data-active') === '1';
       if (!running) {
-        ind.style.background = '#0d2219';
-        ind.style.boxShadow = '0 0 4px #0d2219';
+        ind.style.background = '#b2c4cb';
+        ind.style.boxShadow = '0 0 4px ##b2c4cb';
         ind.title = 'Continuous inactive';
       } else {
-        ind.style.background = '#59ffb0';
-        ind.style.boxShadow = '0 0 6px #59ffb0';
+        ind.style.background = '#65BBA9';
+        ind.style.boxShadow = '0 0 6px #65BBA9';
         ind.title = 'Continuous running';
       }
     }
@@ -2394,8 +2505,8 @@
     // History combo wiring: populate from global `history` and allow resend
     document.addEventListener('DOMContentLoaded', () => {
       const combo = document.getElementById('historyCombo');
-      const clearBtn = document.getElementById('clearHistory');
-      const resendBtn = document.getElementById('resendSelected');
+      const clearBtn = document.getElementById('clear-history');
+      const resendBtn = document.getElementById('resend');
       const tx = document.getElementById('tx');
       const sendBtn = document.getElementById('send');
 
