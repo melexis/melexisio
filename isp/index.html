@@ -191,7 +191,7 @@
             margin-bottom: 5px;
         }
 
-        .slider-group label span {
+        .slider-group label span:last-child {
             color: #65bba9;
             font-weight: 600;
             min-width: 60px;
@@ -615,6 +615,57 @@
         .update-buttons button {
             flex: 1;
         }
+
+        /* Tooltip styles */
+        .help-icon {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            line-height: 14px;
+            text-align: center;
+            border-radius: 50%;
+            background: #4a4e4e;
+            color: #65bba9;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 5px;
+            vertical-align: middle;
+            position: relative;
+        }
+
+        .help-icon:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: normal;
+            width: 220px;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-align: left;
+            line-height: 1.4;
+            pointer-events: none;
+            white-space: normal;
+        }
+
+        .help-icon:hover::before {
+            content: "";
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1a1a1a;
+            z-index: 1000;
+            pointer-events: none;
+        }
     </style>
 
     <!-- DFU Firmware Update Scripts -->
@@ -684,7 +735,7 @@
 
                 <!-- Algorithm Mode -->
                 <div class="control-group">
-                    <label>Algorithm Mode</label>
+                    <label>Algorithm Mode <span class="help-icon" data-tooltip="Processing complexity mode. Simplified: Faster area-based counting. Simple: pipeline optimized for low-power MCUs.">(?)</span></label>
                     <select id="algoModeSelect">
                         <option value="1" selected>Default</option>
                         <option value="2">Simple</option>
@@ -731,21 +782,21 @@
 
                 <!-- Simple Mode Controls (replaces Preset in Simple Mode) -->
                 <div class="control-group slider-group simple-mode-only" style="display: none;">
-                    <label>Hot Threshold <span id="thHotValue">2.0</span>°C</label>
+                    <label><span>Hot Threshold <span class="help-icon" data-tooltip="Temperature difference threshold relative to background for hot pixel detection in °C.">(?)</span></span> <span><span id="thHotValue">2.0</span>°C</span></label>
                     <input type="range" id="thHotSlider" min="0" max="500" value="100" step="5">
                 </div>
 
                 <div class="control-group simple-mode-only" style="display: none;">
                     <div class="checkbox-group">
                         <input type="checkbox" id="motionValidationCheckbox">
-                        <label for="motionValidationCheckbox">Motion Validation</label>
+                        <label for="motionValidationCheckbox">Motion Validation <span class="help-icon" data-tooltip="Requires motion to be detected within a blob before it is confirmed as a person. Helps filter out static thermal noise or stationary objects.">(?)</span></label>
                     </div>
                 </div>
 
                 <div class="control-group" id="coldDetectionGroup">
                     <div class="checkbox-group">
                         <input type="checkbox" id="coldDetection" >
-                        <label for="coldDetection">Enable Cold Detection</label>
+                        <label for="coldDetection">Enable Cold Detection <span class="help-icon" data-tooltip="Enables detection of objects colder than the background (e.g., AC vents, cold drinks). May increase false positives in some environments.">(?)</span></label>
                     </div>
                 </div>
 
@@ -849,24 +900,24 @@
                         <h4 style="color: #64748b; margin: 10px 0;">Detection</h4>
 
                         <div class="control-group slider-group">
-                            <label>Footprint Size <span id="footprintValue">60</span> px</label>
+                            <label><span>Footprint Size <span class="help-icon" data-tooltip="Standard person thermal footprint size in pixels. Used for counting: person_count = blob_area / footprint. Lower = more sensitive; Higher = less sensitive.">(?)</span></span> <span><span id="footprintValue">60</span> px</span></label>
                             <input type="range" id="footprintSlider" min="35" max="90" value="60" step="1">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Min Blob Area <span id="minAreaValue">15</span> px</label>
+                            <label><span>Min Blob Area <span class="help-icon" data-tooltip="Minimum blob area filter (pixels). Filters out blobs smaller than this threshold. Higher = removes more noise; Lower = keeps small blobs.">(?)</span></span> <span><span id="minAreaValue">15</span> px</span></label>
                             <input type="range" id="minAreaSlider" min="5" max="100" value="15" step="1">
                         </div>
 
                         <!-- Standard Mode Params -->
                         <div class="standard-mode-only">
                             <div class="control-group slider-group">
-                                <label>Cold Threshold <span id="thresholdLValue">1.0</span>×σ</label>
+                                <label><span>Cold Threshold <span class="help-icon" data-tooltip="Background lower threshold multiplier. thresh_min = peak - (L × std_dev). Higher = wider acceptance; Lower = tighter threshold.">(?)</span></span> <span><span id="thresholdLValue">1.0</span>×σ</span></label>
                                 <input type="range" id="thresholdLSlider" min="1" max="1024" value="256" step="1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Hot Threshold <span id="thresholdHValue">1.0</span>×σ</label>
+                                <label><span>Hot Threshold <span class="help-icon" data-tooltip="Background upper threshold multiplier. thresh_max = peak + (H × std_dev). Higher = wider acceptance; Lower = tighter threshold.">(?)</span></span> <span><span id="thresholdHValue">1.0</span>×σ</span></label>
                                 <input type="range" id="thresholdHSlider" min="1" max="1024" value="256" step="1">
                             </div>
 
@@ -875,27 +926,27 @@
                         <!-- Simple Mode Params -->
                         <div class="simple-mode-only" style="display: none;">
                             <div class="control-group slider-group">
-                                <label>Cold Threshold <span id="thColdValue">0.0</span>°C</label>
+                                <label><span>Cold Threshold <span class="help-icon" data-tooltip="Temperature difference threshold relative to background for cold pixel detection in °C.">(?)</span></span> <span><span id="thColdValue">0.0</span>°C</span></label>
                                 <input type="range" id="thColdSlider" min="0" max="500" value="0" step="5">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Hysteresis (Strong) <span id="simpleHysteresisValue">1.00</span>x</label>
+                                <label><span>Hysteresis (Strong) <span class="help-icon" data-tooltip="Multiplier for the detection threshold to confirm a blob is 'strong' enough to be tracked. Higher = stricter tracking.">(?)</span></span> <span><span id="simpleHysteresisValue">1.00</span>x</span></label>
                                 <input type="range" id="simpleHysteresisSlider" min="256" max="1024" value="256" step="1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>BG Learning <span id="simpleGammaEmaValue">0.10</span>x</label>
+                                <label><span>BG Learning <span class="help-icon" data-tooltip="EMA background learning rate. Controls how fast the background adapts. Lower = preserves stationary people; Higher = adapts faster.">(?)</span></span> <span><span id="simpleGammaEmaValue">0.10</span>x</span></label>
                                 <input type="range" id="simpleGammaEmaSlider" min="3" max="128" value="26" step="1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Motion Threshold <span id="motionThreshValue">1.0</span>°C</label>
+                                <label><span>Motion Threshold <span class="help-icon" data-tooltip="Per-pixel temperature change threshold to detect motion in °C.">(?)</span></span> <span><span id="motionThreshValue">1.0</span>°C</span></label>
                                 <input type="range" id="motionThreshSlider" min="0" max="500" value="50" step="5">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Motion Persistence <span id="motionHystValue">60</span> s</label>
+                                <label><span>Motion Persistence <span class="help-icon" data-tooltip="Time in seconds that motion detection is preserved after it was last detected.">(?)</span></span> <span><span id="motionHystValue">60</span> s</span></label>
                                 <input type="range" id="motionHystSlider" min="1" max="180" value="60" step="1">
                             </div>
 
@@ -903,24 +954,24 @@
                             <div class="control-group">
                                 <div class="checkbox-group">
                                     <input type="checkbox" id="adaptiveThEnableToggle">
-                                    <label for="adaptiveThEnableToggle">Enable Adaptive Threshold</label>
+                                    <label for="adaptiveThEnableToggle">Enable Adaptive Threshold <span class="help-icon" data-tooltip="Enable MAD-based (Median Absolute Deviation) adaptive thresholding instead of fixed Hot Threshold.">(?)</span></label>
                                 </div>
                             </div>
 
                             <h5 style="color: #64748b; margin: 15px 0 10px 0; font-size: 0.9em;">Adaptive Threshold (MAD-based)</h5>
 
                             <div class="control-group slider-group">
-                                <label>K Sigma <span id="adaptiveKSigmaValue">3.0</span>×</label>
+                                <label><span>K Sigma <span class="help-icon" data-tooltip="Sigma multiplier for adaptive threshold calculation. Higher = stricter (fewer detections).">(?)</span></span> <span><span id="adaptiveKSigmaValue">3.0</span>×</label>
                                 <input type="range" id="adaptiveKSigmaSlider" min="24" max="80" value="48" step="1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Threshold Min <span id="adaptiveThMinValue">1.8</span>°C</label>
+                                <label><span>Threshold Min <span class="help-icon" data-tooltip="Minimum allowed adaptive threshold floor in °C.">(?)</span></span> <span><span id="adaptiveThMinValue">1.8</span>°C</span></label>
                                 <input type="range" id="adaptiveThMinSlider" min="25" max="150" value="90" step="5">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Threshold Max <span id="adaptiveThMaxValue">7.0</span>°C</label>
+                                <label><span>Threshold Max <span class="help-icon" data-tooltip="Maximum allowed adaptive threshold ceiling in °C.">(?)</span></span> <span><span id="adaptiveThMaxValue">7.0</span>°C</span></label>
                                 <input type="range" id="adaptiveThMaxSlider" min="100" max="400" value="350" step="10">
                             </div>
                             <!-- End Adaptive Threshold -->
@@ -928,12 +979,12 @@
                             <h5 style="color: #64748b; margin: 15px 0 10px 0; font-size: 0.9em;">Tracking</h5>
 
                             <div class="control-group slider-group">
-                                <label>Min Track Age <span id="trackAgeValue">1.0</span> s</label>
+                                <label><span>Min Track Age <span class="help-icon" data-tooltip="Minimum time a track must be active to be confirmed as a person.">(?)</span></span> <span><span id="trackAgeValue">1.0</span> s</span></label>
                                 <input type="range" id="trackAgeSlider" min="0.1" max="5.0" value="1.0" step="0.1">
                             </div>
 
                             <div class="control-group slider-group">
-                                <label>Max Missed <span id="trackMissedValue">1.0</span> s</label>
+                                <label><span>Max Missed <span class="help-icon" data-tooltip="Maximum time a track can be missing before it is deleted.">(?)</span></span> <span><span id="trackMissedValue">1.0</span> s</span></label>
                                 <input type="range" id="trackMissedSlider" min="0.1" max="10.0" value="1.0" step="0.1">
                             </div>
                         </div>
@@ -944,12 +995,12 @@
                         <h4 style="color: #64748b; margin: 10px 0;">Temperature Range</h4>
 
                         <div class="control-group slider-group">
-                            <label>Min Temperature <span id="tempMinValue">22.0</span>°C</label>
+                            <label><span>Min Temperature <span class="help-icon" data-tooltip="Minimum expected temperature for detection. Defines the 0-point for internal processing. Set lower than coolest object.">(?)</span></span> <span><span id="tempMinValue">22.0</span>°C</span></label>
                             <input type="range" id="tempMinSlider" min="0" max="1500" value="1100" step="50">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Max Temperature <span id="tempMaxValue">33.0</span>°C</label>
+                            <label><span>Max Temperature <span class="help-icon" data-tooltip="Maximum expected temperature for detection. Defines the 255-point for internal processing. Set higher than warmest object.">(?)</span></span> <span><span id="tempMaxValue">33.0</span>°C</span></label>
                             <input type="range" id="tempMaxSlider" min="0" max="2500" value="1650" step="50">
                         </div>
                     </div>
@@ -959,22 +1010,22 @@
                         <h4 style="color: #64748b; margin: 10px 0;">LoG Processing (Advanced)</h4>
 
                         <div class="control-group slider-group">
-                            <label>Cold Gate <span id="logGateLValue">50</span> px</label>
+                            <label><span>Cold Gate <span class="help-icon" data-tooltip="Cold LoG area gate threshold. Controls when cold detection runs based on scene area. Lower = more sensitive.">(?)</span></span> <span><span id="logGateLValue">50</span> px</span></label>
                             <input type="range" id="logGateLSlider" min="5" max="500" value="50" step="5">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Hot Gate <span id="logGateHValue">5</span> px</label>
+                            <label><span>Hot Gate <span class="help-icon" data-tooltip="Hot LoG area gate threshold. Controls when hot detection runs. Lower = more sensitive.">(?)</span></span> <span><span id="logGateHValue">5</span> px</span></label>
                             <input type="range" id="logGateHSlider" min="5" max="100" value="5" step="1">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Cold Percentile <span id="percentileLValue">0.50</span></label>
+                            <label><span>Cold Percentile <span class="help-icon" data-tooltip="Cold LoG percentile threshold. Higher = stricter (fewer cold blobs); Lower = more sensitive.">(?)</span></span> <span><span id="percentileLValue">0.50</span></span></label>
                             <input type="range" id="percentileLSlider" min="0" max="256" value="128" step="1">
                         </div>
 
                         <div class="control-group slider-group">
-                            <label>Hot Percentile <span id="percentileHValue">0.50</span></label>
+                            <label><span>Hot Percentile <span class="help-icon" data-tooltip="Hot LoG percentile threshold. Higher = stricter (fewer hot blobs); Lower = more sensitive.">(?)</span></span> <span><span id="percentileHValue">0.50</span></span></label>
                             <input type="range" id="percentileHSlider" min="0" max="256" value="128" step="1">
                         </div>
                     </div>
@@ -984,7 +1035,7 @@
                         <h4 style="color: #64748b; margin: 10px 0;">Background Learning</h4>
 
                         <div class="control-group slider-group">
-                            <label>gamma_ema: <span id="gammaEmaValue">0.10</span>× <span style="color: #64748b; font-size: 0.85em;"></span></label>
+                            <label><span>gamma_ema: <span class="help-icon" data-tooltip="EMA background learning rate. Controls how fast the background model adapts. Lower = preserves stationary people; Higher = adapts faster.">(?)</span></span> <span><span id="gammaEmaValue">0.10</span>× <span style="color: #64748b; font-size: 0.85em;"></span></span></label>
                             <input type="range" id="gammaEmaSlider" min="3" max="128" value="26" step="1">
                         </div>
                     </div>
