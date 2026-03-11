@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]>      <html class="no-js"> <!--<![endif]-->
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Pressure</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#0d6efd">
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon.png">
+        <!-- PWA Manifest -->
+        <link rel="manifest" href="manifest.webmanifest">
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="#">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="#">Pressure</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link active" aria-current="page" href="#">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#chart">Chart</a></li>
+                    </ul>
+                    <div class="d-flex">
+                        <button class="btn btn-outline-light btn-sm" onclick="window.location.reload()">Refresh</button>
+                        <button id="btnHelp" class="btn btn-outline-info btn-sm ms-2">Help</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container py-4">
+            <h1 class="display-5 fw-bold mb-3"><img src="img/favicon.png">Pressure</h1>
+            <!-- Top Connect/Disconnect -->
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <button id="btnConnect" class="btn btn-success btn-sm">Connect</button>
+                <button id="btnDisconnect" class="btn btn-outline-secondary btn-sm" disabled>Disconnect</button>
+                <span id="idnInfo" class="ms-2 small text-muted"></span>
+            </div>
+            <!-- Panel + Chart row -->
+            <div class="row mb-4">
+                <!-- Left panel -->
+                <div class="col-12 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Panel</h5>
+                            <p class="text-muted mb-3">Controls and status</p>
+                            <div class="vstack gap-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">Connection</span>
+                                    <span id="connStatus" class="badge text-bg-secondary">Disconnected</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">Chip Status</span>
+                                    <span id="chipStatus" class="text-muted">–</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">I2C</span>
+                                    <span id="i2cStatus" class="badge text-bg-secondary">Disconnected</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">SPI</span>
+                                    <span id="spiStatus" class="badge text-bg-secondary">Not implemented yet</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">Rate</span>
+                                    <span id="rateText" class="text-muted">5 points/sec</span>
+                                </div>
+                                <div class="mt-2">
+                                    <label for="rateSlider" class="form-label mb-1">Adjust rate (pts/sec)</label>
+                                    <input id="rateSlider" type="range" class="form-range" min="1" max="10" step="1" value="5">
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="fw-semibold">Window</span>
+                                    <span class="text-muted">50 points</span>
+                                </div>
+                                <div>
+                                    <button id="btnSeed" class="btn btn-outline-primary btn-sm">Seed 8 points</button>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between mt-2">
+                                    <span class="fw-semibold">Stats</span>
+                                    <span class="text-muted">
+                                        Min: <span id="statMin">–</span>
+                                        Max: <span id="statMax">–</span>
+                                        Avg: <span id="statAvg">–</span>
+                                    </span>
+                                </div>
+                                <div class="mt-2">
+                                    <button id="btnExportCsv" class="btn btn-outline-dark btn-sm">Export CSV</button>
+                                </div>
+                                <!-- Removed panel Connect/Disconnect; using top buttons -->
+                                <div class="mt-2 d-flex gap-2">
+                                    <button id="btnDemo" class="btn btn-primary btn-sm">Start</button>
+                                    <button id="btnStop" class="btn btn-outline-secondary btn-sm" disabled>Stop</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right chart -->
+                <div class="col-12 col-lg-8">
+                    <div id="chart" class="card h-100">
+                        <div class="card-body p-1">
+                            <h6 class="card-subtitle mb-1 text-muted">Live Pressure Chart</h6>
+                            <div class="chart-container" style="position: relative; height: 420px; width: 100%; padding: 0; margin: 0;">
+                                <canvas id="pressureChart" style="width: 100%; display: block; margin: 0; padding: 0;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug output (serial/I2C communication) -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Debug</h6>
+                            <pre id="debugLog" class="small font-monospace bg-light p-2 mb-0" style="max-height: 260px; overflow: auto; white-space: pre-wrap;"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Help Modal -->
+        <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="helpModalLabel">Help / README</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Help content tabs">
+                                <button type="button" id="helpTabReadme" class="btn btn-primary">README</button>
+                                <button type="button" id="helpTabLicense" class="btn btn-outline-primary">LICENSE</button>
+                            </div>
+                        </div>
+                        <div id="helpContent" class="markdown-body">
+                            <div class="text-muted small">Loading…</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <small class="text-muted me-auto">Licensed under MPL-2.0 — see <a href="LICENSE" target="_blank">LICENSE</a>.</small>
+                        <a href="README.md" target="_blank" class="btn btn-link">Open raw README</a>
+                        <a href="LICENSE" target="_blank" class="btn btn-link">Open LICENSE</a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bootstrap JS (includes Popper) -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <!-- Markdown renderer -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <!-- Service Worker registration -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .catch(err => console.warn('SW registration failed', err));
+                });
+            }
+        </script>
+        <script>
+            (function () {
+                const ctx = document.getElementById('pressureChart');
+                if (!ctx) return;
+
+                const data = {
+                    labels: [],
+                    datasets: [{
+                        label: 'Pressure (psi)',
+                        data: [],
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,0.15)',
+                        tension: 0.25,
+                        pointRadius: 2,
+                    }]
+                };
+
+                let chart = null;
+                if (typeof Chart === 'function') {
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { title: { display: true, text: 'Time' } },
+                                y: { title: { display: true, text: 'psi' } }
+                            },
+                            layout: {
+                                padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                            },
+                            plugins: {
+                                legend: { display: true },
+                                tooltip: { enabled: true }
+                            }
+                        }
+                    });
+                } else {
+                    console.warn('Chart.js not loaded; demo will run without rendering.');
+                }
+
+                // Background sampling timer (used by Start/Stop)
+                let timer = null;
+                let timerCallback = null;
+                let t0 = Date.now();
+                const maxPoints = 50;
+                let pointsPerSecond = 5; // default
+                const randPsi = (prev) => {
+                    const base = prev ?? 32;
+                    const jitter = (Math.random() - 0.5) * 2.0; // ±1.0
+                    const next = Math.max(25, Math.min(45, base + jitter));
+                    return Number(next.toFixed(2));
+                };
+
+                function addPoint() {
+                    const elapsed = Math.floor((Date.now() - t0) / 1000);
+                    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                    const ss = String(elapsed % 60).padStart(2, '0');
+                    const label = `${mm}:${ss}`;
+                    const arr = data.datasets[0].data;
+                    const nextVal = randPsi(arr.length ? arr[arr.length - 1] : undefined);
+                    data.labels.push(label);
+                    arr.push(nextVal);
+                    if (arr.length > maxPoints) {
+                        data.labels.shift();
+                        arr.shift();
+                    }
+                    if (chart) chart.update('none');
+                    updateStats();
+                }
+
+                function intervalMsFromRate() {
+                    return Math.max(50, Math.floor(1000 / pointsPerSecond));
+                }
+
+                function addPointValue(value) {
+                    const elapsed = Math.floor((Date.now() - t0) / 1000);
+                    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                    const ss = String(elapsed % 60).padStart(2, '0');
+                    const label = `${mm}:${ss}`;
+                    const arr = data.datasets[0].data;
+                    data.labels.push(label);
+                    arr.push(Number(value));
+                    if (arr.length > maxPoints) {
+                        data.labels.shift();
+                        arr.shift();
+                    }
+                    if (chart) chart.update('none');
+                    updateStats();
+                }
+
+                let isSpiConnected = false;
+                let spiPollInFlight = false;
+                let spiReadCommand = ':SPI:READ 4';
+                let spiReadCommandProbed = false;
+
+                function parseSpiRead4Bytes(lines) {
+                    // Expected:
+                    // :SPI:READ 4
+                    // 00,00,00,00
+                    // (OK)>
+                    // Treat comma-separated tokens as hex bytes.
+                    const arr = Array.isArray(lines) ? lines : String(lines ?? '').split('\n');
+                    for (let i = 0; i < arr.length; i++) {
+                        const s = String(arr[i] ?? '').trim();
+                        if (!s) continue;
+                        if (s.includes('(OK)>')) continue;
+                        if (!s.includes(',')) continue;
+                        const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+                        if (parts.length < 4) continue;
+                        const bytes = [];
+                        for (let j = 0; j < parts.length && bytes.length < 4; j++) {
+                            const token = parts[j];
+                            if (!/^(?:0x)?[0-9a-fA-F]{1,2}$/.test(token)) {
+                                bytes.length = 0;
+                                break;
+                            }
+                            const n = parseInt(token.replace(/^0x/i, ''), 16);
+                            if (!Number.isFinite(n) || n < 0 || n > 255) {
+                                bytes.length = 0;
+                                break;
+                            }
+                            bytes.push(n);
+                        }
+                        if (bytes.length === 4) return bytes;
+                    }
+                    return null;
+                }
+
+                function parseByteTokens(lines) {
+                    const out = [];
+                    const arr = Array.isArray(lines) ? lines : String(lines ?? '').split('\n');
+                    for (let i = 0; i < arr.length; i++) {
+                        const s = String(arr[i] ?? '');
+                        if (!s) continue;
+                        if (s.includes('(OK)>')) continue;
+                        const matches = s.match(/0x[0-9a-fA-F]+|\b[0-9a-fA-F]{1,2}\b|\b\d+\b/g);
+                        if (!matches) continue;
+                        for (const m of matches) {
+                            const token = String(m);
+                            const n = token.toLowerCase().startsWith('0x')
+                                ? parseInt(token.replace(/^0x/i, ''), 16)
+                                : (/^[0-9a-fA-F]{2}$/.test(token) ? parseInt(token, 16) : parseInt(token, 10));
+                            if (Number.isFinite(n) && n >= 0 && n <= 255) out.push(n);
+                        }
+                    }
+                    return out;
+                }
+
+                async function pollSpiRead4AndPlot() {
+                    if (spiPollInFlight) return;
+                    if (!isSpiConnected) return;
+                    if (!port || !writer || !inputStream) return;
+                    spiPollInFlight = true;
+                    try {
+                        // Send with only '\n' terminator.
+                        // Some firmwares are case/colon sensitive; probe a few variants once and keep the first one that answers.
+                        const candidates = spiReadCommandProbed
+                            ? [spiReadCommand]
+                            : [':SPI:READ 4', ':spi:read 4',];
+
+                        let lines = null;
+                        let lastErr = null;
+                        for (let i = 0; i < candidates.length; i++) {
+                            const cmd = candidates[i];
+                            try {
+                                lines = await scpi_command(cmd, { timeoutMs: 5000, idleMs: 250, allowIdleReturn: true });
+                                spiReadCommand = cmd;
+                                spiReadCommandProbed = true;
+                                break;
+                            } catch (e) {
+                                lastErr = e;
+                                const msg = String(e?.message || e);
+                                // If we got any response at all (e.g. (ERROR)>), stop probing and surface it.
+                                if (!msg.includes('Timeout waiting for response')) {
+                                    spiReadCommand = cmd;
+                                    spiReadCommandProbed = true;
+                                    throw e;
+                                }
+                            }
+                        }
+
+                        if (!lines) {
+                            throw lastErr || new Error('Timeout waiting for response');
+                        }
+
+                        const parsed = parseSpiRead4Bytes(lines);
+                        const bytes = parsed || parseByteTokens(lines).slice(0, 4);
+                        if (bytes.length !== 4) {
+                            debugPrint(`${spiReadCommand} returned ${bytes.length} byte(s): ${bytes.join(', ')}`);
+                            return;
+                        }
+                        const mean = (bytes[0] + bytes[1] + bytes[2] + bytes[3]) / 4.0;
+                        addPointValue(Number(mean.toFixed(2)));
+                    } catch (e) {
+                        debugPrint(`${spiReadCommand} failed: ${String(e?.message || e)}`);
+                    } finally {
+                        spiPollInFlight = false;
+                    }
+                }
+
+                function startStream() {
+                    if (timer) return false;
+                    if (!port || !writer || !inputStream) {
+                        debugPrint('Start ignored: not connected');
+                        return false;
+                    }
+                    if (!isSpiConnected) {
+                        debugPrint('Start ignored: SPI not connected');
+                        return false;
+                    }
+                    t0 = Date.now();
+                    timerCallback = () => { void pollSpiRead4AndPlot(); };
+                    timer = setInterval(timerCallback, intervalMsFromRate());
+                    return true;
+                }
+
+                function stopStream() {
+                    if (!timer) return;
+                    clearInterval(timer);
+                    timer = null;
+                    timerCallback = null;
+                    spiPollInFlight = false;
+                }
+
+                // USB CDC via Web Serial API
+                let port = null;
+                let reader = null;
+                let writer = null;
+                let inputStream = null;
+                let connectInProgress = false;
+                let serialPumpTask = null;
+                let serialRxBuffer = '';
+                let serialWaiters = [];
+
+                const debugLogEl = () => document.getElementById('debugLog');
+                const debugBuffer = [];
+                const DEBUG_MAX_LINES = 300;
+                function clearDebugLog() {
+                    debugBuffer.splice(0, debugBuffer.length);
+                    const el = debugLogEl();
+                    if (el) el.textContent = '';
+                }
+                function debugPrint(line) {
+                    const el = debugLogEl();
+                    const ts = new Date();
+                    const hh = String(ts.getHours()).padStart(2, '0');
+                    const mm = String(ts.getMinutes()).padStart(2, '0');
+                    const ss = String(ts.getSeconds()).padStart(2, '0');
+                    const msg = `[${hh}:${mm}:${ss}] ${line}`;
+                    debugBuffer.push(msg);
+                    if (debugBuffer.length > DEBUG_MAX_LINES) {
+                        debugBuffer.splice(0, debugBuffer.length - DEBUG_MAX_LINES);
+                    }
+                    if (el) {
+                        el.textContent = debugBuffer.join('\n') + '\n';
+                        el.scrollTop = el.scrollHeight;
+                    }
+                }
+
+                function debugTx(command) { debugPrint(`TX: ${command}`); }
+                function debugRx(lines) {
+                    // Accept either the array returned from scpi_command (possibly with .raw)
+                    // or a raw string. Do not trim; blank lines matter.
+                    if (typeof lines === 'string') {
+                        const parts = lines.split('\n');
+                        for (let i = 0; i < parts.length; i++) {
+                            // Keep empty segments to represent blank lines / trailing newline
+                            debugPrint(`RX: ${parts[i]}`);
+                        }
+                        return;
+                    }
+
+                    const raw = lines && typeof lines.raw === 'string' ? lines.raw : null;
+                    if (raw != null) {
+                        debugRx(raw);
+                        return;
+                    }
+
+                    if (!Array.isArray(lines)) {
+                        debugPrint(`RX: ${String(lines)}`);
+                        return;
+                    }
+                    for (let i = 0; i < lines.length; i++) {
+                        debugPrint(`RX: ${String(lines[i])}`);
+                    }
+                }
+
+                function notifySerialWaiters() {
+                    if (!serialWaiters.length) return;
+                    const waiters = serialWaiters;
+                    serialWaiters = [];
+                    for (const resolve of waiters) resolve();
+                }
+
+                function waitForSerialData(timeoutMs = 25) {
+                    return new Promise((resolve) => {
+                        let finished = false;
+                        const done = () => {
+                            if (finished) return;
+                            finished = true;
+                            resolve();
+                        };
+                        serialWaiters.push(done);
+                        setTimeout(done, timeoutMs);
+                    });
+                }
+
+                function startSerialPump() {
+                    if (!inputStream || serialPumpTask) return;
+                    reader = inputStream.getReader();
+                    serialPumpTask = (async () => {
+                        try {
+                            while (port && reader) {
+                                const { value, done } = await reader.read();
+                                if (done) break;
+                                if (!value) continue;
+                                serialRxBuffer += value;
+                                notifySerialWaiters();
+                            }
+                        } catch (e) {
+                            // Ignore during disconnect/cancel.
+                        } finally {
+                            notifySerialWaiters();
+                            serialPumpTask = null;
+                        }
+                    })();
+                }
+
+                async function stopSerialPump() {
+                    if (reader) {
+                        try { await reader.cancel(); } catch {}
+                        try { reader.releaseLock(); } catch {}
+                        reader = null;
+                    }
+                    if (serialPumpTask) {
+                        try { await serialPumpTask; } catch {}
+                        serialPumpTask = null;
+                    }
+                    serialRxBuffer = '';
+                    notifySerialWaiters();
+                }
+
+                const I2CADDR = '0x33';
+
+                const SCPI_OK_DEFAULTS = Object.freeze({
+                    timeoutMs: 5000,
+                    idleMs: 300,
+                    // End-of-response prompt, e.g. "(OK)>", "(ERROR)>", "(SOME_CODE)>", or "(*)>".
+                    // Matches a whole line (optionally preceded by whitespace) to avoid false positives in payload.
+                    terminatorRegex: /^\s*\([A-Z0-9_*_]+\)>\s*$/,
+                    allowIdleReturn: false,
+                });
+
+                class Mlx90835Command {
+                    // Commands for the MLX90835.
+                    static WRITE = 0x80;
+                    static READ = 0x81;
+                    static READ_STATUS_BYTE = 0x0F;
+                    static START_SINGLE_MEASUREMENT_MODE = 0x1E;
+                    static START_WOC_MODE = 0x2D;
+                    static START_BURST_MODE = 0x3C;
+                    static START_CONTINUOUS_MODE = 0x4B;
+                    static START_IDLE_MODE = 0x5A;
+                    static START_MEASUREMENT = 0x69;
+                    static MEMORY_FETCH = 0x78;
+                    static MEMORY_WRITE = 0x87;
+                    static ADDRESSED_RESET = 0x96;
+                    static GLOBAL_RESET = 0xA5;
+                    static READ_MEASUREMENT = 0xB4;
+                    static CLEAR_ERROR_FLAGS = 0xC3;
+                    static CLEAR_RESET_FLAG = 0xD2;
+                }
+
+                class Mlx90835Address {
+                    // Memory addresses for registers and EEPROM locations in the MLX90835.
+                    static REG_SW_VER1 = 0xFF00;
+                    static REG_SW_VER2 = 0xFF02;
+                    static REG_HW_VER1 = 0xFF04;
+                    static REG_HW_VER2 = 0xFF06;
+                    static REG0_CRC_STRT_CALC_CRC_ADDR = 0xFF08;
+                    static REG1_N_AVG_ADC = 0xFF0A;
+                    static REG2_PRS_TEMP_DATA_FILTER = 0xFF0C;
+                    static REG3_WOC_MODE_CONFIG = 0xFF0E;
+                    static REG4_WOC_BURST_CONT_MODE_CONFIG = 0xFF10;
+                    static REG5_PRS_FILTER_CONFIG = 0xFF12;
+                    static REG6_NTC_TEMP_FILTER_CONFIG = 0xFF14;
+                    static REG7_CUST_CONF = 0xFF16;
+                    static REG_RES_EEPROM_TEST_READ_EXEC = 0xFF18;
+                    static REG_RES_EEPROM_LOCK_EXEC = 0xFF1A;
+                    static REG_BA = 0xFF1C;
+                    static REG1_PROTOCOL_ADDR = 0xFF1E;
+
+                    static EE_CHECKSUM = 0x1000;
+                    static EE_GEN_CTRL1 = 0x1002;
+                    static EE_N_AVG_CONF = 0x1004;
+                    static EE_OUT_FILT_CONF = 0x1006;
+                    static EE_WOC_VBE_NAVG_CONF = 0x1008;
+                    static EE_WOC_BURST_CONT_CONF = 0x100A;
+                    static EE_PRESS_LSM = 0x100C;
+                    static EE_NTC_ALPF = 0x100E;
+                    static EE_I2C_SPI_CONF = 0x1010;
+                    static EE_TRIM4_PADC_RANGE1 = 0x1012;
+                    static EE_TRIM4_PADC_RANGE2 = 0x1014;
+                    static EE_TRIM5 = 0x1016;
+                    static EE_VSUP_CTRL = 0x1018;
+                    static EE_P0 = 0x101A;
+                    static EE_A0 = 0x101C;
+                    static EE_A1 = 0x101E;
+                    static EE_A2 = 0x1020;
+                    static EE_A3 = 0x1022;
+                    static EE_B0 = 0x1024;
+                    static EE_B1 = 0x1026;
+                    static EE_B2 = 0x1028;
+                    static EE_B3 = 0x102A;
+                    static EE_C0 = 0x102C;
+                    static EE_C1 = 0x102E;
+                    static EE_TINT_T0 = 0x1030;
+                    static EE_TDEV_D0 = 0x1032;
+                    static EE_TDEV_D1 = 0x1034;
+                    static EE_TDEV_D2 = 0x1036;
+                    static EE_TMEMS_T0 = 0x1038;
+                    static EE_TMEMS_D0 = 0x103A;
+                    static EE_TMEMS_D1 = 0x103C;
+                    static EE_TMEMS_D2 = 0x103E;
+                    static EE_TMEMS_D3 = 0x1040;
+                    static EE_TMEMS_D4 = 0x1042;
+                    static EE_PSFT1_BASE = 0x1044;
+                    static EE_PSFT1_LIMITS = 0x1046;
+                    static EE_GLBL_ERR_MSK0_PSFT0 = 0x1048;
+                    static EE_GLBL_ERR_MASK1 = 0x104A;
+                    static EE_FILT_MASK0 = 0x104C;
+                    static EE_FILT_MASK1 = 0x104E;
+                    static EE_PATCH0_I = 0x1050;
+                    static EE_PATCH0_A = 0x1052;
+                    static EE_PATCH1_I = 0x1054;
+                    static EE_PATCH1_A = 0x1056;
+                    static EE_PATCH_AREA0 = 0x1058;
+                    static EE_PATCH_AREA1 = 0x105A;
+                    static EE_PATCH_AREA2 = 0x105C;
+                    static EE_PATCH_AREA3 = 0x105E;
+                    static EE_PATCH_AREA4 = 0x1060;
+                    static EE_PATCH_AREA5 = 0x1062;
+                    static EE_PATCH_AREA6 = 0x1064;
+                    static EE_P0_2 = 0x1066;
+                    static EE_A0_2 = 0x1068;
+                    static EE_A1_2 = 0x106A;
+                    static EE_A2_2 = 0x106C;
+                    static EE_A3_2 = 0x106E;
+                    static EE_B0_2 = 0x1070;
+                    static EE_B1_2 = 0x1072;
+                    static EE_B2_2 = 0x1074;
+                    static EE_B3_2 = 0x1076;
+                    static EE_C0_2 = 0x1078;
+                    static EE_C1_2 = 0x107A;
+                    static EE_N0 = 0x107C;
+                    static EE_N1 = 0x107E;
+                    static EE_N2 = 0x1080;
+                    static EE_N3 = 0x1082;
+                    static EE_SHA = 0x1084;
+                    static EE_SHB = 0x1086;
+                    static EE_SHC = 0x1088;
+                    static EE_NTC_CAL0 = 0x108A;
+                    static EE_MLX_CHECKSUM = 0x108C;
+                    static EE_TRIM0 = 0x108E;
+                    static EE_TRIM1 = 0x1090;
+                    static EE_TRIM2 = 0x1092;
+                    static EE_TRIM3 = 0x1094;
+                    static EE_DSP_CONF = 0x1096;
+                    static EE_VIRT_REF_CONF = 0x1098;
+                    static EE_AFE_DIG0 = 0x109A;
+                    static EE_AFE_DIG1 = 0x109C;
+                    static EE_MM0_HR = 0x109E;
+                    static EE_MM1_HR = 0x10A0;
+                    static EE_MM2_HR = 0x10A2;
+                    static EE_MM3_HR = 0x10A4;
+                    static EE_MM0_LR = 0x10A6;
+                    static EE_MM1_LR = 0x10A8;
+                    static EE_MM2_LR = 0x10AA;
+                    static EE_MM3_LR = 0x10AC;
+                    static EE_RP0 = 0x10AE;
+                    static EE_RP1 = 0x10B0;
+                    static EE_RP2 = 0x10B2;
+                    static EE_RP3 = 0x10B4;
+                    static EE_ANA_DIAG0 = 0x10B6;
+                    static EE_ANA_DIAG1 = 0x10B8;
+                    static EE_VZERO_THRD = 0x10BA;
+                    static EE_VIRT_REF_TDIE = 0x10BC;
+                    static EE_RPOLY_THRD = 0x10BE;
+                    static EE_TRACEABILITY_CP = 0x10C0;
+                    static EE_MLX_ID0_CP = 0x10C2;
+                    static EE_MLX_ID1_CP = 0x10C4;
+                    static EE_MLX_ID2_CP = 0x10C6;
+                    static EE_TRACEABILITY = 0x10C8;
+                    static EE_MLX_ID0 = 0x10CA;
+                    static EE_MLX_ID1 = 0x10CC;
+                    static EE_MLX_ID2 = 0x10CE;
+
+                    static CSMDMA_OFFSET = 0xFF1E;
+                }
+
+                function hexByte(value) {
+                    const v = Number(value) & 0xFF;
+                    return '0x' + v.toString(16).toUpperCase().padStart(2, '0');
+                }
+
+                // CRC-8/CCITT
+                // - Polynomial: 0x07 (x^8 + x^2 + x + 1)
+                // - Init: 0x00
+                // - No reflection, no xorout
+                function crc8CCIT(data, dataSize) {
+                    const size = Number.isFinite(dataSize) ? Math.max(0, Number(dataSize) | 0) : (data?.length ?? 0);
+                    let crc = 0x00;
+                    for (let i = 0; i < size; i++) {
+                        const byte = (Number(data[i]) & 0xFF) >>> 0;
+                        crc ^= byte;
+                        for (let bit = 0; bit < 8; bit++) {
+                            if (crc & 0x80) {
+                                crc = ((crc << 1) ^ 0x07) & 0xFF;
+                            } else {
+                                crc = (crc << 1) & 0xFF;
+                            }
+                        }
+                    }
+                    return crc & 0xFF;
+                }
+
+                function setI2cBadge(connected, detailText = '', disconnectedText = 'Disconnected') {
+                    const el = document.getElementById('i2cStatus');
+                    if (!el) return;
+                    if (connected) {
+                        el.className = 'badge text-bg-success';
+                        el.textContent = detailText ? `Connected (${detailText})` : 'Connected';
+                    } else {
+                        el.className = 'badge text-bg-secondary';
+                        el.textContent = disconnectedText;
+                    }
+                }
+
+                function setChipStatus(hexText) {
+                    const el = document.getElementById('chipStatus');
+                    if (!el) return;
+                    el.textContent = hexText || '–';
+                }
+
+                function decodeStatusByte(statusByte) {
+                    // Port of the provided Python decode_response() logic.
+                    const response = (Number(statusByte) & 0xFF) >>> 0;
+                    let msg = (response & 0x80) ? 'RST\t' : '...\t';
+                    const mode = (response & 0x70) >> 4;
+                    switch (mode) {
+                        case 0: msg += 'mode=start-up\t'; break;
+                        case 1: msg += 'mode=Cont. \t'; break;
+                        case 2: msg += 'mode=Sgl Meas\t'; break;
+                        case 3: msg += 'mode=Brst\t'; break;
+                        case 4: msg += 'mode=WOC\t'; break;
+                        case 5: msg += 'mode=Idle\t'; break;
+                        case 6: msg += 'mode=UNKOWN\t'; break;
+                        case 7: msg += 'mode=FAILSAFE\t'; break;
+                        default: break;
+                    }
+                    if (response & 0x08) msg += 'COMM_ERROR\t';
+                    if (response & 0x04) msg += 'EXEC_ERROR\t';
+                    if (response & 0x02) msg += 'DATA RDY\t';
+                    if (response & 0x01) msg += 'Parity\t';
+                    return msg;
+                }
+
+                function setChipStatusDecoded(hexText, statusByte) {
+                    const el = document.getElementById('chipStatus');
+                    if (!el) return;
+                    if (!hexText || hexText === '–' || !Number.isFinite(statusByte)) {
+                        el.textContent = hexText || '–';
+                        el.removeAttribute('title');
+                        return;
+                    }
+
+                    const decodedRaw = decodeStatusByte(statusByte);
+                    const decodedDisplay = decodedRaw.replace(/\t+/g, ' ').trim();
+                    el.textContent = decodedDisplay ? `${hexText} — ${decodedDisplay}` : hexText;
+                    // Keep the original tabbed format available on hover.
+                    el.title = decodedRaw.trim();
+                }
+
+                function setSpiBadge(connected, detailText = '', disconnectedText = 'Not implemented yet') {
+                    const el = document.getElementById('spiStatus');
+                    if (!el) return;
+                    isSpiConnected = !!connected;
+                    if (connected) {
+                        el.className = 'badge text-bg-success';
+                        el.textContent = detailText ? `Connected (${detailText})` : 'Connected';
+                    } else {
+                        el.className = 'badge text-bg-secondary';
+                        el.textContent = disconnectedText;
+                    }
+                }
+
+                async function setSpiContinuousMode(source = 'start') {
+                    await scpi_command(`:SPI:EXCH 1, ${hexByte(Mlx90835Command.START_CONTINUOUS_MODE)}`);
+                    debugPrint(`SPI continuous mode requested (${source})`);
+                }
+
+                async function trySpiStatusByte() {
+                    // :SPI:EXCH ... -> <number> + (OK)>
+                    try {
+                        // Best-effort: clear error + reset flags before reading status.
+                        // Mirrors the Python examples: CLEAR_ERROR_FLAGS, CLEAR_RESET_FLAG, then status_check().
+                        try {
+                            await scpi_command(`:SPI:EXCH 1, ${hexByte(Mlx90835Command.CLEAR_ERROR_FLAGS)}`);
+                            await scpi_command(`:SPI:EXCH 1, ${hexByte(Mlx90835Command.CLEAR_RESET_FLAG)}`);
+                        } catch (e) {
+                            // Non-fatal; continue with status read.
+                            debugPrint(`SPI clear flags skipped: ${String(e?.message || e)}`);
+                        }
+
+                        const exchLines = await scpi_command(
+                            `:SPI:EXCH 1, ${hexByte(Mlx90835Command.READ_STATUS_BYTE)}`
+                        );
+                        // If the EXCHANGE doesn't end with OK prompt, treat it as "not present".
+                        if (!Array.isArray(exchLines) || !exchLines.some(l => String(l).includes('(OK)>'))) {
+                            setSpiBadge(false, '', 'Not present');
+                            return { ok: false, notPresent: true };
+                        }
+
+                        // Find first data line (non-prompt) and parse as hex chip status.
+                        const dataLine = exchLines.find((l) => {
+                            const s = String(l);
+                            if (s.includes('(OK)>')) return false;
+                            return /0x[0-9a-f]+|\b[0-9a-f]{1,8}\b/i.test(s);
+                        });
+                        const raw = dataLine != null ? String(dataLine) : '';
+                        let parsed = NaN;
+                        const m = raw.match(/0x[0-9a-f]+|\b[0-9a-f]{1,8}\b/i);
+                        if (m) parsed = parseInt(m[0].replace(/^0x/i, ''), 16);
+                        if (!Number.isFinite(parsed)) {
+                            setSpiBadge(false, '', 'Not present');
+                            return { ok: false, notPresent: true };
+                        }
+
+                        const hex = '0x' + parsed.toString(16).toUpperCase();
+                        setChipStatusDecoded(hex, parsed & 0xFF);
+                        setSpiBadge(true);
+
+                        // After status check, put device in Continuous mode (best-effort).
+                        try {
+                            await setSpiContinuousMode('connect');
+                        } catch (e) {
+                            debugPrint(`SPI set continuous mode skipped: ${String(e?.message || e)}`);
+                        }
+                        return { ok: true, notPresent: false };
+                    } catch (e) {
+                        console.debug('SPI status read failed', e);
+                        debugPrint(`SPI status read failed: ${String(e?.message || e)}`);
+                        setSpiBadge(false, '', 'Failed');
+                        return { ok: false, notPresent: false };
+                    }
+                }
+
+                async function startSpiFallback() {
+                    // Requested SPI bring-up sequence when I2C device is not present.
+                    // Best-effort: each command is sent as SCPI and expected to end with (OK)>.
+                    try {
+                        debugPrint('--- SPI FALLBACK ---');
+                        setSpiBadge(false, '', 'Initializing…');
+
+                        await scpi_command(':I2C:DEINIT');
+                        await scpi_command(':SPI:INIT 2');
+                        await scpi_command(':SPI:BUF 1,1,1,1,0');
+                        await scpi_command(':VDD:3V3');
+
+                        const spi = await trySpiStatusByte();
+                        return !!spi?.ok;
+                    } catch (e) {
+                        console.debug('SPI fallback failed', e);
+                        debugPrint(`SPI fallback failed: ${String(e?.message || e)}`);
+                        setSpiBadge(false, '', 'Failed');
+                        return false;
+                    }
+                }
+
+                async function tryI2cHandshake() {
+                    // Expect :I2C:INIT -> (OK)>
+                    // Then :I2C:EXCHANGE ... -> <number> + (OK)>
+                    try {
+                        setChipStatus('–');
+                        const initLines = await scpi_command(':I2C:INIT');
+                        const initOk = Array.isArray(initLines) && initLines.some(l => String(l).includes('(OK)>'));
+                        if (!initOk) {
+                            setI2cBadge(false);
+                            return { ok: false, notPresent: false };
+                        }
+
+                        const exchLines = await scpi_command(
+                            `:I2C:EXCHANGE ${I2CADDR}, 1, ${hexByte(Mlx90835Command.WRITE)}, ${hexByte(Mlx90835Command.READ_STATUS_BYTE)}`
+                        );
+                        // If the EXCHANGE doesn't end with OK prompt, treat it as "not present" (no I2C device ACK / bridge can't reach slave).
+                        if (!Array.isArray(exchLines) || !exchLines.some(l => String(l).includes('(OK)>'))) {
+                            setI2cBadge(false, '', 'Not present');
+                            return { ok: false, notPresent: true };
+                        }
+
+                        // Find first data line (non-prompt) and parse as hex chip status.
+                        const dataLine = exchLines.find((l) => {
+                            const s = String(l);
+                            if (s.includes('(OK)>')) return false;
+                            return /0x[0-9a-f]+|\b[0-9a-f]{1,8}\b/i.test(s);
+                        });
+                        const raw = dataLine != null ? String(dataLine) : '';
+                        let parsed = NaN;
+                        const m = raw.match(/0x[0-9a-f]+|\b[0-9a-f]{1,8}\b/i);
+                        if (m) parsed = parseInt(m[0].replace(/^0x/i, ''), 16);
+                        if (!Number.isFinite(parsed)) {
+                            setI2cBadge(false, '', 'Not present');
+                            return { ok: false, notPresent: true };
+                        }
+
+                        const hex = '0x' + parsed.toString(16).toUpperCase();
+                        setChipStatusDecoded(hex, parsed & 0xFF);
+                        setI2cBadge(true);
+                        return { ok: true, notPresent: false };
+                    } catch (e) {
+                        console.debug('I2C handshake failed', e);
+                        debugPrint(`I2C handshake failed: ${String(e?.message || e)}`);
+                        setChipStatus('–');
+                        setI2cBadge(false);
+                        return { ok: false, notPresent: false };
+                    }
+                }
+                async function connectSerial() {
+                    if (!('serial' in navigator)) {
+                        alert('Web Serial API not supported in this browser. Use Chrome/Edge.');
+                        return;
+                    }
+                    if (connectInProgress) {
+                        // Prevent overlapping requestPort() prompts (InvalidStateError).
+                        return;
+                    }
+                    connectInProgress = true;
+                    try {
+                        setI2cBadge(false);
+                        setChipStatus('–');
+                        setSpiBadge(false);
+                        clearDebugLog();
+                        debugPrint('--- CONNECT ---');
+
+                        // Disable Connect immediately (before opening chooser) to avoid double-click races.
+                        const btnC0 = document.getElementById('btnConnect');
+                        if (btnC0) btnC0.disabled = true;
+
+                        // Always request a port fresh and open it
+                        port = await navigator.serial.requestPort();
+                        await new Promise(r => setTimeout(r, 150));
+                        // Match MelexisIO defaults (can be adjusted if device requires 9600)
+                        await port.open({ baudRate: 921600, dataBits: 7, stopBits: 2, parity: 'odd' });
+                        const textDecoder = new TextDecoderStream();
+                        port.readable.pipeTo(textDecoder.writable);
+                        inputStream = textDecoder.readable;
+                        const textEncoder = new TextEncoderStream();
+                        textEncoder.readable.pipeTo(port.writable);
+                        writer = textEncoder.writable.getWriter();
+                        startSerialPump();
+                        // UI state
+                        const btnC = document.getElementById('btnConnect');
+                        const btnD = document.getElementById('btnDisconnect');
+                        const badge = document.getElementById('connStatus');
+                        if (btnC) { btnC.disabled = true; btnC.classList.add('disabled'); btnC.classList.remove('btn-success'); btnC.classList.add('btn-secondary'); }
+                        if (btnD) { btnD.disabled = false; btnD.classList.remove('disabled', 'btn-outline-secondary'); btnD.classList.add('btn-success'); }
+                        if (badge) { badge.className = 'badge text-bg-success'; badge.textContent = 'Connected'; }
+                        // Query ID and show it next to Disconnect BEFORE starting background read loop
+                        try {
+                            const lines = await scpi_command('*IDN?', { timeoutMs: 5000, idleMs: 500, terminatorRegex: /\s*\)>/, allowIdleReturn: true });
+                            const el = document.getElementById('idnInfo');
+                            if (el) el.textContent = Array.isArray(lines) ? lines.join(' | ') : String(lines);
+                        } catch (e) {
+                            console.debug('IDN query failed', e);
+                            debugPrint(`IDN failed: ${String(e?.message || e)}`);
+                        }
+
+                        // I2C handshake (best-effort): updates I2C status badge
+                        const i2c = await tryI2cHandshake();
+                        if (i2c && i2c.notPresent) {
+                            await startSpiFallback();
+                        }
+                    } catch (err) {
+                        const errName = String(err?.name || '');
+                        // User canceled chooser or another requestPort prompt is already active.
+                        // Do not show failure alerts in these expected cases.
+                        if (errName === 'NotFoundError') {
+                            console.debug('Serial port selection canceled or already in progress', err);
+                            debugPrint('Connect canceled');
+                            return;
+                        }
+                        if (errName === 'InvalidStateError') {
+                            console.debug('Serial port selection already in progress', err);
+                            debugPrint('Connect already in progress');
+                            return;
+                        }
+                        console.error('Serial connect error', err);
+                        debugPrint(`Connect error: ${String(err?.message || err)}`);
+                        alert('Failed to connect to serial device.');
+                    } finally {
+                        connectInProgress = false;
+                        // If we failed to connect, re-enable the Connect button.
+                        if (!port) {
+                            const btnC = document.getElementById('btnConnect');
+                            if (btnC) btnC.disabled = false;
+                        }
+                    }
+                }
+
+                async function disconnectSerial() {
+                    try {
+                        debugPrint('--- DISCONNECT ---');
+                        stopStream();
+                        await stopSerialPump();
+                        if (writer) {
+                            try { await writer.close(); } catch {}
+                            try { writer.releaseLock(); } catch {}
+                            writer = null;
+                        }
+                        // Small settle delay to allow underlying streams to tear down
+                        await new Promise(r => setTimeout(r, 200));
+                        if (port) { try { await port.close(); } catch {} port = null; }
+                        inputStream = null;
+                    } catch (err) {
+                        console.warn('Serial disconnect issue', err);
+                    } finally {
+                        const btnC = document.getElementById('btnConnect');
+                        const btnD = document.getElementById('btnDisconnect');
+                        const idn = document.getElementById('idnInfo');
+                        const badge = document.getElementById('connStatus');
+                        if (btnC) { btnC.disabled = false; btnC.classList.remove('disabled', 'btn-secondary'); btnC.classList.add('btn-success'); }
+                        if (btnD) { btnD.disabled = true; btnD.classList.add('disabled'); btnD.classList.remove('btn-success'); btnD.classList.add('btn-outline-secondary'); }
+                        if (idn) { idn.textContent = ''; }
+                        if (badge) { badge.className = 'badge text-bg-secondary'; badge.textContent = 'Disconnected'; }
+                        setI2cBadge(false);
+                        setChipStatus('–');
+                        setSpiBadge(false);
+                    }
+                }
+
+                // Send SCPI command and read a multi-line response.
+                // Returns an array of lines. Uses idle timeout to detect end.
+                async function scpi_command(command, options = SCPI_OK_DEFAULTS) {
+                    const { timeoutMs, idleMs, terminatorRegex, allowIdleReturn } = {
+                        ...SCPI_OK_DEFAULTS,
+                        ...(options || {}),
+                    };
+                    if (!port || !writer || !inputStream) {
+                        throw new Error('Serial port not connected');
+                    }
+
+                    const termRe = terminatorRegex
+                        ? new RegExp(terminatorRegex.source, String(terminatorRegex.flags || '').replace('g', ''))
+                        : null;
+
+                    const parseResponse = (text) => {
+                        let scan = 0;
+                        const parsedLines = [];
+
+                        while (true) {
+                            const idx = text.indexOf('\n', scan);
+                            if (idx < 0) break;
+                            const line = text.slice(scan, idx);
+                            parsedLines.push(String(line));
+                            if (termRe && termRe.test(String(line))) {
+                                return {
+                                    done: true,
+                                    lines: parsedLines,
+                                    raw: text.slice(0, idx + 1),
+                                    rest: text.slice(idx + 1),
+                                };
+                            }
+                            scan = idx + 1;
+                        }
+
+                        if (termRe) {
+                            const tail = scan < text.length ? text.slice(scan) : '';
+                            if (tail && termRe.test(String(tail))) {
+                                parsedLines.push(String(tail));
+                                return {
+                                    done: true,
+                                    lines: parsedLines,
+                                    raw: text,
+                                    rest: '',
+                                };
+                            }
+                        }
+
+                        if (scan > 0) {
+                            return {
+                                done: false,
+                                lines: parsedLines,
+                                partial: text.slice(scan),
+                                raw: text,
+                            };
+                        }
+
+                        return {
+                            done: false,
+                            lines: [],
+                            partial: text,
+                            raw: text,
+                        };
+                    };
+
+                    debugTx(command);
+                    if (serialRxBuffer.trim()) {
+                        debugPrint(`RX buffer reset before TX (${serialRxBuffer.length} chars discarded)`);
+                        serialRxBuffer = '';
+                    }
+
+                    await writer.write(`${command}\n`);
+
+                    let raw = '';
+                    const start = Date.now();
+                    let lastDataTs = Date.now();
+
+                    while (Date.now() - start < timeoutMs) {
+                        if (serialRxBuffer.length !== raw.length) {
+                            raw = serialRxBuffer;
+                            lastDataTs = Date.now();
+
+                            const parsed = parseResponse(raw);
+                            if (parsed.done) {
+                                serialRxBuffer = parsed.rest;
+                                parsed.lines.raw = parsed.raw;
+                                debugRx(parsed.lines);
+                                return parsed.lines;
+                            }
+                        }
+
+                        if (allowIdleReturn && idleMs > 0 && Date.now() - lastDataTs >= idleMs && raw.length) {
+                            const parsed = parseResponse(raw);
+                            const idleLines = parsed.lines.slice();
+                            if (parsed.partial) idleLines.push(String(parsed.partial));
+                            serialRxBuffer = '';
+                            idleLines.raw = raw;
+                            debugRx(idleLines);
+                            return idleLines;
+                        }
+
+                        await waitForSerialData(25);
+                    }
+
+                    if (raw && String(raw).length) {
+                        const rawText = String(raw);
+                        debugPrint(`RX (partial, ${rawText.length} chars): ${rawText.slice(0, 200)}`);
+                        throw new Error(`Timeout waiting for response (received ${rawText.length} chars)`);
+                    }
+
+                    throw new Error('Timeout waiting for response');
+                }
+
+                // Hook up buttons (top bar)
+                document.getElementById('btnConnect')?.addEventListener('click', connectSerial);
+                document.getElementById('btnDisconnect')?.addEventListener('click', disconnectSerial);
+                document.getElementById('btnDemo')?.addEventListener('click', async () => {
+                    if (port && writer && inputStream && isSpiConnected) {
+                        try {
+                            await setSpiContinuousMode('start');
+                        } catch (e) {
+                            debugPrint(`SPI set continuous mode failed: ${String(e?.message || e)}`);
+                            return;
+                        }
+                    }
+                    const started = startStream();
+                    if (!started) return;
+                    const btnDemo = document.getElementById('btnDemo');
+                    const btnStop = document.getElementById('btnStop');
+                    if (btnDemo) { btnDemo.disabled = true; btnDemo.classList.add('disabled'); }
+                    if (btnStop) { btnStop.disabled = false; btnStop.classList.remove('disabled'); btnStop.classList.add('btn-danger'); btnStop.classList.remove('btn-outline-secondary'); }
+                });
+                document.getElementById('btnStop')?.addEventListener('click', () => {
+                    stopStream();
+                    const btnDemo = document.getElementById('btnDemo');
+                    const btnStop = document.getElementById('btnStop');
+                    if (btnDemo) { btnDemo.disabled = false; btnDemo.classList.remove('disabled'); }
+                    if (btnStop) { btnStop.disabled = true; btnStop.classList.add('disabled'); btnStop.classList.remove('btn-danger'); btnStop.classList.add('btn-outline-secondary'); }
+                });
+                // Start/Stop controls
+                document.getElementById('btnSeed')?.addEventListener('click', () => {
+                    for (let i = 0; i < 8; i++) addPoint();
+                });
+                // Rate slider control
+                const rateSlider = document.getElementById('rateSlider');
+                const rateText = document.getElementById('rateText');
+                rateSlider?.addEventListener('input', (e) => {
+                    const val = Number(rateSlider.value);
+                    pointsPerSecond = Math.min(10, Math.max(1, val));
+                    if (rateText) rateText.textContent = `${pointsPerSecond} points/sec`;
+                    // If running, restart timer with new rate
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = setInterval(timerCallback || (() => {}), intervalMsFromRate());
+                    }
+                });
+
+                // Seed with a few points
+                for (let i = 0; i < 8; i++) addPoint();
+
+                // Expose for future updates
+                window.pressureChart = chart;
+                window.startDemoPressure = startStream;
+                window.stopDemoPressure = stopStream;
+                window.crc8CCIT = crc8CCIT;
+
+                // Stats calculation and CSV export
+                function calculateStats() {
+                    const arr = data.datasets[0].data;
+                    if (!arr.length) return { min: null, max: null, avg: null };
+                    let min = Infinity, max = -Infinity, sum = 0;
+                    for (let i = 0; i < arr.length; i++) {
+                        const v = Number(arr[i]);
+                        if (Number.isFinite(v)) {
+                            if (v < min) min = v;
+                            if (v > max) max = v;
+                            sum += v;
+                        }
+                    }
+                    const avg = sum / arr.length;
+                    return { min, max, avg };
+                }
+
+                function updateStats() {
+                    const { min, max, avg } = calculateStats();
+                    const elMin = document.getElementById('statMin');
+                    const elMax = document.getElementById('statMax');
+                    const elAvg = document.getElementById('statAvg');
+                    if (elMin) elMin.textContent = (min == null ? '–' : min.toFixed(2));
+                    if (elMax) elMax.textContent = (max == null ? '–' : max.toFixed(2));
+                    if (elAvg) elAvg.textContent = (avg == null ? '–' : avg.toFixed(2));
+                }
+
+                function exportCsv() {
+                    const rows = [['time','pressure']];
+                    const labels = data.labels;
+                    const values = data.datasets[0].data;
+                    for (let i = 0; i < values.length; i++) {
+                        rows.push([labels[i] ?? '', String(values[i])]);
+                    }
+                    const csvContent = rows.map(r => r.map(field => {
+                        const s = String(field);
+                        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+                    }).join(',')).join('\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const ts = new Date().toISOString().replace(/[:.]/g,'-');
+                    a.download = `pressure-data-${ts}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+
+                document.getElementById('btnExportCsv')?.addEventListener('click', exportCsv);
+                // initial stats render
+                updateStats();
+
+                // Update connection badge
+                const badge = document.getElementById('connStatus');
+                const updateBadge = (connected) => {
+                    if (!badge) return;
+                    if (connected) {
+                        badge.className = 'badge text-bg-success';
+                        badge.textContent = 'Connected';
+                    } else {
+                        badge.className = 'badge text-bg-secondary';
+                        badge.textContent = 'Disconnected';
+                    }
+                };
+                // Initialize button states based on timer
+                (function initButtons(){
+                    const btnC = document.getElementById('btnConnect');
+                    const btnD = document.getElementById('btnDisconnect');
+                    const btnSeed = document.getElementById('btnSeed');
+                    if (btnC) btnC.disabled = !!timer;
+                    if (btnC) {
+                        btnC.classList.remove('btn-success', 'btn-secondary');
+                        btnC.classList.add(timer ? 'btn-secondary' : 'btn-success');
+                    }
+                    if (btnD) {
+                        btnD.disabled = !timer;
+                        // Style based on connection state
+                        btnD.classList.remove('btn-success', 'btn-outline-secondary');
+                        btnD.classList.add(timer ? 'btn-success' : 'btn-outline-secondary');
+                    }
+                    if (btnSeed) {
+                        btnSeed.disabled = !!timer;
+                        btnSeed.classList.remove('btn-outline-primary', 'btn-outline-secondary');
+                        btnSeed.classList.add(timer ? 'btn-outline-secondary' : 'btn-outline-primary');
+                    }
+                })();
+                updateBadge(false);
+
+                // Help modal logic
+                const helpBtn = document.getElementById('btnHelp');
+                const helpModalEl = document.getElementById('helpModal');
+                const helpContent = document.getElementById('helpContent');
+                const tabReadmeEl = document.getElementById('helpTabReadme');
+                const tabLicenseEl = document.getElementById('helpTabLicense');
+                let readmeLoaded = false;
+                let licenseLoaded = false;
+                let readmeHtml = null;
+                let licenseHtml = null;
+                let helpModalInstance = null;
+
+                function setActiveTab(which) {
+                    if (tabReadmeEl && tabLicenseEl) {
+                        if (which === 'readme') {
+                            tabReadmeEl.classList.remove('btn-outline-primary');
+                            tabReadmeEl.classList.add('btn-primary');
+                            tabLicenseEl.classList.remove('btn-primary');
+                            tabLicenseEl.classList.add('btn-outline-primary');
+                        } else {
+                            tabLicenseEl.classList.remove('btn-outline-primary');
+                            tabLicenseEl.classList.add('btn-primary');
+                            tabReadmeEl.classList.remove('btn-primary');
+                            tabReadmeEl.classList.add('btn-outline-primary');
+                        }
+                    }
+                }
+
+                function escapeHtml(s) {
+                    return s.replace(/[&<>"']/g, (ch) => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;'
+                    })[ch] || ch);
+                }
+
+                async function loadReadme() {
+                    setActiveTab('readme');
+                    if (!readmeLoaded) {
+                        helpContent.innerHTML = '<div class="text-muted small">Loading…</div>';
+                        try {
+                            const resp = await fetch('README.md', { cache: 'no-cache' });
+                            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                            const md = await resp.text();
+                            if (window.marked && typeof window.marked.parse === 'function') {
+                                readmeHtml = window.marked.parse(md);
+                            } else if (window.marked) {
+                                readmeHtml = window.marked(md);
+                            } else {
+                                readmeHtml = md.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                            }
+                            readmeLoaded = true;
+                        } catch (e) {
+                            readmeHtml = '<div class="text-danger">Failed to load README. Serve the app via http(s) (e.g., http://localhost) and try again.</div>';
+                        }
+                    }
+                    helpContent.innerHTML = readmeHtml || '';
+                }
+
+                async function loadLicense() {
+                    setActiveTab('license');
+                    if (!licenseLoaded) {
+                        helpContent.innerHTML = '<div class="text-muted small">Loading…</div>';
+                        try {
+                            const resp = await fetch('LICENSE', { cache: 'no-cache' });
+                            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                            const txt = await resp.text();
+                            licenseHtml = '<pre class="bg-light p-3 small" style="white-space: pre-wrap;">' + escapeHtml(txt) + '</pre>';
+                            licenseLoaded = true;
+                        } catch (e) {
+                            licenseHtml = '<div class="text-danger">Failed to load LICENSE. Serve the app via http(s) (e.g., http://localhost) and try again.</div>';
+                        }
+                    }
+                    helpContent.innerHTML = licenseHtml || '';
+                }
+
+                if (helpBtn && helpModalEl && helpContent) {
+                    helpBtn.addEventListener('click', async () => {
+                        try {
+                            if (!helpModalInstance) {
+                                helpModalInstance = new bootstrap.Modal(helpModalEl);
+                            }
+                            await loadReadme();
+                            helpModalInstance.show();
+                        } catch (e) {
+                            console.error('Help modal error', e);
+                            alert('Unable to open Help panel.');
+                        }
+                    });
+                    tabReadmeEl?.addEventListener('click', () => { loadReadme(); });
+                    tabLicenseEl?.addEventListener('click', () => { loadLicense(); });
+                }
+            })();
+            // Suppress unhandled promise rejections from stream teardown during disconnect
+            window.addEventListener('unhandledrejection', (event) => {
+                // Prevent default error logging
+                try { event.preventDefault(); } catch {}
+                // Optional debug output
+                try { console.debug('Suppressed unhandled promise', event.reason); } catch {}
+            });
+        </script>
+    </body>
+</html>

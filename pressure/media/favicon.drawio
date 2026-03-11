@@ -1,0 +1,13 @@
+<mxfile host="65bd71144e">
+    <diagram id="thA-zwa2JGRZu059yc5m" name="Page-1">
+        <mxGraphModel dx="647" dy="571" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="" style="points=[];aspect=fixed;html=1;align=center;shadow=0;dashed=0;fillColor=#FF6A00;strokeColor=none;shape=mxgraph.alibaba_cloud.cms_cloud_monitor_service;" vertex="1" parent="1">
+                    <mxGeometry x="310" y="270" width="52.2" height="41.4" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
