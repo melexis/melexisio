@@ -1712,6 +1712,160 @@
                 this.reader = null;
                 this.writer = null;
                 this.connected = false;
+                this.receiveBuffer = '';
+                this.decoder = new TextDecoder();
+                this.pendingRead = null;
+                this.transportHealthy = false;
+                this.commandQueue = Promise.resolve();
+                this.syncSequence = 0;
+                this.cleanupStepTimeoutMs = 1000;
+                this.transportGeneration = 0;
+            }
+
+            /**
+             * Reset receive-side state whenever a serial stream is opened or closed
+             */
+            resetReadState(transportHealthy = false) {
+                this.transportGeneration++;
+                this.receiveBuffer = '';
+                this.decoder = new TextDecoder();
+                this.pendingRead = null;
+                this.transportHealthy = transportHealthy;
+                this.commandQueue = Promise.resolve();
+            }
+
+            sleep(milliseconds) {
+                return new Promise(resolve => setTimeout(resolve, milliseconds));
+            }
+
+            /**
+             * Queue an operation that owns the request/response stream.
+             */
+            enqueueOperation(operation) {
+                const queued = this.commandQueue.then(operation, operation);
+                this.commandQueue = queued.catch(() => {});
+                return queued;
+            }
+
+            createSyncMarker() {
+                this.syncSequence++;
+                const entropy = (globalThis.crypto?.randomUUID?.() ||
+                    `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`)
+                    .replace(/-/g, '')
+                    .slice(0, 16);
+                return `:SYNC:${entropy}:${this.syncSequence.toString(36)}`.toUpperCase();
+            }
+
+            /**
+             * Bound a stream operation without creating another read or write.
+             */
+            async waitUntilDeadline(operation, deadline, timeoutMessage) {
+                const remaining = deadline - Date.now();
+                if (remaining <= 0) {
+                    throw new Error(timeoutMessage);
+                }
+
+                let timeoutId;
+                const timeout = new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), remaining);
+                });
+
+                try {
+                    return await Promise.race([operation, timeout]);
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            /**
+             * Close the current streams after queued commands have been unblocked.
+             */
+            async closeCurrentTransport(keepPort = false) {
+                const reader = this.reader;
+                const writer = this.writer;
+                const port = this.port;
+                let cleanupError = null;
+                let queueSettled = false;
+                let readerReleased = !reader;
+                let writerReleased = !writer;
+                let portClosed = !port;
+                const rememberError = error => {
+                    if (!cleanupError) cleanupError = error;
+                };
+
+                // Stop new queued operations before cancelling the active read.
+                this.connected = false;
+                this.transportHealthy = false;
+
+                if (reader) {
+                    try {
+                        await this.waitUntilDeadline(
+                            reader.cancel(),
+                            Date.now() + this.cleanupStepTimeoutMs,
+                            'Serial reader cancellation timed out'
+                        );
+                    } catch (error) {
+                        rememberError(error);
+                    }
+                }
+
+                // cancel() settles the active read. Waiting for the normalized tail
+                // prevents an old command from mutating a newly opened transport.
+                try {
+                    await this.waitUntilDeadline(
+                        this.commandQueue,
+                        Date.now() + this.cleanupStepTimeoutMs,
+                        'Serial command cleanup timed out'
+                    );
+                    queueSettled = true;
+                } catch (error) {
+                    rememberError(error);
+                }
+
+                if (reader) {
+                    try {
+                        reader.releaseLock();
+                        readerReleased = true;
+                    } catch (error) {
+                        rememberError(error);
+                    }
+                }
+
+                if (writer) {
+                    try {
+                        writer.releaseLock();
+                        writerReleased = true;
+                    } catch (error) {
+                        rememberError(error);
+                    }
+                }
+
+                if (port) {
+                    try {
+                        await this.waitUntilDeadline(
+                            port.close(),
+                            Date.now() + this.cleanupStepTimeoutMs,
+                            'Serial port close timed out'
+                        );
+                        portClosed = true;
+                    } catch (error) {
+                        rememberError(error);
+                    }
+                }
+
+                if (this.reader === reader && readerReleased) this.reader = null;
+                if (this.writer === writer && writerReleased) this.writer = null;
+                if (this.port === port && portClosed && !keepPort) this.port = null;
+
+                if (queueSettled && readerReleased && writerReleased && portClosed) {
+                    this.resetReadState(false);
+                }
+
+                if (cleanupError) {
+                    throw cleanupError;
+                }
+
+                return port;
             }
 
             /**
@@ -1781,6 +1935,7 @@
 
                     this.reader = this.port.readable.getReader();
                     this.writer = this.port.writable.getWriter();
+                    this.resetReadState(true);
                     this.connected = true;
 
                     console.log('Serial port connected:', baudRate, 'baud');
@@ -1795,74 +1950,25 @@
 
                     // Delay for device to stabilize (USB CDC enumeration can be slow)
                     console.log('Waiting for device to stabilize...');
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await this.sleep(500);
 
-                    // Note: Minimal working test doesn't flush, let's skip it for now
-                    // await this.flushInput(1000);
-                    console.log('Skipping buffer flush to match working test pattern');
+                    // The framed identity probe below drains complete stale responses.
+                    console.log('Serial stream ready for framed synchronization');
                 } catch (error) {
+                    try {
+                        await this.closeCurrentTransport(true);
+                    } catch (cleanupError) {
+                        console.warn('Connection cleanup failed:', cleanupError);
+                    }
                     throw new Error(`Connection failed: ${error.message}`);
                 }
-            }
-
-            /**
-             * Flush input buffer by reading and discarding data for a short time
-             */
-            async flushInput(timeMs = 1000) {
-                const startTime = Date.now();
-                const decoder = new TextDecoder();
-                let bytesDiscarded = 0;
-
-                console.log('Flushing input buffer for', timeMs, 'ms...');
-
-                while (Date.now() - startTime < timeMs) {
-                    try {
-                        const readPromise = this.reader.read();
-                        const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error('timeout')), 100)
-                        );
-
-                        const result = await Promise.race([readPromise, timeoutPromise]);
-                        if (!result.done && result.value) {
-                            const text = decoder.decode(result.value);
-                            bytesDiscarded += result.value.length;
-                            console.log('Flushed:', text.substring(0, 80).replace(/\n/g, '\\n').replace(/\r/g, '\\r'));
-                        }
-                    } catch (error) {
-                        // Timeout is expected when buffer is empty
-                        if (error.message === 'timeout') {
-                            console.log('Buffer empty (timeout after', Date.now() - startTime, 'ms)');
-                            break;
-                        } else {
-                            console.error('Flush error:', error);
-                        }
-                    }
-                }
-
-                console.log('Input buffer flushed. Discarded', bytesDiscarded, 'bytes');
             }
 
             /**
              * Disconnect from serial port
              */
             async disconnect() {
-                if (this.reader) {
-                    await this.reader.cancel();
-                    this.reader.releaseLock();
-                    this.reader = null;
-                }
-
-                if (this.writer) {
-                    this.writer.releaseLock();
-                    this.writer = null;
-                }
-
-                if (this.port) {
-                    await this.port.close();
-                    this.port = null;
-                }
-
-                this.connected = false;
+                await this.closeCurrentTransport(false);
                 console.log('Serial port disconnected');
             }
 
@@ -1874,41 +1980,45 @@
                     throw new Error('No port to reconnect. Must connect first.');
                 }
 
-                // Close readers/writers
-                if (this.reader) {
-                    await this.reader.cancel();
-                    this.reader.releaseLock();
-                    this.reader = null;
-                }
-
-                if (this.writer) {
-                    this.writer.releaseLock();
-                    this.writer = null;
-                }
-
-                // Close port but keep reference
-                if (this.port) {
-                    await this.port.close();
-                }
-
-                this.connected = false;
+                const port = await this.closeCurrentTransport(true);
                 console.log('Serial port closed for reconnect');
 
                 // Wait 1 second for device to reset
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await this.sleep(1000);
 
                 // Reopen same port
-                await this.port.open({
-                    baudRate: baudRate,
-                    dataBits: 8,
-                    stopBits: 1,
-                    parity: 'none',
-                    flowControl: 'none'
-                });
+                try {
+                    await port.open({
+                        baudRate: baudRate,
+                        dataBits: 8,
+                        stopBits: 1,
+                        parity: 'none',
+                        flowControl: 'none'
+                    });
 
-                this.reader = this.port.readable.getReader();
-                this.writer = this.port.writable.getWriter();
-                this.connected = true;
+                    this.reader = port.readable.getReader();
+                    this.writer = port.writable.getWriter();
+                    this.resetReadState(true);
+                    this.connected = true;
+                } catch (error) {
+                    try {
+                        await this.closeCurrentTransport(true);
+                    } catch (cleanupError) {
+                        console.warn('Reconnect cleanup failed:', cleanupError);
+                    }
+                    throw new Error(`Reconnect failed: ${error.message}`);
+                }
+
+                // Restore the same CDC control-line state used by the initial open.
+                try {
+                    await port.setSignals({ dataTerminalReady: true, requestToSend: false });
+                    console.log('DTR signal restored after reconnect');
+                } catch (error) {
+                    console.log('Note: Could not restore DTR signal:', error.message);
+                }
+
+                // Give firmware and the DTR-controlled sensor task time to settle.
+                await this.sleep(500);
 
                 console.log('Serial port reconnected');
             }
@@ -1917,116 +2027,164 @@
              * Send SCPI command and read response until prompt
              */
             async sendCommand(command, timeoutMs = 3000) {
-                if (!this.connected) {
-                    throw new Error('Not connected to device');
-                }
+                const generation = this.transportGeneration;
+                const operation = async () => {
+                    const deadline = Date.now() + timeoutMs;
+                    try {
+                        if (this.transportGeneration !== generation) {
+                            throw new Error('Serial session changed before command could run');
+                        }
+                        if (!this.connected) {
+                            throw new Error('Not connected to device');
+                        }
+                        if (!this.transportHealthy) {
+                            throw new Error('Serial transport is out of sync; reconnect required');
+                        }
 
-                // Send command
-                const cmdWithNewline = command.endsWith('\n') ? command : command + '\n';
-                const encoder = new TextEncoder();
-                const encoded = encoder.encode(cmdWithNewline);
+                        const cmdWithNewline = command.endsWith('\n') ? command : command + '\n';
+                        const encoder = new TextEncoder();
+                        const encoded = encoder.encode(cmdWithNewline);
 
-                console.debug('Sending command:', command, `(${encoded.length} bytes)`);
-                await this.writer.write(encoded);
-                console.debug('Command sent, waiting for response...');
+                        console.debug('Sending command:', command, `(${encoded.length} bytes)`);
+                        await this.waitUntilDeadline(
+                            this.writer.write(encoded),
+                            deadline,
+                            'Command timeout: write did not complete'
+                        );
+                        console.debug('Command sent, waiting for response...');
 
-                // Read response until prompt
-                const response = await this.readUntilPrompt(timeoutMs);
-                return response;
+                        return await this.readUntilPrompt(Math.max(1, deadline - Date.now()));
+                    } catch (error) {
+                        if (this.transportGeneration === generation) {
+                            this.transportHealthy = false;
+                        }
+                        throw error;
+                    }
+                };
+
+                // Only one SCPI request may own the reader at a time.
+                return this.enqueueOperation(operation);
             }
 
             /**
-             * Test basic communication by sending newline and reading any response
+             * Test communication with a framed identity query and synchronize RX
              */
-            async testCommunication(timeoutMs = 3000) {
-                console.log('=== COMMUNICATION TEST ===');
+            async testCommunication(timeoutMs = 5000) {
+                const generation = this.transportGeneration;
+                const operation = async () => {
+                    console.log('=== COMMUNICATION TEST ===');
+                    const deadline = Date.now() + timeoutMs;
 
-                // Check port signals
-                try {
-                    const signals = await this.port.getSignals();
-                    console.log('Port signals:', signals);
-                } catch (error) {
-                    console.warn('Could not read port signals:', error.message);
-                }
-
-                const encoder = new TextEncoder();
-                const testData = encoder.encode('\r\n');
-
-                console.log('Sending test command:', Array.from(testData).map(b => `0x${b.toString(16)}`).join(' '));
-
-                try {
-                    await this.writer.write(testData);
-                    console.log('✓ Write completed successfully');
-                } catch (error) {
-                    console.error('✗ Write FAILED:', error);
-                    return false;
-                }
-
-                // Try to flush writer (some implementations support this)
-                try {
-                    if (this.writer.ready) {
-                        await this.writer.ready;
-                        console.log('✓ Writer ready');
-                    }
-                } catch (error) {
-                    console.log('Note: Writer ready check failed (may be OK):', error.message);
-                }
-
-                console.log('Waiting for ANY response (exact pattern from working test)...');
-                const startTime = Date.now();
-                const decoder = new TextDecoder();
-                let receivedAny = false;
-
-                // EXACT pattern from working minimal test
-                for (let i = 0; i < 10; i++) {
                     try {
-                        const { value, done } = await Promise.race([
-                            this.reader.read(),
-                            new Promise((_, reject) => setTimeout(() => reject('timeout'), 500))
-                        ]);
-
-                        if (value && value.length > 0) {
-                            const text = decoder.decode(value);
-                            console.log('✓ RECEIVED (attempt', i + ', bytes:', value.length + '):',
-                                       text.replace(/\r/g, '\\r').replace(/\n/g, '\\n'));
-                            console.log('✓ Raw bytes:', Array.from(value).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-                            receivedAny = true;
-                            break;
+                        if (this.transportGeneration !== generation) {
+                            throw new Error('Serial session changed before communication probe');
+                        }
+                        if (!this.connected || !this.transportHealthy) {
+                            throw new Error('Serial transport is not ready');
                         }
 
-                        if (done) {
-                            console.log('Stream ended (done=true)');
-                            break;
+                        try {
+                            const signals = await this.port.getSignals();
+                            console.log('Port signals:', signals);
+                        } catch (error) {
+                            console.warn('Could not read port signals:', error.message);
                         }
-                    } catch (e) {
-                        // Timeout rejection - expected, continue
-                        if (i % 3 === 0) {
-                            console.log('  Waiting... attempt', i);
+
+                        const encoder = new TextEncoder();
+                        const syncMarker = this.createSyncMarker();
+                        console.log('Synchronizing SCPI stream with marker:', syncMarker);
+
+                        await this.waitUntilDeadline(
+                            this.writer.write(encoder.encode(syncMarker + '\n')),
+                            deadline,
+                            'Communication timeout: sync marker write did not complete'
+                        );
+
+                        // The firmware echoes unknown command tokens. This unique marker
+                        // is an ordering barrier: every older response must precede it.
+                        let markerObserved = false;
+                        while (Date.now() < deadline) {
+                            const response = await this.readUntilPrompt(Math.max(1, deadline - Date.now()));
+                            console.debug('Communication synchronization response:', response);
+
+                            if (response.toUpperCase().includes(`UNKNOWN COMMAND:${syncMarker}`)) {
+                                markerObserved = true;
+                                break;
+                            }
+
+                            console.warn('Discarding stale serial response while synchronizing:', response);
                         }
+
+                        if (!markerObserved) {
+                            throw new Error('Communication timeout: synchronization marker not observed');
+                        }
+
+                        console.log('Sending framed identity probe: *IDN?');
+                        await this.waitUntilDeadline(
+                            this.writer.write(encoder.encode('*IDN?\n')),
+                            deadline,
+                            'Communication timeout: identity write did not complete'
+                        );
+
+                        const identityResponse = await this.readUntilPrompt(Math.max(1, deadline - Date.now()));
+                        console.debug('Communication identity response:', identityResponse);
+
+                        if (/\bMELEXISIO(?:[-,])/i.test(identityResponse) && identityResponse.includes('(OK)>')) {
+                            console.log('✓ Communication working and SCPI stream synchronized!');
+                            return true;
+                        }
+
+                        throw new Error('Invalid identity response after synchronization marker');
+                    } catch (error) {
+                        console.error('✗ Communication probe failed:', error);
                     }
+
+                    if (this.transportGeneration === generation) {
+                        this.transportHealthy = false;
+                    }
+                    console.error('✗ Device did not return a valid MELEXISIO identity response.');
+                    return false;
+                };
+
+                return this.enqueueOperation(operation);
+            }
+
+            /**
+             * Read one stream chunk with a real deadline. A timed-out read remains
+             * tracked and is reused, so it cannot consume a later response unseen.
+             */
+            async readChunk(deadline) {
+                const remaining = deadline - Date.now();
+                if (remaining <= 0) {
+                    throw new Error('Command timeout: no prompt received');
                 }
 
-                const elapsed = Date.now() - startTime;
-
-                if (!receivedAny) {
-                    console.error('✗ NO RESPONSE from device after 10 attempts (', elapsed, 'ms)!');
-                    console.error('');
-                    console.error('CRITICAL: Port is open but device is not responding.');
-                    console.error('');
-                    console.error('Most likely causes:');
-                    console.error('  1. Another program has exclusive access (check below)');
-                    console.error('  2. Device needs reset (press RESET button)');
-                    console.error('  3. Chrome security restrictions');
-                    console.error('');
-                    console.error('Run this in Terminal to check for port locks:');
-                    console.error('  lsof | grep cu.usbmodem');
-                    console.error('');
-                    console.error('If you see any processes, kill them and reconnect.');
-                } else {
-                    console.log('✓ Communication working!');
+                if (!this.pendingRead) {
+                    const generation = this.transportGeneration;
+                    const decoder = this.decoder;
+                    const trackedRead = this.reader.read().then(result => {
+                        let decodedText = '';
+                        if (!result.done && result.value && result.value.length > 0) {
+                            decodedText = decoder.decode(result.value, { stream: true });
+                            if (this.transportGeneration === generation) {
+                                this.receiveBuffer += decodedText;
+                            }
+                        }
+                        return { ...result, decodedText };
+                    });
+                    const settledRead = trackedRead.finally(() => {
+                        if (this.pendingRead === settledRead) {
+                            this.pendingRead = null;
+                        }
+                    });
+                    this.pendingRead = settledRead;
                 }
 
-                return receivedAny;
+                return this.waitUntilDeadline(
+                    this.pendingRead,
+                    deadline,
+                    'Command timeout: no prompt received'
+                );
             }
 
             /**
@@ -2036,92 +2194,54 @@
                 // Match prompt: (OK)> or (ERROR)> or (E2BIG)> etc., with optional leading/trailing whitespace
                 // Supports errno names (E2BIG, EINVAL, etc.) in addition to standard prompts
                 const promptRegex = /\((OK|ERROR|BUSY|TIMEOUT|CRC|ERR:\d+|E[A-Z0-9]+)\)>/;
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let lines = [];
-                const startTime = Date.now();
-                let debugLineCount = 0;
+                const deadline = Date.now() + timeoutMs;
                 let chunkCount = 0;
 
                 console.debug('Reading until prompt... (timeout:', timeoutMs, 'ms)');
 
                 while (true) {
-                    // Check timeout
-                    const elapsed = Date.now() - startTime;
-                    if (elapsed > timeoutMs) {
-                        console.error('TIMEOUT after', elapsed, 'ms. Received', lines.length, 'lines:');
-                        lines.forEach((line, i) => console.log(`  Line ${i}: ${line.substring(0, 80)}`));
-                        console.error('Remaining buffer:', buffer.substring(0, 100));
-                        throw new Error('Command timeout: no prompt received');
+                    const promptMatch = promptRegex.exec(this.receiveBuffer);
+                    if (promptMatch) {
+                        const responseEnd = promptMatch.index + promptMatch[0].length;
+                        const rawResponse = this.receiveBuffer.slice(0, responseEnd);
+
+                        // Preserve any following response bytes for the next command.
+                        this.receiveBuffer = this.receiveBuffer.slice(responseEnd);
+
+                        const lines = rawResponse
+                            .split(/\r?\n/)
+                            .map(line => line.trim())
+                            .filter(Boolean);
+
+                        console.debug('✓ Prompt detected:', promptMatch[0]);
+                        return lines.join('\n');
                     }
 
-                    // Read chunk (blocking read, no timeout race)
-                    let chunk;
+                    let result;
                     try {
-                        const result = await this.reader.read();
-                        if (result.done) {
-                            throw new Error('Serial port closed unexpectedly');
-                        }
-                        chunk = result.value;
+                        result = await this.readChunk(deadline);
                     } catch (error) {
                         console.error('Read error:', error);
+                        console.error('Buffered response:', this.receiveBuffer.substring(0, 200));
                         throw error;
                     }
 
+                    if (result.done) {
+                        throw new Error('Serial port closed unexpectedly');
+                    }
+
+                    const chunk = result.value;
                     if (!chunk || chunk.length === 0) {
-                        // No data, wait a bit and try again
-                        await new Promise(r => setTimeout(r, 50));
                         continue;
                     }
 
-                    // Decode and buffer
-                    const newData = decoder.decode(chunk, { stream: true });
-                    buffer += newData;
+                    const newData = result.decodedText;
                     chunkCount++;
 
-                    // Debug: Show first few chunks
                     if (chunkCount <= 5) {
                         console.debug('Chunk', chunkCount + ':',
                                    newData.substring(0, 80).replace(/\n/g, '\\n').replace(/\r/g, '\\r'),
                                    '(', chunk.length, 'bytes)');
-                    }
-
-                    // Extract complete lines (split on \n or \r\n)
-                    const lineMatches = buffer.split(/\r?\n/);
-
-                    // Keep last incomplete line in buffer
-                    buffer = lineMatches.pop() || '';
-
-                    for (const line of lineMatches) {
-                        const trimmedLine = line.trim();
-                        if (trimmedLine) {
-                            lines.push(trimmedLine);
-                            debugLineCount++;
-
-                            // Debug: Show first few lines
-                            if (debugLineCount <= 10) {
-                                // Truncate line if it's too long to avoid flooding console with big data blocks
-                                const displayLine = trimmedLine.length > 200 ? trimmedLine.substring(0, 200) + '... [truncated]' : trimmedLine;
-                                console.debug(`Line ${debugLineCount}: "${displayLine}"`);
-                            }
-
-                            // Check for prompt (now checks anywhere in line)
-                            if (promptRegex.test(trimmedLine)) {
-                                console.debug('✓ Prompt detected:', trimmedLine);
-                                console.debug('✓ Total lines received:', lines.length);
-                                return lines.join('\n');
-                            }
-                        }
-                    }
-
-                    // Also check buffer for prompt (in case no newline after prompt)
-                    if (promptRegex.test(buffer.trim())) {
-                        console.debug('✓ Prompt detected in buffer:', buffer.trim());
-                        if (buffer.trim()) {
-                            lines.push(buffer.trim());
-                        }
-                        console.debug('✓ Total lines received:', lines.length);
-                        return lines.join('\n');
                     }
                 }
             }
@@ -3343,7 +3463,7 @@
                     await this.serialManager.connect(921600);
 
                     this.log('Testing basic communication...');
-                    const commWorking = await this.serialManager.testCommunication(2000);
+                    const commWorking = await this.serialManager.testCommunication(5000);
                     if (!commWorking) {
                         this.log('ERROR: Device not responding!');
                         this.log('Try these fixes:');
@@ -3415,7 +3535,10 @@
 
                             // Communication check
                             try {
-                                await this.serialManager.sendCommand('*IDN?', 2000);
+                                const reconnectWorking = await this.serialManager.testCommunication(5000);
+                                if (!reconnectWorking) {
+                                    throw new Error('Invalid identity response after reconnect');
+                                }
                                 this.log('Communication check OK.');
                             } catch (error) {
                                 this.log('ERROR: Device not responding after reconnect!');
@@ -3461,8 +3584,8 @@
                                 if (attempt < maxRetries) {
                                     this.log(`⚠️ Sensor not configured, will retry with full disconnect/reconnect...`);
                                 } else {
-                                    this.log('❌ ERROR: Sensor failed to initialize after 3 attempts!');
-                                    this.log('Device sensor may be faulty. Try power cycling the device.');
+                                    this.log('❌ ERROR: Sensor status could not be verified after 3 attempts.');
+                                    this.log('Serial communication works; inspect the status responses before concluding a hardware fault.');
                                 }
                             }
                         } catch (error) {
@@ -3477,12 +3600,12 @@
                     // If all retries failed, disconnect and inform user
                     if (!initSuccess) {
                         this.log('');
-                        this.log('❌ Connection failed after 3 initialization attempts.');
+                        this.log('❌ Sensor verification failed after 3 initialization attempts.');
                         this.log('');
-                        this.log('The device responded but could not initialize the sensor.');
-                        this.log('This may indicate corrupted firmware or a hardware issue.');
+                        this.log('Device identity and SCPI communication succeeded, but sensor status could not be verified.');
+                        this.log('Possible causes include firmware/I2C lifecycle state or a sensor hardware issue.');
                         this.log('');
-                        this.log('Recommended: Click "Update Firmware" to install the latest firmware.');
+                        this.log('Try a power cycle and save the raw log before updating firmware.');
                         this.log('');
 
                         document.getElementById('sensorStatus').textContent = 'Init failed';
@@ -3524,6 +3647,14 @@
                     this.log('ERROR: ' + error.message);
                     this.log('Check Console (F12) for detailed debug output');
                     console.error('Connection error:', error);
+
+                    // A failed handshake must not leave a half-open port behind.
+                    try {
+                        await this.serialManager.disconnect();
+                    } catch (disconnectError) {
+                        console.warn('Connection cleanup failed:', disconnectError);
+                    }
+                    this.updateConnectionState(false);
                 }
             }
 
@@ -3531,6 +3662,8 @@
              * Disconnect from device
              */
             async disconnect() {
+                let deinitError = null;
+
                 try {
                     if (this.capturing) {
                         this.stopCapture();
@@ -3538,20 +3671,23 @@
 
                     this.log('Sending DEINIT...');
                     await this.serialManager.sendCommand(':PeopleDetection:DEINIT', 5000);
-
-                    this.log('Disconnecting...');
-                    await this.serialManager.disconnect();
-
-                    this.updateConnectionState(false);
-
-                    // Reset library version display
-                    document.getElementById('libraryVersion').textContent = '--';
-
-                    this.log('Disconnected.');
                 } catch (error) {
-                    this.log('ERROR: ' + error.message);
+                    deinitError = error;
+                    this.log('Warning: DEINIT did not complete: ' + error.message);
                     console.error(error);
                 }
+
+                // Always release the browser's reader/writer and close the port,
+                // even if the optional firmware cleanup command timed out.
+                try {
+                    this.log('Disconnecting...');
+                    await this.serialManager.disconnect();
+                } finally {
+                    this.updateConnectionState(false);
+                    document.getElementById('libraryVersion').textContent = '--';
+                }
+
+                this.log(deinitError ? 'Disconnected after transport cleanup.' : 'Disconnected.');
             }
 
             /**
