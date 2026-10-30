@@ -43,7 +43,7 @@
 
 - **28-LED ring** — outer LEDs; the one closest to the vector angle lights bright with dimmer neighbors on either side. Off when the stick is centered.
 
-- **Polar radar** — Voxdale-style field-vector scope under the stick: dark reticle with 25% rings and compass labels (`0° (+X)`, `90° (+Y)`, `180° (-X)`, `270° (-Y)`), plus a teal measured vector with a glowing head. The radar XY is computed by the **angular formula (plain atan2 without calibration) applied to the averaged 4-pixel XYZ**; at rest the field is straight up, so the resting vector sits at the origin and grows in the direction of tilt. Readout line: **Azimuth: 0.0° | Range: 0.0%**, with `Azimuth = atan2(y, x)`.
+- **Polar radar** — SFI-style field-vector scope under the stick: dark reticle with 25% rings and compass labels (`0° (+X)`, `90° (+Y)`, `180° (-X)`, `270° (-Y)`), plus a teal measured vector with a glowing head. The radar XY is computed by the **angular formula (plain atan2 without calibration) applied to the averaged 4-pixel XYZ**; at rest the field is straight up, so the resting vector sits at the origin and grows in the direction of tilt. Readout line: **Azimuth: 0.0° | Range: 0.0%**, with `Azimuth = atan2(y, x)`.
 
 - **Signal & Calibration button** — toggles the twist panel (live α/β readouts plus the GAINSEL and k/o calibration card) below the radar. Reviewer slide 4 scopes this panel to the no-twist Thumbstick tab.
 
@@ -71,6 +71,6 @@
 
 - **GAINSEL presets** — electrical gain register with two factory presets, **1x** (gain 9 ≈ 72 counts) and **3x** (gain 37 ≈ 219 counts), plus a free **trim** field (0–63) for the final-test value. Applied per mode: **1px defaults to 3x (37)** per the AE's twist-demo guidance; **2px defaults to 1x (9)**. The hint shows the selected 6-bit value. Over SCPI choosing a value writes it to the active mode's field (unlock + readback verify) and confirms it in the "Device confirmed" line; without hardware it stays local. Switching 1px↔2px mode re-syncs the display; starting the demo writes the configured gain for the active mode.
 
-- **Pixel pitch (mm)** — the 2px display scale. The differential channels are raw counts, so mT/mm = counts ÷ (20 × pitch). The pitch is not in the preliminary datasheet, so it is live-trimmable (default 1.0 mm) and shared with the Voxdale page through `angle_calib.js`. It rescales the strength readouts only; the angles are unaffected.
+- **Pixel pitch (mm)** — the 2px display scale. The differential channels are raw counts, so mT/mm = counts ÷ (20 × pitch). The pitch is not in the preliminary datasheet, so it is live-trimmable (default 1.0 mm) and shared with the SFI page through `angle_calib.js`. It rescales the strength readouts only; the angles are unaffected.
 
 - **Calibration constants k1 k2 o11 o12 o21 o22** — edited live; every keystroke updates the calibrated readouts using the published Desmos cross-axis formula. Defaults `k1=k2=1, o=0` are an exact no-op: calibrated = raw, so nothing is "hidden". The live engine is initialised from these fields on load, so display and math always agree.

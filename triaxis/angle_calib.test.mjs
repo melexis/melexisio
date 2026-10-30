@@ -4,7 +4,7 @@
  * The reference implementation below is an exact copy of the Desmos-derived
  * math shipped in triaxis/mlx90396-voxdale/sfi_demo.js (calculateDesmosAngles,
  * computeSfi1Px, computeSfi2Px), so the parity sweep proves the clean module
- * reproduces the values the Voxdale app already displays.
+ * reproduces the values the SFI app already displays.
  *
  * Run: node triaxis/angle_calib.test.mjs
  */

@@ -1,6 +1,6 @@
 /**
  * sfi_demo.js
- * Standalone SFI Joystick, 3D Dome Kinematics, Centered Z-UP XYZ Chart, Polar Radar & Battle Matrix
+ * Standalone SFI Joystick, 3D Dome Kinematics, Centered Z-UP XYZ Chart, Polar Radar & Stray Field Comparison
  */
 
 // --- GLTFLoader (r128 non-module build, matches the global THREE loaded in index.html) ---
@@ -1130,14 +1130,14 @@ const PLOT_MAX_R = 3.0;
 // Virtual gimbal arm from the pivot (below the grid) to the magnet at neutral.
 // The horizontal channel value sets how far the arm swings out; the remaining
 // vertical component gives the dome arc the magnet rides on, exactly like the
-// Dome Kinematics tab. Press travel slides the head along that tilted arm.
+// 3D Joystick Model tab. Press travel slides the head along that tilted arm.
 const PLOT_GIMBAL_ARM = 5.5;
 const PLOT_AXIAL_TRAVEL = 0.55;
 const PLOT_UP = new THREE.Vector3(0, 1, 0);
 
 // Project a horizontal channel pair onto the gimbal arc. `axial` is the press
 // component (0..1): positive slides the magnet down its own tilted axis toward
-// the pivot, matching the stick in the Dome Kinematics tab.
+// the pivot, matching the stick in the 3D Joystick Model tab.
 function projectPlotPoint(hx, hz, axial = 0) {
   const r = Math.hypot(hx, hz);
   const radial = Math.min(r, PLOT_MAX_R);
@@ -1395,7 +1395,7 @@ function update3DPlot(plot, history, isLegacy) {
   const zy = (plot.zero && Number.isFinite(plot.zero.y)) ? plot.zero.y : 0;
   // The channel pair is the horizontal projection of the magnet's swing. Each
   // point is lifted onto the gimbal arc so the head and trail follow the same
-  // dome path as the CAD model in the Dome Kinematics tab, and the press travel
+  // dome path as the CAD model in the 3D Joystick Model tab, and the press travel
   // slides along the local (tilted) axis rather than being a flat-plane offset.
   for (let i = 0; i < len; i++) {
     const pt = history[i];

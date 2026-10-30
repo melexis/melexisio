@@ -168,7 +168,7 @@ pressure/             pressure sensors
 triaxis/              magnetic position sensors
   index.html            sensor index
   mlx90396/             MLX90396 Web UI, copied unchanged from a colleague's repo
-  mlx90396-voxdale/     the Voxdale demo build of the same Web UI, also unchanged
+  mlx90396-voxdale/     the SFI demo build of the same Web UI, also unchanged
   mlx90396-2.html       MLX90396 readout built here
 fir/                  far infrared sensors
   index.html            sensor index

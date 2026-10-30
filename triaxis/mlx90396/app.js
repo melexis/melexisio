@@ -428,7 +428,7 @@ function initTwistControls() {
 
   // 2px display scale: the differential channels are raw counts, so the mT/mm
   // strength needs the on-die pixel pitch (derivation in angle_calib.js, shared
-  // with the Voxdale page). Datasheet value unconfirmed, so it is trimmable.
+  // with the SFI page). Datasheet value unconfirmed, so it is trimmable.
   const calPitch = document.getElementById('cal-pitch');
   if (calPitch) {
     calPitch.value = String(getSensorPixelPitchMm());
@@ -757,8 +757,8 @@ function updateDiagnostics(frames, knob) {
   if (knob?.periodMs) diagText('diag-period', `${knob.periodMs} ms`);
 }
 
-// --- 2D Polar Radar (Voxdale-style field-vector scope) ---
-// Mirrors the Voxdale page's drawRadar: a reticle with 25% rings and +X/+Y
+// --- 2D Polar Radar (SFI-style field-vector scope) ---
+// Mirrors the SFI page's drawRadar: a reticle with 25% rings and +X/+Y
 // compass labels, a theme-coloured measured vector clamped to the rim and a
 // glowing head. +Y is UP, so the vector points the same way the joystick knob
 // does; it feeds on the same coordinates as the knob (absolute-field average),
@@ -794,7 +794,7 @@ function pushRadarFromAvg(x, y, z) {
   const by = (typeof y === 'number' && Number.isFinite(y) ? y : 0) * scale;
   const bz = (typeof z === 'number' && Number.isFinite(z) ? z : 0) * scale;
   // Park at the neutral point (α=β=90° → offset 0,0) while the field is
-  // negligible, mirroring the Voxdale no-signal park instead of pinning to the
+  // negligible, mirroring the SFI no-signal park instead of pinning to the
   // rim on a degenerate atan2(0,0).
   if (Math.hypot(bx, by, bz) < RADAR_NO_MAG_MT) {
     pushRadarPoint(0, 0);

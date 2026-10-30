@@ -321,7 +321,7 @@
     .val-orange { color: var(--color-success); }
     .val-green { color: var(--color-success); }
 
-    /* SFI BATTLE MATRIX STYLING */
+    /* STRAY FIELD COMPARISON STYLING */
     .battle-matrix-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -778,7 +778,7 @@
           MLX90396 Stray Field Immune (SFI) Joystick
         </h2>
         <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">
-          Kinematics, Raw Signals, Polar Radar & SFI Battle Matrix
+          3D Joystick Model, Raw Signals, Polar Radars &amp; Stray Field Comparison
         </span>
       </div>
       <div style="display: flex; gap: var(--space-2); align-items: center;">
@@ -811,12 +811,12 @@
 
     <!-- MAIN OPERATIONAL TABS -->
     <div class="view-tabs ds-tabs__list">
-      <button class="view-tab-btn ds-tabs__tab active" data-tab="tab-telemetry">Live Telemetry &amp; Battle Matrix</button>
-      <button class="view-tab-btn ds-tabs__tab" data-tab="tab-idle">Idle / Auto-Pattern &amp; Dome Kinematics</button>
+      <button class="view-tab-btn ds-tabs__tab active" data-tab="tab-telemetry">Stray Field Comparison</button>
+      <button class="view-tab-btn ds-tabs__tab" data-tab="tab-idle">3D Joystick Model</button>
       <button class="view-tab-btn ds-tabs__tab" data-tab="tab-diagnostics">Sensor Diagnostics</button>
     </div>
 
-    <!-- TAB 1: LIVE TELEMETRY & BATTLE MATRIX -->
+    <!-- TAB 1: STRAY FIELD COMPARISON -->
     <div id="tab-telemetry" class="tab-content active">
       
       <!-- TEMPORARILY HIDDEN: remove temporary-hidden to restore the coil controls. -->
@@ -1149,7 +1149,7 @@
       </div>
 
       </div>
-    <!-- TAB 2: IDLE / AUTO-PATTERN & DOME KINEMATICS -->
+    <!-- TAB 2: 3D JOYSTICK MODEL -->
     <div id="tab-idle" class="tab-content">
       <div class="ds-card ds-card--pad-md" style="width: 100%; display: flex; flex-direction: column; gap: var(--space-4);">
         <div>
@@ -1238,7 +1238,7 @@
 
         <section class="diagnostics-card">
           <h3>Dome Output</h3>
-          <p>What the Idle / Auto-Pattern tab is drawing, after the 2px gradient &rarr; tilt mapping is applied.</p>
+          <p>What the 3D Joystick Model tab is drawing, after the 2px gradient &rarr; tilt mapping is applied.</p>
           <table class="diagnostics-table">
             <tbody>
               <tr><th>Position source</th><td id="diag-joy-src">Differential 2px (dBz/dx, dBz/dy)</td></tr>
@@ -1266,12 +1266,12 @@
         </div>
         <div class="ds-modal__body">
           <div id="help-body" class="help-body">
-            <div class="help-loading">Loading voxdale_help_readme.md&hellip;</div>
+            <div class="help-loading">Loading sfi_help_readme.md&hellip;</div>
           </div>
         </div>
         <div class="ds-modal__footer">
           <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted); align-self: center;">
-            Source: voxdale_help_readme.md
+            Source: sfi_help_readme.md
           </span>
         </div>
       </div>

@@ -93,7 +93,7 @@ browser DevTools console (there is no on-screen terminal window).
 - **28-LED radial ring** — 360°/28 ≈ 12.86° per LED. The LED nearest the vector **angle**
   lights `led-active` with a ±2-LED falloff (`led-low-1`, `led-low-2`). Active only when the
   deviation from center is > 5 units.
-- **Polar Radar** (canvas) — a Voxdale-style field-vector scope: dark reticle with 25% rings
+- **Polar Radar** (canvas) — a SFI-style field-vector scope: dark reticle with 25% rings
   and a crosshair, compass labels `0° (+X)` / `90° (+Y)` / `180° (-X)` / `270° (-Y)`, and a
   theme-coloured measured vector (glowing head) clamped to the rim. **+Y is up**, matching
   the joystick knob, because it is fed the same absolute-field coordinates. Readout:
@@ -161,7 +161,7 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
 - **Units** — the raw LSB are converted to physical units before display, using the
   shared scale in `../angle_calib.js`: absolute `÷ 20` (mT), differential `÷ (20 × pixel
   pitch)` (mT/mm). The pitch is live-trimmable in the config card (default 1.0 mm) and is
-  the same value the Voxdale page uses. Dividing a whole signal by one constant leaves
+  the same value the SFI page uses. Dividing a whole signal by one constant leaves
   every `atan2` angle untouched, so this only rescales the strength readouts.
 
 ### Twist panel — gain & calibration config
@@ -283,7 +283,7 @@ Both remain functional if a future tab navigator is added; they are simply not r
 | `index.html` | Structure, inline app CSS, SVG grid assets, modal, sub-views. |
 | `app.js` | Controller: serial manager, SCPI wait/route, demo loop, all three views' renderers, tab routing, modal logic. |
 | `twist_api.js` | Twist-specific layer: 1px/2px raw `atan2`, signal → formula mapping, GAINSEL table; delegates the Desmos calibration to `../angle_calib.js`. |
-| `../angle_calib.js` | Shared α/β calibration engine (Desmos model). One source of truth, also used by the Voxdale page. |
+| `../angle_calib.js` | Shared α/β calibration engine (Desmos model). One source of truth, also used by the SFI page. |
 | `mlx_api.js` | `MLX90396_API`: SPI command builder, CRC-8 (poly 0x2F) verify, register read/write, measurement mask handling. |
 | `arduino_api.js` | `Arduino_API`: 15-/6-field frame parser, latest-sample store. |
 | `sfi_demo.js` | Standalone SFI dome visual + `updateSfiDomeKinematics` (fed raw X/Y/Z, normalized to ±1). |

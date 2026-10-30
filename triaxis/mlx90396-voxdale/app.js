@@ -638,7 +638,7 @@ async function runJoystickDemo() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               rawX = avgX; rawY = avgY; rawZ = avgZ;
 
-              // Extract actual individual pixel values for Requirement 1-3 Battle Matrix
+              // Extract actual individual pixel values for Requirement 1-3 stray-field comparison
               p0Raw = { x: res01.x0, y: res01.y0, z: res01.z0 };
               diffRaw = { x: rawGradX, y: rawGradY, z: rawGradZx, bzY: rawGradZy };
             }

@@ -6,7 +6,7 @@
 // Web Serial requires a secure context. Opened straight off the filesystem the
 // fetch is blocked and the modal says so rather than failing silently.
 
-const HELP_SOURCE = 'voxdale_help_readme.md';
+const HELP_SOURCE = 'sfi_help_readme.md';
 
 // Escapes only the angle brackets. `&` is left alone on purpose: the help text
 // uses entities such as `&plusmn;` and bare ampersands, both of which render

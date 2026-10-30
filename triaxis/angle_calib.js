@@ -4,7 +4,7 @@
  *
  * Reusable for both demo apps:
  *   - 1px (Thumbstick)         : single-pixel {Bx, By, Bz} in mT
- *   - 2px (Voxdale, dual-pixel): spatial gradients {dBx/dx, dBz/dx, dBy/dy, dBz/dy} in mT/mm
+ *   - 2px (SFI, dual-pixel): spatial gradients {dBx/dx, dBz/dx, dBy/dy, dBz/dy} in mT/mm
  *
  * The core angle math is the Desmos calibration model (calculator/usvd0znwuh):
  *
@@ -15,7 +15,7 @@
  * (sfi_demo.js) byte-for-byte for 1px mode. For 2px mode each signal arrives as
  * a two-component gradient pair, so the angle is computed in the pair's own
  * plane with the orthogonality terms as Z<->X / Z<->Y crosstalk corrections;
- * that is `calculate2pxAngles` (parity-tested below). Production Voxdale
+ * that is `calculate2pxAngles` (parity-tested below). Production SFI
  * differential angles instead come from `calculateSfiDifferentialAngles`,
  * which implements the reviewer's slide-12 formulas verbatim: the `normal`
  * branch is intentionally calibration-free (plain atan2 per gradient plane),
@@ -39,7 +39,7 @@ export const DEFAULT_CALIBRATION_PARAMS = Object.freeze({
 
 // --- Display scale: raw LSB -> physical units -------------------------------
 // Lives here because both pages import this module, so the Thumbstick and the
-// Voxdale page cannot disagree about what a count is worth.
+// SFI page cannot disagree about what a count is worth.
 //
 //   absolute pixel : field[mT]       = counts / SINGLE_PIXEL_LSB_PER_MT
 //   differential   : gradient[mT/mm] = counts / (SINGLE_PIXEL_LSB_PER_MT * pitch_mm)
@@ -153,7 +153,7 @@ export function calculate1pxAngles({ Bx, By, Bz } = {}, params = DEFAULT_CALIBRA
 }
 
 /**
- * 2px (Voxdale / dual-pixel differential) processing.
+ * 2px (SFI / dual-pixel differential) processing.
  * @param {object} reading { dBxdx, dBzdx, dBydy, dBzdy } in mT/mm
  * @param {object} [params] calibration parameters
  * @returns {object} same shape as calculate1pxAngles
@@ -199,7 +199,7 @@ export function calculate2pxAngles(reading = {}, params = DEFAULT_CALIBRATION_PA
 }
 
 /**
- * Voxdale 2px formula from the GUI review:
+ * SFI 2px formula from the GUI review:
  * normal uses each axis' in-plane and Z gradients directly; enhanced adds the
  * cross-axis gradient and the six live calibration parameters.
  */
