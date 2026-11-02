@@ -143,7 +143,6 @@ export function computeSfi2Px(dbx_dx, dbz_dx, dby_dy, dbz_dy, params = DEFAULT_C
 
 // --- Simulation & Telemetry State ---
 let autoPattern = true;
-let coilActive = false; // owned by setCoilState(); drives the simulated stray field below
 let animTime = 0;
 let joyX = 0, joyY = 0, joyZ = 0;
 let targetJoyX = 0, targetJoyY = 0, targetJoyZ = 0;
@@ -175,13 +174,21 @@ let gimbalZeroAngles = { alpha: 90, beta: 90 };
 // from the shared module so the Thumbstick page uses the same numbers.
 const TRACE_HISTORY_POINTS = 45;
 
+// Angle change (degrees away from the zero) that tilts the 3D Joystick Model
+// and the tilt radar fully. Measured on the bench: a full-tilt circle swings
+// the enhanced alpha/beta about +/-54° from rest (90th percentile), so 60°
+// gives full model tilt at full stick travel instead of the 2/3 that the old
+// /90 mapping reached.
+const GIMBAL_FULL_SCALE_DEG = 60;
+
 // Fake-data ("auto-pattern") tuning, in physical units.
 //   SIM_DIFF_BASE_MT_MM  nominal in-plane gradient at rest
-//   SIM_DIFF_SWEEP_DEG   alpha/beta swing at full stick deflection
+//   SIM_DIFF_SWEEP_DEG   alpha/beta swing at full stick deflection - the same
+//                        span as the gimbal, so full stick = full model tilt
 //   SIM_TILT_Z_DROP_MT   how far Bz drops as the stick tilts (the field rotates
 //                        rather than only growing, which keeps |B| roughly flat)
 const SIM_DIFF_BASE_MT_MM = 6.5;
-const SIM_DIFF_SWEEP_DEG = 60;
+const SIM_DIFF_SWEEP_DEG = GIMBAL_FULL_SCALE_DEG;
 const SIM_TILT_Z_DROP_MT = 8.0;
 
 // The differential formula yields atan2(dBx/dx, dBz/dx) (and its Y sibling),
@@ -213,7 +220,12 @@ function toDialAngleDeg(deg) {
 // ~10 mT/mm (lowered from 20 so the simulated sweep can actually reach it).
 // Below that it reads "no press"; the two field-strength hats on the radars flag
 // weak / missing magnets (values are adjustable).
-const SFI_PRESS_THRESHOLD_MT_MM = 10;
+// Default only: the "push at" field on the 3D Joystick Model tab sets the live
+// value (remembered per browser), because the magnitude a real press reaches
+// depends on the rig, the magnet and the 2px gain.
+const SFI_PRESS_THRESHOLD_DEFAULT_MT_MM = 10;
+const PRESS_THRESHOLD_STORAGE_KEY = 'sfi.pressThresholdMtMm';
+let pressThresholdMtMm = SFI_PRESS_THRESHOLD_DEFAULT_MT_MM;
 const WEAK_MAG_STD_MT = 8;
 const NO_MAG_STD_MT = 2;
 const WEAK_MAG_DIFF_MT_MM = 3;
@@ -425,6 +437,24 @@ export function initSfiDemo() {
     }
   });
 
+  // "push at" field: the press magnitude (mT/mm) at which the knob reads
+  // PUSHED. Remembered per browser; storage can be unavailable (private
+  // window, blocked site data), in which case it just starts at the default.
+  const pressInput = document.getElementById('press-threshold');
+  if (pressInput) {
+    try {
+      const saved = parseFloat(localStorage.getItem(PRESS_THRESHOLD_STORAGE_KEY));
+      if (Number.isFinite(saved) && saved > 0) pressThresholdMtMm = saved;
+    } catch (_) { /* no storage: keep the default */ }
+    pressInput.value = String(pressThresholdMtMm);
+    pressInput.addEventListener('input', () => {
+      const v = parseFloat(pressInput.value);
+      if (!Number.isFinite(v) || v <= 0) return;
+      pressThresholdMtMm = v;
+      try { localStorage.setItem(PRESS_THRESHOLD_STORAGE_KEY, String(v)); } catch (_) { /* not persisted */ }
+    });
+  }
+
   // One shared Zero button centres BOTH 3D field plots on their grids by
   // capturing each plot's current bias as its zero offset; pressing again
   // clears both.
@@ -443,6 +473,7 @@ export function initSfiDemo() {
   const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 1000);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setClearColor(0x000000, 0);
   renderer.setSize(width, height);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -636,6 +667,20 @@ export function initSfiDemo() {
   mlxPlot = create3DFieldPlot('canvas3d-mlx-plot', 0x10b981, 8.0);
   initRadarCanvases();
 
+  // The fit-to-screen layout resizes these boxes without a window resize
+  // (calibration drawer, debug log, switching tabs), so watch the boxes
+  // themselves. One resize per frame at most.
+  if (typeof ResizeObserver === 'function') {
+    let resizeQueued = false;
+    const observer = new ResizeObserver(() => {
+      if (resizeQueued) return;
+      resizeQueued = true;
+      requestAnimationFrame(() => { resizeQueued = false; resizeSfiCanvases(); });
+    });
+    ['canvas3d-container', 'canvas3d-std-plot', 'canvas3d-mlx-plot', 'radarCanvasStd', 'radarCanvasMlx']
+      .forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
+  }
+
   let previousFrameTime = performance.now();
   let telemetryVisualElapsed = 0;
 
@@ -708,21 +753,28 @@ export function initSfiDemo() {
     let trueBy = joyY * 18.0;
     let trueBz = -SIM_TILT_Z_DROP_MT * tiltMagnitude + joyZ * 12.0;
 
-    let noiseX = coilActive ? 6.2 + (Math.random() - 0.5) * 0.6 : 0;
-    let noiseY = coilActive ? -5.8 + (Math.random() - 0.5) * 0.6 : 0;
-    let noiseZ = coilActive ? 4.5 + (Math.random() - 0.5) * 0.4 : 0;
+    // Simulated stray field from the coil. Only the simulation gets it: on live
+    // hardware the real coil acts on the real sensor, and adding a made-up
+    // offset to measured data would fake the very comparison the demo shows.
+    // (This read a `coilActive` flag that nothing ever set, so the simulated
+    // disturbance never appeared; coilView is the state setCoilState owns.)
+    const liveData = isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.p0Raw;
+    const simStray = coilView.active && !liveData;
+    let noiseX = simStray ? 6.2 + (Math.random() - 0.5) * 0.6 : 0;
+    let noiseY = simStray ? -5.8 + (Math.random() - 0.5) * 0.6 : 0;
+    let noiseZ = simStray ? 4.5 + (Math.random() - 0.5) * 0.4 : 0;
 
     let stdBx = trueBx + noiseX;
     let stdBy = trueBy + noiseY;
     let stdBz = 22.0 + trueBz + noiseZ;
 
     // Simulated 2px gradients (mT/mm). At rest the in-plane pair dominates:
-    // X02 = Y13 = 6.5 and Z02 = Z13 = 0, i.e. alpha = beta = 90 and the radar
-    // sits centred. Displacement then ROTATES each pair, so all four channels -
-    // and the magnitude - animate. The previous model pinned X02/Y13 at a
-    // constant 6.5 and moved only the Z pair, so dBx/dx and dBy/dy never
-    // changed. Scaling a whole pair cannot move its atan2 angle, so the radius
-    // term is free to shape the magnitude without disturbing alpha/beta.
+    // X02 = Y13 = base and Z02 = Z13 = 0, i.e. alpha = beta = 90 and the radar
+    // sits centred - the same shape the bench shows. Displacement then ROTATES
+    // each pair, so all four channels - and the magnitude - animate, and the Z
+    // gradient's sign carries the tilt direction as on the real rig. Scaling a
+    // whole pair cannot move its atan2 angle, so the radius term is free to
+    // shape the magnitude without disturbing alpha/beta.
     const simThetaX = joyX * SIM_DIFF_SWEEP_DEG * (Math.PI / 180);
     const simThetaY = joyY * SIM_DIFF_SWEEP_DEG * (Math.PI / 180);
     const simDiffR = SIM_DIFF_BASE_MT_MM * (1 + 0.5 * tiltMagnitude);
@@ -731,16 +783,17 @@ export function initSfiDemo() {
     let mlxDBz = simDiffR * Math.sin(simThetaX);
     let mlxDBzY = simDiffR * Math.sin(simThetaY);
 
-    if (isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.p0Raw) {
-      stdBx = liveHardwarePacket.p0Raw.x / SINGLE_PIXEL_LSB_PER_MT + noiseX;
-      stdBy = liveHardwarePacket.p0Raw.y / SINGLE_PIXEL_LSB_PER_MT + noiseY;
-      stdBz = (liveHardwarePacket.p0Raw.z / SINGLE_PIXEL_LSB_PER_MT + noiseZ);
+    if (liveData) {
+      stdBx = liveHardwarePacket.p0Raw.x / SINGLE_PIXEL_LSB_PER_MT;
+      stdBy = liveHardwarePacket.p0Raw.y / SINGLE_PIXEL_LSB_PER_MT;
+      stdBz = liveHardwarePacket.p0Raw.z / SINGLE_PIXEL_LSB_PER_MT;
 
       const lsbPerMtMmNow = lsbPerMtMm();
       mlxDBx = liveHardwarePacket.diffRaw.x / lsbPerMtMmNow;
       mlxDBy = liveHardwarePacket.diffRaw.y / lsbPerMtMmNow;
-      mlxDBz = (liveHardwarePacket.diffRaw.z || 0) / lsbPerMtMmNow;
-      mlxDBzY = (liveHardwarePacket.diffRaw.bzY || liveHardwarePacket.diffRaw.z || 0) / lsbPerMtMmNow;
+      // ?? not ||: a genuine 0-count Z13 must not be replaced by Z02.
+      mlxDBz = (liveHardwarePacket.diffRaw.z ?? 0) / lsbPerMtMmNow;
+      mlxDBzY = (liveHardwarePacket.diffRaw.bzY ?? liveHardwarePacket.diffRaw.z ?? 0) / lsbPerMtMmNow;
     }
 
     targetStdBx = stdBx;
@@ -775,7 +828,8 @@ export function initSfiDemo() {
       angleAlpha,
       angleBeta,
       gimbalZeroAngles.alpha,
-      gimbalZeroAngles.beta
+      gimbalZeroAngles.beta,
+      GIMBAL_FULL_SCALE_DEG
     );
     const tiltX = gimbalInput.valid ? gimbalInput.x * 90 : 0;
     const tiltY = gimbalInput.valid ? gimbalInput.y * 90 : 0;
@@ -784,13 +838,13 @@ export function initSfiDemo() {
     const joyPosTxt = document.getElementById('joy-pos-text');
     if (joyPosTxt) {
       const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
-      const pressed = pressMag >= SFI_PRESS_THRESHOLD_MT_MM;
+      const pressed = pressMag >= pressThresholdMtMm;
       joyPosTxt.innerText = `Tilt X: ${tiltX.toFixed(1)}° | Tilt Y: ${tiltY.toFixed(1)}° | Press: ${pressed ? 'PUSHED' : '\u2014'} (${pressMag.toFixed(1)} mT/mm)`;
     }
 
     if (isLiveHardwareConnected && liveHardwarePacket?.hasDifferential) {
       const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
-      const pressed = pressMag >= SFI_PRESS_THRESHOLD_MT_MM;
+      const pressed = pressMag >= pressThresholdMtMm;
       if (gimbalInput.valid) {
         targetJoyX = gimbalInput.x;
         targetJoyY = gimbalInput.y;
@@ -873,10 +927,12 @@ export function initSfiDemo() {
           });
         }
         
-        // Preserve the differential plot's Z-gradient XY trajectory.
+        // The differential plot swings on the Z gradients (dBz/dx, dBz/dy): on
+        // the rig they sit near zero at rest and their sign follows the tilt,
+        // the counterpart of the legacy plot's (Bx, By).
         if (!lastMlx || Math.abs(lastMlx.x - displayMlxDBz) > 0.05 || Math.abs(lastMlx.y - displayMlxDBzY) > 0.05
             || Math.abs((lastMlx.axial || 0) - joyZ) > 0.02) {
-          mlxTraceHistory.push({ 
+          mlxTraceHistory.push({
             x: displayMlxDBz,
             y: displayMlxDBzY,
             axial: joyZ,
@@ -941,7 +997,7 @@ function updateSignalBarsUI(bx0, by0, bz0, dbx, dby, dbz_x, dbz_y, magStd, magDi
 
 function updateSensorDiagnostics(bx0, by0, bz0, dbx, dby, dbz_x, dbz_y, magStd, magDiff, tiltX, tiltY) {
   const pressMag = Math.hypot(dbz_x, dbz_y);
-  const pressed = pressMag >= SFI_PRESS_THRESHOLD_MT_MM;
+  const pressed = pressMag >= pressThresholdMtMm;
   const values = {
     'diag-joy-x': typeof tiltX === 'number' ? `${tiltX.toFixed(1)}°` : '--',
     'diag-joy-y': typeof tiltY === 'number' ? `${tiltY.toFixed(1)}°` : '--',
@@ -963,23 +1019,38 @@ function initRadarCanvases() {
   resizeRadarCanvases();
 }
 
+// The radars are drawn in CSS pixels on a backing store scaled by the device
+// pixel ratio, so they stay sharp on a high-DPI presentation screen; the draw
+// functions read the CSS size back through radarGeometry().
 function resizeRadarCanvases() {
-  [radarCanvasStd, radarCanvasMlx].forEach(can => {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  [[radarCanvasStd, radarCtxStd], [radarCanvasMlx, radarCtxMlx]].forEach(([can, ctx]) => {
     if (!can) return;
-    can.width = can.clientWidth || 300;
-    can.height = can.clientHeight || 280;
+    const w = can.clientWidth || 300;
+    const h = can.clientHeight || 280;
+    can.cssWidth = w;
+    can.cssHeight = h;
+    can.width = Math.round(w * dpr);
+    can.height = Math.round(h * dpr);
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   });
+}
+
+// Shared dial geometry. Labels, needle and margin scale with the dial, so a
+// large radar on a 27" screen is not a big circle with 10 px text.
+function radarGeometry(ctx) {
+  const c = ctx.canvas;
+  const w = c.cssWidth || c.width;
+  const h = c.cssHeight || c.height;
+  const k = Math.max(1, Math.min(w, h) / 340);
+  return { w, h, cx: w / 2, cy: h / 2, radius: Math.min(w, h) / 2 - 25 * k, k };
 }
 
 // `label` used to be passed in ('LEGACY 3D HALL') but was never drawn - the card
 // badge already names the plot - so the parameter is gone.
 function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
   if (!ctx || !ctx.canvas) return;
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const radius = Math.min(cx, cy) - 25;
+  const { w, h, cx, cy, radius, k } = radarGeometry(ctx);
 
   ctx.clearRect(0, 0, w, h);
 
@@ -1003,12 +1074,15 @@ function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
   ctx.stroke();
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '10px monospace';
+  ctx.font = `${Math.round(10 * k)}px monospace`;
   ctx.textAlign = 'center';
-  ctx.fillText('0° (+X)', cx + radius - 15, cy - 6);
-  ctx.fillText('90° (+Y)', cx, cy - radius + 14);
-  ctx.fillText('180° (-X)', cx - radius + 22, cy - 6);
-  ctx.fillText('270° (-Y)', cx, cy + radius - 8);
+  ctx.fillText('90° (+Y)', cx, cy - radius + 14 * k);
+  ctx.fillText('270° (-Y)', cx, cy + radius - 8 * k);
+  // Side labels anchored inside the rim, so they never cross the dial's edge.
+  ctx.textAlign = 'right';
+  ctx.fillText('0° (+X)', cx + radius - 6 * k, cy - 6 * k);
+  ctx.textAlign = 'left';
+  ctx.fillText('180° (-X)', cx - radius + 6 * k, cy - 6 * k);
 
   // (The old dashed "simulation target" reticle was removed: it duplicated the
   // needle on a second, unsmoothed path and could spill past the rim.)
@@ -1021,7 +1095,7 @@ function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
   const measuredPxY = cy - ((curY * measuredScale) / maxScale) * radius;
 
   ctx.strokeStyle = themeColor;
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 2.5 * k;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(measuredPxX, measuredPxY);
@@ -1029,9 +1103,9 @@ function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
 
   ctx.fillStyle = themeColor;
   ctx.shadowColor = themeColor;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 10 * k;
   ctx.beginPath();
-  ctx.arc(measuredPxX, measuredPxY, 5.5, 0, Math.PI * 2);
+  ctx.arc(measuredPxX, measuredPxY, 5.5 * k, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
 }
@@ -1052,11 +1126,7 @@ const RADAR_TILT_FULL_DEG = 60.0;
 // pointed somewhere unrelated to the stick.)
 function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
   if (!ctx || !ctx.canvas) return;
-  const w = ctx.canvas.width;
-  const h = ctx.canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const radius = Math.min(cx, cy) - 25;
+  const { w, h, cx, cy, radius, k } = radarGeometry(ctx);
   const xOf = (v) => v / RADAR_TILT_FULL_DEG;
   const yOf = (v) => v / RADAR_TILT_FULL_DEG;
 
@@ -1088,12 +1158,15 @@ function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
   ctx.stroke();
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '10px monospace';
+  ctx.font = `${Math.round(10 * k)}px monospace`;
   ctx.textAlign = 'center';
-  ctx.fillText(`X -${RADAR_TILT_FULL_DEG}°`, cx - radius + 24, cy - 6);
-  ctx.fillText(`Y -${RADAR_TILT_FULL_DEG}°`, cx, cy + radius - 8);
-  ctx.fillText(`X +${RADAR_TILT_FULL_DEG}°`, cx + radius - 24, cy - 6);
-  ctx.fillText(`Y +${RADAR_TILT_FULL_DEG}°`, cx, cy - radius + 14);
+  ctx.fillText(`Y -${RADAR_TILT_FULL_DEG}°`, cx, cy + radius - 8 * k);
+  ctx.fillText(`Y +${RADAR_TILT_FULL_DEG}°`, cx, cy - radius + 14 * k);
+  // Side labels anchored inside the rim, so they never cross the dial's edge.
+  ctx.textAlign = 'left';
+  ctx.fillText(`X -${RADAR_TILT_FULL_DEG}°`, cx - radius + 6 * k, cy - 6 * k);
+  ctx.textAlign = 'right';
+  ctx.fillText(`X +${RADAR_TILT_FULL_DEG}°`, cx + radius - 6 * k, cy - 6 * k);
 
   // (Dashed "simulation target" ring removed - the needle is the reading.)
   if (Number.isFinite(tiltXDeg) && Number.isFinite(tiltYDeg)) {
@@ -1102,7 +1175,7 @@ function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
     const py = cy - my * radius;
 
     ctx.strokeStyle = themeColor;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.5 * k;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(px, py);
@@ -1110,9 +1183,9 @@ function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
 
     ctx.fillStyle = themeColor;
     ctx.shadowColor = themeColor;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 10 * k;
     ctx.beginPath();
-    ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+    ctx.arc(px, py, 5.5 * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   }

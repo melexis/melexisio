@@ -11,7 +11,9 @@
  *     beta  = atan2(Z13, Y13)             strength = sqrt(Z13^2 + Y13^2)
  *
  *  The calibrated (Desmos) angles are computed by the shared ../angle_calib.js
- *  module so the thumbstick and the SFI page run one and the same engine.
+ *  module. 1px is identical on both pages; for 2px this page assigns the channels by
+ *  name (z1 = Z02/Z13), while the SFI page assigns them by the roles measured on the
+ *  rig (z1 = X02/Y13) - see calculateSfiDifferentialAngles in angle_calib.js.
  */
 
 import {

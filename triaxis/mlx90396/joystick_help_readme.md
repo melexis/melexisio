@@ -1,76 +1,105 @@
-# MLX90396 GUI Help
+# How to use the MLX90396 demo
 
-## Start screen / toolbar
+## Quick start
 
-- **Start** — begins the live demo loop. **Requires a connection first** — the button stays disabled until USB is connected.
+1. Plug the demo board into the computer with the USB cable.
+2. Open this page in **Google Chrome** or **Microsoft Edge**. Other browsers cannot talk to the board.
+3. Click **Connect USB**.
+4. In the window that opens, keep the default settings and click **Open Serial Port**.
+5. Pick the board in the browser's list and click **Connect**.
+6. Click **Start**. The status changes to **Running** and the screen follows the magnet.
+7. When you are done, click **Stop**, then **Disconnect** before you unplug the board.
 
-- **Stop** — halts the loop, resets joystick + magnet disk to center, status returns to Idle.
+**No board with you?** Click **Start** without connecting. The page plays a built-in simulation, so you can still show every screen.
 
-- **Status badge** — Idle / Running / Error.
+## The top bar
 
-- **Connect USB (or Disconnect when active)** — opens the hardware connection dialog / tears the port down.
+- **Start** - starts reading the sensor and moving the pictures.
+- **Stop** - stops reading. The pictures go back to the centre.
+- **Status** - shows **Idle** (stopped), **Running** or **Error**.
+- **Connect USB** - opens the connection window. Once connected, the same button reads **Disconnect**.
+- **Help** - opens this page.
 
-- **Help** — sits next to **Connect USB** in the toolbar. Opens this document in-app, read from `joystick_help_readme.md` at the moment you click.
+## Connecting to the board
 
-## Connection modal
+The connection window has a few settings. The defaults are right for the standard demo kit.
 
-*Pick your setup before the Chrome port-picker appears:*
+- **Target Device Driver**
+    - **SCPI Bridge** - the normal choice for the Melexis IO board. All controls work.
+    - **Direct Arduino Telemetry** - only for the Arduino version of the kit. The pictures move, but the gain buttons do not reach the chip.
+- **Serial Baud Rate** - leave it at **115200** unless someone tells you otherwise.
+- **SPI Bus Type**
+    - **Cable Connection** - the sensor is connected to the board with a cable.
+    - **Header Connection** - the sensor is plugged straight onto the board's pin header.
+- **Browser-Authorized Ports** - boards this browser has already been allowed to use.
 
-- **Target Device Driver** — two modes:
+If the connection fails, a red box in the window explains what went wrong.
 
-    - **SCPI Bridge (MLX90396 SPI API)** — full access: raw SPI register reads, NVRAM, pixel data.
-    - **Direct Arduino Telemetry (Frame Stream)** — just receives the Arduino's field frame (angle comes from the TFLite model on the MCU; no register controls).
+## The three screens
 
-- **Serial Baud Rate** — 115200 default, also 230400 / 500000 / 9600.
+Choose a screen with the tabs above the demo area. Only the screen you are looking at updates.
 
-- **SPI Bus Type (SCPI mode only)** — Cable Connection (`:SPI`) vs Header Connection (`:SPI2`); the loop initializes the bus accordingly.
+### Thumbstick with twist
 
-- **Browser-Authorized Ports** — lists previously-permitted ports as `Serial Port · VID 0xXXXX · PID 0xXXXX`.
+- **The disk** is the magnet. It slides when you push the knob and turns when you twist it. The dark half is the north pole, the gold half the south pole.
+- **The grid** shows 2.5 mm of travel in each direction from the centre.
+- **Zero Position** - makes the knob's current position the new centre. Use it while **Running**, with your hand off the knob.
+- **The motion selector** (next to Zero Position) chooses what the disk shows:
+    - **XY + Twist** - sliding and turning (the default).
+    - **XY only** - sliding only. The disk keeps its last angle.
+    - **Twist only** - turning only. The disk stays in the centre, which is good for showing the twist on its own.
 
-- **Open Serial Port** — triggers Chrome's device picker (lists all serial devices, nothing filtered).
+### Thumbstick
 
-- **✕ close button** — dismisses the dialog.
+- **The 3D stick** tilts the way you push the knob.
+- **The ring of lights** points in the direction of the push. It is dark when the knob is at rest.
+- **Polar Radar** - the arrow shows the direction and how far the knob is pushed. Under it, **Azimuth** is the direction in degrees and **Range** is how far, in percent.
+- **Signal & Calibration** - opens the settings panel described below.
 
-- *If something fails, a red error box appears inside the modal with an explanatory hint (e.g. port already held by another program, browser not supporting Web Serial).*
+### Sensor Diagnostics
 
-## Tabs (top of demo area): Thumbstick with twist · Thumbstick
+Use this screen to check that the sensor is healthy. The numbers are for engineers. You only need the coloured messages:
 
-*Only the active tab animates.*
+- **Frame Health** - **Status clean** means all is well. Otherwise the message names the cause:
+    - **ADC overflow** - the magnet signal is too strong for the sensor: choose the **1x** gain.
+    - **Anything else that keeps coming back** - click **Stop**, **Disconnect**, unplug and replug the board, then connect again.
+    - The **Flags** line remembers the last event and when it happened, so a short one is not missed.
+- **Absolute Pixels** - **Within ADC range** is good. **ADC near full scale** means the magnet signal is too strong for the sensor: choose the **1x** gain.
 
-### 1. Thumbstick tab
+## Signal & Calibration panel
 
-- **3D stick** — moves with X/Y position (X/20, Y/20), clamped to its max radius, with a 3D tilt effect.
+Open it with the **Signal & Calibration** button on the **Thumbstick** screen.
 
-- **28-LED ring** — outer LEDs; the one closest to the vector angle lights bright with dimmer neighbors on either side. Off when the stick is centered.
+- **Mode** (top right of the panel) - two ways for the sensor to measure the knob tilt. **1px mode** is the default.
+- **The six boxes**
+    - **Alpha** and **Beta** - the knob tilt in two directions, in degrees.
+    - **calibrated** and **raw** - the angle with and without your calibration numbers. They are the same until you enter calibration numbers.
+    - **Strength** - how strong the magnet signal is.
+- **Gain** - how strongly the sensor amplifies the magnet signal.
+    - **3x** is the default for 1px mode and **1x** for 2px mode. The **trim** box takes any value from 0 to 63, if you were given one.
+    - **Device confirmed** shows the value the chip accepted. **Device: not read** means the value did not reach the chip, because there is no connection or the Arduino driver is in use.
+- **Pixel pitch** - leave it at **1** unless an engineer gives you another value. It only changes the Strength numbers.
+- **k1, k2, o11, o12, o21, o22** - fine-tuning numbers for the calibrated angles. The defaults (k = 1, o = 0) mean no correction. Type in the values you were given; they take effect immediately.
 
-- **Polar radar** — SFI-style field-vector scope under the stick: dark reticle with 25% rings and compass labels (`0° (+X)`, `90° (+Y)`, `180° (-X)`, `270° (-Y)`), plus a teal measured vector with a glowing head. The radar XY is computed by the **angular formula (plain atan2 without calibration) applied to the averaged 4-pixel XYZ**; at rest the field is straight up, so the resting vector sits at the origin and grows in the direction of tilt. Readout line: **Azimuth: 0.0° | Range: 0.0%**, with `Azimuth = atan2(y, x)`.
+The formula under these fields and the **How the calibration works** box are background for engineers. You can ignore them.
 
-- **Signal & Calibration button** — toggles the twist panel (live α/β readouts plus the GAINSEL and k/o calibration card) below the radar. Reviewer slide 4 scopes this panel to the no-twist Thumbstick tab.
+## When to stop before changing something
 
-### 2. Thumbstick with twist tab
+- **Gain needs the demo stopped.** The chip cannot take a new gain while it is measuring, so the gain buttons are greyed out while the demo runs.
+    1. Click **Stop**.
+    2. Pick the gain.
+    3. Click **Start**. Start always sends the gain settings to the chip.
+    4. Check that **Device confirmed** shows the value you picked.
+- **You can pick the gain before connecting.** It is sent to the chip when you click **Start**.
+- **Change any time, even while running:** **1px / 2px mode**, the calibration numbers, pixel pitch, the motion selector, and switching screens.
+- **Only while running:** **Zero Position**, because it needs a live reading.
 
-- **Magnet disk** (half dark-charcoal **N** / half gold **S**, the Melexis magnet-render colours) — rides a **fixed ±2.5 mm 1 mm-pitch grid** laid out like the sensor die. It positions with X/Y and spins with the twist angle. A rightward physical rotation shows as clockwise on screen.
+## If something goes wrong
 
-    - The grid never rescales, so a pure rotation doesn't jump the disk.
-
-    - Position/angle are lightly smoothed (EMA) to damp tremor + model fuzz.
-
-- **Zero Position button** — captures current raw X/Y as the reference; the disk recentres there.
-
-- **Motion mode selector** — `XY + Twist` (default), `XY only` or `Twist only`. `XY only` keeps the disk tracking position and holds the twist angle where it was; `Twist only` stops the disk translating so it only spins, for a clean twist demo. Replaces the old `Lock XY (twist only)` checkbox. The smoother keeps tracking behind the scenes, so switching modes never snaps.
-
-- Twist calibration on this tab is done with **Zero Position**; the Signal & Calibration panel (readouts + k/o) lives on the **Thumbstick** tab (reviewer slide 4).
-
-**Signal & Calibration panel** (opened from the Thumbstick tab):
-
-- **Mode selector**: 1px mode (single pixel · mT) — angles from pixel 0 fields; 2px mode (differential · mT/mm) — angles from gradient pairs between pixels.
-
-- **Readouts (6 boxes)**: `Alpha (calibrated)` / `Beta (calibrated)` (post-calibration angles), `Alpha (raw)` / `Beta (raw)` (pure atan2), and `Alpha Strength` / `Beta Strength` (field magnitude, in mT or mT/mm). The strengths are true physical units: the raw counts are divided by the shared scale in `angle_calib.js` (20 counts/mT absolute, 20 × pitch counts per mT/mm differential).
-
-**Gain & Calibration Config card** *(always visible in every motion mode so GAINSEL and the k/o constants stay reachable while tuning; per reviewer slide 4 the k/o formula itself applies to the no-twist XY demo, while twist calibration is covered by Zero Position.)*
-
-- **GAINSEL presets** — electrical gain register with two factory presets, **1x** (gain 9 ≈ 72 counts) and **3x** (gain 37 ≈ 219 counts), plus a free **trim** field (0–63) for the final-test value. Applied per mode: **1px defaults to 3x (37)** per the AE's twist-demo guidance; **2px defaults to 1x (9)**. The hint shows the selected 6-bit value. Over SCPI choosing a value writes it to the active mode's field (unlock + readback verify) and confirms it in the "Device confirmed" line; without hardware it stays local. Switching 1px↔2px mode re-syncs the display; starting the demo writes the configured gain for the active mode.
-
-- **Pixel pitch (mm)** — the 2px display scale. The differential channels are raw counts, so mT/mm = counts ÷ (20 × pitch). The pitch is not in the preliminary datasheet, so it is live-trimmable (default 1.0 mm) and shared with the SFI page through `angle_calib.js`. It rescales the strength readouts only; the angles are unaffected.
-
-- **Calibration constants k1 k2 o11 o12 o21 o22** — edited live; every keystroke updates the calibrated readouts using the published Desmos cross-axis formula. Defaults `k1=k2=1, o=0` are an exact no-op: calibrated = raw, so nothing is "hidden". The live engine is initialised from these fields on load, so display and math always agree.
+- **The browser says Web Serial is not supported** - use Chrome or Edge on a computer.
+- **The board is not in the browser's list** - try another USB cable (some cables only charge), or unplug and replug the board.
+- **"Port already in use"** - close any other program or browser tab that has the board open, then connect again.
+- **Status shows Error** - click **Stop** and **Disconnect**, unplug and replug the board, then connect and start again.
+- **The picture sits off centre when you are not touching the knob** - click **Zero Position** while running.
+- **The gain buttons are greyed out** - the demo is running. Click **Stop** first.
+- **Help says it could not load** - the page was opened as a file. Open it through its web address instead.

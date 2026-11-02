@@ -108,6 +108,17 @@ const defaultEnhanced = calculateSfiDifferentialAngles(
 chk('SFI enhanced defaults apply the unscaled cross-axis terms',
   near(defaultEnhanced.alphaRad, Math.atan2(Math.hypot(2, 7), 5))
   && near(defaultEnhanced.betaRad, Math.atan2(Math.hypot(3, 5), 7)));
+{
+  // Bench shape: X02/Y13 large at rest, Z02/Z13 ~0 and signed with the tilt.
+  const rest = calculateSfiDifferentialAngles({ X02: 4.4, Z02: 0, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  const right = calculateSfiDifferentialAngles({ X02: 4.4, Z02: 2, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  const left = calculateSfiDifferentialAngles({ X02: 4.4, Z02: -2, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  chk('SFI enhanced sits at 90° at rest and keeps the tilt direction (Z02 = +2 vs -2)',
+    near(rest.alphaDeg, 90) && right.alphaDeg < 90 && left.alphaDeg > 90
+    && near(left.alphaDeg + right.alphaDeg, 180));
+}
+chk('gimbal full scale sets the deflection span',
+  near(calculateDifferentialGimbalInput(60, 90, 90, 90, 60).x, 0.5));
 chk('SFI differential rejects invalid samples',
   calculateSfiDifferentialAngles({ X02: NaN, Z02: 1, Y13: 2, Z13: 3 }).valid === false);
 const centeredGimbal = calculateDifferentialGimbalInput(90, 90);

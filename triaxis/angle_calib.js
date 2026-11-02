@@ -17,9 +17,9 @@
  * plane with the orthogonality terms as Z<->X / Z<->Y crosstalk corrections;
  * that is `calculate2pxAngles` (parity-tested below). Production SFI
  * differential angles instead come from `calculateSfiDifferentialAngles`,
- * which implements the reviewer's slide-12 formulas verbatim: the `normal`
- * branch is intentionally calibration-free (plain atan2 per gradient plane),
- * and only the `enhanced` branch consumes k1/o11/o12/k2/o21/o22.
+ * which applies the AE's Desmos model to the 2px channels with the roles the
+ * bench shows (see that function). The `normal` branch is the calibration-free
+ * two-signal angle; only `enhanced` consumes k1/o11/o12/k2/o21/o22.
  *
  * No DOM access, no state at module load: usable from Node tests and the browser.
  *
@@ -199,9 +199,18 @@ export function calculate2pxAngles(reading = {}, params = DEFAULT_CALIBRATION_PA
 }
 
 /**
- * SFI 2px formula from the GUI review:
- * normal uses each axis' in-plane and Z gradients directly; enhanced adds the
- * cross-axis gradient and the six live calibration parameters.
+ * SFI 2px angles: the AE's signals (alpha from dBx/dx and dBz/dx, beta from
+ * dBy/dy and dBz/dy) in the AE's Desmos model, with the roles the bench shows.
+ * On the rig the in-plane gradients X02/Y13 carry the large resting value and
+ * the Z gradients Z02/Z13 sit near zero and follow the tilt direction (their
+ * sign tracked Bx/By with r = 0.93/0.95 over a full-tilt circle; X02/Y13 did
+ * not). So X02/Y13 take the model's z1 slot (under the root), Z02/Z13 its x1
+ * slot (the signed leg), and the other axis' Z gradient is the cross term:
+ *   alpha = atan2( hypot(X02, k1*(Z13 - o11*X02)), Z02 - o12*X02 )
+ *   beta  = atan2( hypot(Y13, k2*(Z02 - o21*Y13)), Z13 - o22*Y13 )
+ * Assigning by name instead (z1 = Z02, x1 = X02) put the direction-carrying
+ * channel under the root and lost the tilt sign on the bench.
+ * normal is the uncalibrated two-signal angle; enhanced adds the six constants.
  */
 export function calculateSfiDifferentialAngles(reading = {}, params = DEFAULT_CALIBRATION_PARAMS, formula = 'normal') {
   const { X02, Z02, Y13, Z13 } = reading;
@@ -233,17 +242,23 @@ export function calculateSfiDifferentialAngles(reading = {}, params = DEFAULT_CA
   };
 }
 
-/** Convert differential angles into a centered, bounded gimbal command. */
-export function calculateDifferentialGimbalInput(alphaDeg, betaDeg, zeroAlphaDeg = 90, zeroBetaDeg = 90) {
+/**
+ * Convert differential angles into a centered, bounded gimbal command.
+ * fullScaleDeg is the angle change that gives full deflection: a real stick
+ * only swings the angles by a fraction of 90°, so the caller sets it from the
+ * bench rather than the model being stuck near upright.
+ */
+export function calculateDifferentialGimbalInput(alphaDeg, betaDeg, zeroAlphaDeg = 90, zeroBetaDeg = 90, fullScaleDeg = 90) {
   if (!isFiniteReading(alphaDeg, betaDeg, zeroAlphaDeg, zeroBetaDeg)) {
     return { valid: false, x: NaN, y: NaN };
   }
+  const span = Number.isFinite(fullScaleDeg) && fullScaleDeg > 0 ? fullScaleDeg : 90;
   const delta = (angle, zero) => ((angle - zero + 540) % 360) - 180;
   const clamp = value => Math.max(-1, Math.min(1, value));
   return {
     valid: true,
-    x: clamp(-delta(alphaDeg, zeroAlphaDeg) / 90),
-    y: clamp(-delta(betaDeg, zeroBetaDeg) / 90)
+    x: clamp(-delta(alphaDeg, zeroAlphaDeg) / span),
+    y: clamp(-delta(betaDeg, zeroBetaDeg) / span)
   };
 }
 

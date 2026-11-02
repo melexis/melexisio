@@ -1,4 +1,4 @@
-import { MLX90396_API } from './mlx_api.js';
+import { MLX90396_API, FLAG_TEXT } from './mlx_api.js';
 import { Arduino_API } from './arduino_api.js';
 import { 
   initSfiDemo, 
@@ -209,8 +209,13 @@ async function scpiQuery(cmd, options = {}) {
   let releaseLock;
   const nextLock = new Promise(resolve => { releaseLock = resolve; });
 
-  await scpiLock;
+  // Join the queue before awaiting. Reading scpiLock after the await let every
+  // caller queued behind the same in-flight query wake together and overwrite
+  // each other's scpiWaiter - one reply went to the wrong caller and the other
+  // caller never settled (reproduced on the bench with two gain clicks).
+  const prevLock = scpiLock;
   scpiLock = nextLock;
+  await prevLock;
 
   return new Promise((resolve, reject) => {
     lastDataLine = '';
@@ -548,7 +553,18 @@ window.addEventListener('beforeunload', () => {
 });
 
 // --- EXACT UNCHANGED ORIGINAL LIVE STREAMING LOOP ---
+// The gain controls stay locked for the whole session, released only once the
+// loop below has returned (see lockGainControls).
 async function runJoystickDemo() {
+  lockGainControls(+1);
+  try {
+    await runDemoSession();
+  } finally {
+    lockGainControls(-1);
+  }
+}
+
+async function runDemoSession() {
   btnStartDemo.disabled = true;
   btnStopDemo.disabled = false;
   isDemoRunning = true;
@@ -572,6 +588,14 @@ async function runJoystickDemo() {
           await scpiQuery(":CON:CS1:GPIO:INIT:OUT 0");
           await scpiQuery(`${prefix}:BUFfer 1,1,1,1,0`);
           await scpiQuery(":VDD:3V3");
+        }
+
+        // Clear what latched before this session (RST is always set after a
+        // power-up) so Diagnostics only reports events from here on.
+        lastFlagEvent = null;
+        const startFlags = await activeDevice.readFlags();
+        if (startFlags.warn.length || startFlags.error.length) {
+          appendLog(`[FLAGS] Cleared at start: ${describeFlags(startFlags)}\n`, 'log-okprompt');
         }
 
         // Apply each pixel's own trim before streaming. The chip powers up with
@@ -615,6 +639,16 @@ async function runJoystickDemo() {
             await activeDevice.awaitReady();
             const resDiff = await activeDevice.rm(false, 0x000AC);
 
+            // ERROR (bit 2) or WARN (bit 1) in any good reply: read the register
+            // that latched it, which names the cause and clears the flag.
+            const statusBits = [res01, res23, resDiff]
+              .reduce((acc, r) => acc | (r && !r.error ? r.status : 0), 0);
+            let flags = null;
+            if (statusBits & 0x06) {
+              flags = await activeDevice.readFlags({ warn: !!(statusBits & 0x02), error: !!(statusBits & 0x04) });
+              noteFlagEvent(flags);
+            }
+
             if (!res01.error && !res23.error && !resDiff.error) {
               hasLiveSample = true;
               const avgX = (res01.x0 + res01.x1 + res23.x2 + res23.x3) / 4;
@@ -648,7 +682,7 @@ async function runJoystickDemo() {
               diagPeriodMs = diagPeriodMs === null ? cycleMs : diagPeriodMs * 0.8 + cycleMs * 0.2;
             }
             diagCyclePrev = performance.now();
-            updateDiagnosticsFrame(res01, res23, resDiff, diagPeriodMs);
+            updateDiagnosticsFrame(res01, res23, resDiff, diagPeriodMs, flags);
           } else {
             const sample = await activeDevice.getSample();
             if (!sample.error) {
@@ -855,6 +889,23 @@ const VOX_GAIN_MODES = ['1px', '2px'];
 const VOX_GAIN_DEFAULTS = { '1px': 37, '2px': 9 };
 let voxGains = { ...VOX_GAIN_DEFAULTS };
 
+// The part rejects register writes while the stream has a measurement in
+// flight (it latches BUS_ERROR and the write is lost), so the gain controls are
+// locked from Start until the loop has actually exited - not merely until Stop
+// is pressed. Start Live Stream writes both fields anyway. The depth count
+// keeps an overlapping old loop from unlocking early.
+let gainLockDepth = 0;
+function lockGainControls(delta) {
+  gainLockDepth = Math.max(0, gainLockDepth + delta);
+  const locked = gainLockDepth > 0;
+  document.querySelectorAll(
+    '#vox-gain-seg-1px button[data-gain], #vox-gain-seg-2px button[data-gain], #vox-gain-custom-1px, #vox-gain-custom-2px'
+  ).forEach((el) => {
+    el.disabled = locked;
+    el.title = locked ? 'Stop the stream to change the gain' : '';
+  });
+}
+
 const voxGainUI = {
   '1px': {
     seg: document.getElementById('vox-gain-seg-1px'),
@@ -1002,7 +1053,27 @@ function diagState(id, text, tone) {
   el.classList.toggle('diagnostics-state--bad', tone === 'bad');
 }
 
-function updateDiagnosticsFrame(res01, res23, resDiff, periodMs) {
+// Latest WARN/ERROR event read back from the part. Reading the register clears
+// the flag, so this is what keeps the cause visible in Diagnostics afterwards.
+let lastFlagEvent = null;
+
+function describeFlags(flags) {
+  return [...flags.error, ...flags.warn]
+    .map(n => (FLAG_TEXT[n] ? `${n} (${FLAG_TEXT[n]})` : n))
+    .join(', ');
+}
+
+function noteFlagEvent(flags) {
+  const names = [...flags.error, ...flags.warn].join(', ');
+  if (!names) return;
+  // A persistent cause (e.g. OVF on every frame) is logged once, not per frame.
+  if (names !== lastFlagEvent?.names) {
+    appendLog(`[FLAGS] ${describeFlags(flags)}\n`, flags.error.length ? 'log-badprompt' : 'log-okprompt');
+  }
+  lastFlagEvent = { names, at: new Date() };
+}
+
+function updateDiagnosticsFrame(res01, res23, resDiff, periodMs, flags = null) {
   const tab = document.getElementById('tab-diagnostics');
   if (tab && !tab.classList.contains('active')) return;
 
@@ -1010,15 +1081,21 @@ function updateDiagnosticsFrame(res01, res23, resDiff, periodMs) {
 
   const st = decodeStatus(res01?.status);
   if (st) {
+    // The loop reads 0x41/0x42 whenever any reply carried ERROR or WARN, so the
+    // cause can be named here; the read also clears the latch for the next frame.
+    const isError = st.error || !!flags?.error.length;
+    const isWarn = st.warn || !!flags?.warn.length;
+    const cause = flags ? describeFlags(flags) : '';
+    const last = lastFlagEvent ? `  · last: ${lastFlagEvent.names} at ${lastFlagEvent.at.toLocaleTimeString()}` : '';
     diagText('diag-status', `${st.hex}  (${st.fnBits})`);
     diagText('diag-fn', `${st.fn} · counter ${st.counter}`);
     diagText('diag-drdy', st.drdy ? 'Ready' : 'Not ready');
-    diagText('diag-flags', `ERROR=${st.error ? 1 : 0}  WARN=${st.warn ? 1 : 0}`);
+    diagText('diag-flags', `ERROR=${isError ? 1 : 0}  WARN=${isWarn ? 1 : 0}${last}`);
     diagState('diag-health',
-      st.error ? 'Status ERROR set - the part rejected a command' :
+      isError ? `ERROR: ${cause || 'the part rejected a command'}` :
       !st.drdy ? 'DRDY clear - measurement not ready yet' :
-      st.warn ? 'WARN set - register 0x42 holds the detail' : 'Status clean',
-      st.error ? 'bad' : (!st.drdy || st.warn) ? 'warn' : null);
+      isWarn ? `WARN: ${cause || 'see register 0x42'}` : 'Status clean',
+      isError ? 'bad' : (!st.drdy || isWarn) ? 'warn' : null);
   } else {
     diagText('diag-status', '--');
     diagText('diag-fn', '--');

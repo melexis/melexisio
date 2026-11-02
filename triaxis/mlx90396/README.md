@@ -174,10 +174,13 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
   - **Hardware write (SCPI only)** — `setGainSel` is the local table; the line below it,
     `Device confirmed: …`, is a readback of register `0x00` bits `[5:0]`/`[11:6]` via
     `MLX90396_API.setGain`/`readGain` (unlock `0x43=0x9952, 0x44=0x84DE`, field write,
-    readback verify). Choosing a preset or entering a trim writes in real time.
-    Switching 1px↔2px mode re-syncs the display; starting the demo writes the
-    configured gain for the active mode (the AE default 1px = 3x / 2px = 1x, or
-    the value the user chose). The `Device confirmed` line reports what the part
+    readback verify). Choosing a preset or entering a trim writes immediately while
+    the demo is stopped; while it runs the controls are disabled, because the part
+    rejects register writes mid-measurement (BUS_ERROR in register `0x41`). Starting
+    the demo writes **both** fields from the table (the AE default 1px = 3x / 2px = 1x,
+    or the values the user chose, also before connecting). Switching 1px↔2px mode
+    re-syncs the display; while running, the readback shows what Start confirmed
+    instead of reading the part. The `Device confirmed` line reports what the part
     actually holds.
     Without an SCPI device every value stays local and the readback shows `not read`.
 - **Calibration constants** `k1, k2, o11, o12, o21, o22` — edited live; every change
@@ -188,9 +191,10 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
   b1 = atan2( sqrt(z1² + (k2·(x1 − o21·z1))²), (y1 − o22·z1) )
   ```
 
-  **Default = identity no-op.** With `k1 = k2 = 1, o11…o22 = 0` the calibrated readout is
-  *exactly* the raw `atan2` — no tangential cross-axis mixing — so "clean" vanilla readings
-  are shown until you actually enter offsets/gains.
+  **Defaults are not the raw angle.** With `k1 = k2 = 1, o11…o22 = 0` the cross-axis term is
+  fully in, so the calibrated angle is the 3D direction angle (`atan2(√(z1² + y1²), x1)` for α),
+  not the raw two-signal `atan2(z1, x1)`. The two columns match only when the cross term is
+  zero; `k = 0` removes it (the calibrated angle then uses `|z1|`, raw keeps the sign).
 
 ---
 
