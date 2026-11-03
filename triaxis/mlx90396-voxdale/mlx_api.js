@@ -2,6 +2,34 @@
  * mlx_api.js
  * Complete MLX90396 API - SCPI Tunneling Version with BAA Gain Controls
  */
+
+// Bit names of the warning (0x42) and error (0x41) registers, bit 0 first
+// (datasheet V0.5 tables 18-23). Reading either register clears the matching
+// INFO/WARN or ERROR flag in the status byte.
+const WARN_FLAGS = ['MI6', 'RST', 'OVF', 'SEC', 'OV_VDDD', 'UV_VDD', 'OV_VDD', 'UV_TEMP',
+  'OV_TEMP', 'WOC_M1', 'WOC_M2', 'WOC_M3', 'WOC_M4', 'WOC_M5', 'WOC_M6', 'WOC_T'];
+const ERROR_FLAGS = ['CE_CRC', 'CE_INVALID', 'DED', 'CRCERR', 'BUS_ERROR', 'DIAG_ADC',
+  'DIAG_LFO', 'DIAG_OSC', 'DIAG_DIE', 'DIAG_HP', 'DIAG_INTB'];
+
+// Plain-language reading of the flags a demo is likely to hit.
+export const FLAG_TEXT = {
+  RST: 'chip reset (normal after power-up)',
+  OVF: 'ADC overflow - signal too strong for the gain',
+  MI6: 'more than 6 channels requested',
+  UV_VDD: 'supply voltage too low',
+  OV_VDD: 'supply voltage too high',
+  BUS_ERROR: 'internal bus error - a register write during a measurement',
+  CE_INVALID: 'command rejected',
+  CE_CRC: 'command CRC error',
+  CRCERR: 'port CRC error',
+  DIAG_ADC: 'ADC self-check failed',
+  DIAG_HP: 'Hall element or gain chain fault'
+};
+
+function flagNames(table, value) {
+  return table.filter((_, bit) => (value >> bit) & 1);
+}
+
 export class MLX90396_API {
     
   static Mlx90396Command = {
@@ -15,17 +43,48 @@ export class MLX90396_API {
       SWOC: 0x20,     // Start WOC
       SM: 0x30,       // Start Single Measurement
       RM_NO_TEMP: 0x40, // Read Measurement (No Temp)
-      // Datasheet table 27 encodes the temperature request at bit 3
-      // (0b0100 T000 = 0x48), but the hardware-verified reference implementation
-      // drives bit 0 (0x41) and that is what works on the bench. Only 0x41 is
-      // confirmed here - verify on the part before relying on temperature.
+      // The datasheet contradicts itself on the temperature bit: table 24 says
+      // bit 3 (0b0100 T000 = 0x48), table 27 says bit 0 (0b0100 000T = 0x41).
+      // The hardware-verified reference implementation drives bit 0 and that is
+      // what works on the bench - verify on the part before relying on it.
       RM_TEMP: 0x41   // Read Measurement (With Temp)
   };
 
   constructor(scpiQueryFn, getSpiPrefixFn = () => ":SPI") {
       this.query = scpiQueryFn;
+      this._busLock = Promise.resolve();
       this.getSpiPrefix = typeof getSpiPrefixFn === 'function' ? getSpiPrefixFn : () => getSpiPrefixFn;
   }
+
+  // --- Bus ownership ---
+  // Every public method below holds the bus for its whole duration and calls
+  // the unlocked _-prefixed internals. Without it, concurrent callers
+  // interleaved inside one chip-select window (two SPI frames between a single
+  // CS0 0 / CS0 1 pair) and split multi-step operations such as setGain's
+  // unlock-read-modify-write, which the part answers with BUS_ERROR.
+  _op(fn) {
+      const run = this._busLock.then(() => fn());
+      this._busLock = run.then(() => {}, () => {});
+      return run;
+  }
+
+  rt(...args) { return this._op(() => this._rt(...args)); }
+  hs(...args) { return this._op(() => this._hs(...args)); }
+  hr(...args) { return this._op(() => this._hr(...args)); }
+  ex(...args) { return this._op(() => this._ex(...args)); }
+  rr(...args) { return this._op(() => this._rr(...args)); }
+  wr(...args) { return this._op(() => this._wr(...args)); }
+  sb(...args) { return this._op(() => this._sb(...args)); }
+  swoc(...args) { return this._op(() => this._swoc(...args)); }
+  sm(...args) { return this._op(() => this._sm(...args)); }
+  rm(...args) { return this._op(() => this._rm(...args)); }
+  rmStatus(...args) { return this._op(() => this._rmStatus(...args)); }
+  awaitReady(...args) { return this._op(() => this._awaitReady(...args)); }
+  setGain(...args) { return this._op(() => this._setGain(...args)); }
+  readGain(...args) { return this._op(() => this._readGain(...args)); }
+  readFlags(...args) { return this._op(() => this._readFlags(...args)); }
+  setGain1Px(...args) { return this._op(() => this._setGain1Px(...args)); }
+  readGain1Px(...args) { return this._op(() => this._readGain1Px(...args)); }
 
   async _send_spi(mosi_data, miso_len) {
       const prefix = this.getSpiPrefix();
@@ -38,10 +97,18 @@ export class MLX90396_API {
       await this.query(`${prefix}:CS0 0`);
 
       const scpiCmd = `${prefix}:WriteReaD ${decStr}`;
-      let response = await this.query(scpiCmd);
+      let response;
+      try {
+          response = await this.query(scpiCmd);
+      } finally {
+          // Release chip select even when the transfer timed out; a part left
+          // selected misreads every following frame. The transfer's own error
+          // is the one that propagates.
+          await Promise.resolve(this.query(`${prefix}:CS0 1`)).catch(() => {});
+      }
 
-      await this.query(`${prefix}:CS0 1`);
-
+      // No reply (or a short one) comes back as all zeros, which _verify_crc
+      // rejects, so every command reports it as an error instead of data 0.
       if (!response) return Array(miso_len).fill(0);
 
       const stripped = response.replace(scpiCmd, '').trim();
@@ -70,6 +137,10 @@ export class MLX90396_API {
   }
 
   _verify_crc(message, expected_crc) {
+      // An all-zero frame is no reply or a MISO line stuck low. It would pass
+      // the AAA (0x00-init) check below, so it is rejected explicitly. The cost
+      // is that an AAA part's genuine all-zero reply also counts as an error.
+      if (expected_crc === 0 && message.every(b => b === 0)) return false;
       let crcFF = 0xFF; 
       for (let i = 0; i < message.length; i++) {
           crcFF ^= message[i];
@@ -111,35 +182,35 @@ export class MLX90396_API {
       return false;
   }
 
-  async rt() {
+  async _rt() {
       const mosi = [MLX90396_API.Mlx90396Command.RT, 0];
       mosi[1] = this._crc_2f(mosi.slice(0, 1));
       const miso = await this._send_spi(mosi, 2);
       return !this._verify_crc(miso.slice(0, 1), miso[1]); 
   }
 
-  async hs() {
+  async _hs() {
       const mosi = [MLX90396_API.Mlx90396Command.HS, 0];
       mosi[1] = this._crc_2f(mosi.slice(0, 1));
       const miso = await this._send_spi(mosi, 2);
       return !this._verify_crc(miso.slice(0, 1), miso[1]); 
   }
 
-  async hr() {
+  async _hr() {
       const mosi = [MLX90396_API.Mlx90396Command.HR, 0];
       mosi[1] = this._crc_2f(mosi.slice(0, 1));
       const miso = await this._send_spi(mosi, 2);
       return !this._verify_crc(miso.slice(0, 1), miso[1]); 
   }
 
-  async ex(mode) {
+  async _ex(mode) {
       const mosi = [MLX90396_API.Mlx90396Command.EX | (0x0F & mode), 0];
       mosi[1] = this._crc_2f(mosi.slice(0, 1));
       const miso = await this._send_spi(mosi, 2);
       return !this._verify_crc(miso.slice(0, 1), miso[1]); 
   }
 
-  async rr(reg) {
+  async _rr(reg) {
       const mosi = [MLX90396_API.Mlx90396Command.RR, reg, 0];
       mosi[2] = this._crc_2f(mosi.slice(0, 2));
       const miso = await this._send_spi(mosi, 4);
@@ -150,7 +221,7 @@ export class MLX90396_API {
       return { error, status: miso[0], data }; 
   }
 
-  async wr(reg, data) {
+  async _wr(reg, data) {
       const mosi = [
           MLX90396_API.Mlx90396Command.WR,
           reg,
@@ -163,7 +234,7 @@ export class MLX90396_API {
       return !this._verify_crc(miso.slice(0, 1), miso[1]);
   }
 
-  async sb(data_mask) {
+  async _sb(data_mask) {
       if (this._checkMaskLimit(data_mask)) return true;
       const mosi = [
           MLX90396_API.Mlx90396Command.SB | ((data_mask >> 16) & 0x0F),
@@ -176,7 +247,7 @@ export class MLX90396_API {
       return !this._verify_crc(miso.slice(0, 1), miso[1]);
   }
 
-  async swoc(data_mask) {
+  async _swoc(data_mask) {
       if (this._checkMaskLimit(data_mask)) return true;
       const mosi = [
           MLX90396_API.Mlx90396Command.SWOC | ((data_mask >> 16) & 0x0F),
@@ -189,7 +260,7 @@ export class MLX90396_API {
       return !this._verify_crc(miso.slice(0, 1), miso[1]);
   }
 
-  async sm(data_mask) {
+  async _sm(data_mask) {
       if (this._checkMaskLimit(data_mask)) return true;
       const mosi = [
           MLX90396_API.Mlx90396Command.SM | ((data_mask >> 16) & 0x0F),
@@ -202,7 +273,7 @@ export class MLX90396_API {
       return !this._verify_crc(miso.slice(0, 1), miso[1]);
   }
 
-  async rm(temp, data_mask) {
+  async _rm(temp, data_mask) {
       if (this._checkMaskLimit(data_mask)) return { error: true, msg: "Limit Exceeded (Max 6 axes)" };
       
       const mosi = [temp ? MLX90396_API.Mlx90396Command.RM_TEMP : MLX90396_API.Mlx90396Command.RM_NO_TEMP, 0];
@@ -253,7 +324,7 @@ export class MLX90396_API {
   // measurement, mirroring the thumbstick API and the reference page's DRDY
   // poll. The byte after the status is DATA (the reply CRC is only at the end
   // of the full frame), so no CRC is verified on a lone status byte.
-  async rmStatus() {
+  async _rmStatus() {
       const mosi = [MLX90396_API.Mlx90396Command.RM_NO_TEMP, 0];
       mosi[1] = this._crc_2f(mosi.slice(0, 1));
       const miso = await this._send_spi(mosi, 1);
@@ -264,11 +335,11 @@ export class MLX90396_API {
   // Wait for conversion-complete after SM: polls the status byte about every
   // 2 ms up to deadlineMs, then proceeds regardless so a slow or silent part can
   // never stall the loop. Returns true when DRDY (status bit 0) was seen.
-  async awaitReady(deadlineMs = 10) {
+  async _awaitReady(deadlineMs = 10) {
       const t0 = Date.now();
       for (;;) {
           try {
-              const st = await this.rmStatus();
+              const st = await this._rmStatus();
               if (st.ok && (st.status & 0x01)) return true;
           } catch (_) { /* transport hiccup: retry until the deadline */ }
           if (Date.now() - t0 >= deadlineMs) return false;
@@ -281,13 +352,13 @@ export class MLX90396_API {
    * @param {number} gainValue - 9 (gain ~72) or 37 (gain ~219)
    * @param {boolean} persist - If true, issues HS to store permanently into NVRAM
    */
-  async setGain1Px(gainValue = 37, persist = false) {
+  async _setGain1Px(gainValue = 37, persist = false) {
       // 1. Send unlock sequence (Datasheet 15.4.3); abort if either write fails.
-      if (await this.wr(0x43, 0x9952)) return false;
-      if (await this.wr(0x44, 0x84DE)) return false;
+      if (await this._wr(0x43, 0x9952)) return false;
+      if (await this._wr(0x44, 0x84DE)) return false;
 
       // 2. Read register 0x00 to preserve NV_GAINSEL_2PX (bits [11:6])
-      const readRes = await this.rr(0x00);
+      const readRes = await this._rr(0x00);
       // Abort on a failed read: substituting 0 would wipe the 2px gain field
       // instead of failing safe.
       if (readRes.error) return false;
@@ -295,17 +366,17 @@ export class MLX90396_API {
 
       // 3. Clear bits [5:0] and apply new 6-bit gain
       const updatedVal = (currentVal & ~0x003F) | (gainValue & 0x003F);
-      const writeErr = await this.wr(0x00, updatedVal);
+      const writeErr = await this._wr(0x00, updatedVal);
       if (writeErr) return false;
 
       // Confirm the volatile register contains the requested 1PX gain bits.
-      const verifyRes = await this.rr(0x00);
+      const verifyRes = await this._rr(0x00);
       const verified = !verifyRes.error && ((verifyRes.data & 0x003F) === (gainValue & 0x003F));
       if (!verified) return false;
 
       // 4. Optionally commit to non-volatile memory
       if (persist) {
-          await this.hs();
+          await this._hs();
       }
       return true;
   }
@@ -314,8 +385,8 @@ export class MLX90396_API {
    * Reads back NV_GAINSEL_1PX (reg 0x00 bits [5:0]) for UI confirmation.
    * @returns {{error: boolean, value: (number|null), raw: (number|null)}}
    */
-  async readGain1Px() {
-      const readRes = await this.rr(0x00);
+  async _readGain1Px() {
+      const readRes = await this._rr(0x00);
       if (readRes.error) return { error: true, value: null, raw: null };
       return { error: false, value: readRes.data & 0x003F, raw: readRes.data };
   }
@@ -328,12 +399,12 @@ export class MLX90396_API {
    * @param {number} gainValue 6-bit gain
    * @param {boolean} persist - If true, issues HS to store permanently into NVRAM
    */
-  async setGain(mode, gainValue, persist = false) {
-      if (await this.wr(0x43, 0x9952)) return { ok: false };
-      if (await this.wr(0x44, 0x84DE)) return { ok: false };
+  async _setGain(mode, gainValue, persist = false) {
+      if (await this._wr(0x43, 0x9952)) return { ok: false };
+      if (await this._wr(0x44, 0x84DE)) return { ok: false };
 
       const is2px = mode === '2px';
-      const readRes = await this.rr(0x00);
+      const readRes = await this._rr(0x00);
       // Abort on a failed read: substituting 0 would wipe the other mode's
       // gain field instead of failing safe.
       if (readRes.error) return { ok: false };
@@ -346,21 +417,40 @@ export class MLX90396_API {
           ? (currentVal & ~0x0FC0) | (gainField << 6)
           : (currentVal & ~0x003F) | gainField;
 
-      if (await this.wr(0x00, updatedVal)) return { ok: false };
+      if (await this._wr(0x00, updatedVal)) return { ok: false };
 
-      const verifyRes = await this.rr(0x00);
+      const verifyRes = await this._rr(0x00);
       const verifiedField = is2px
           ? (verifyRes.data >> 6) & 0x003F
           : verifyRes.data & 0x003F;
       const ok = !verifyRes.error && verifiedField === gainField;
 
-      if (ok && persist) await this.hs();
+      if (ok && persist) await this._hs();
 
       return { ok, value: ok ? verifiedField : null, raw: verifyRes.data };
   }
 
-  async readGain(mode) {
-      const readRes = await this.rr(0x00);
+  // Reads the warning (0x42) and/or error (0x41) register and returns the names
+  // of the latched bits. Reading clears the flag, so a power-up RST or a single
+  // ADC overflow does not keep WARN set for the rest of the session. Call it
+  // only between measurements (right after RM): on the bench a register read
+  // issued while a conversion was in flight came back as 0, and a write there
+  // was rejected with BUS_ERROR.
+  async _readFlags({ warn = true, error = true } = {}) {
+      const out = { warn: [], error: [], failed: false };
+      if (warn) {
+          const r = await this._rr(0x42);
+          if (r.error) out.failed = true; else out.warn = flagNames(WARN_FLAGS, r.data);
+      }
+      if (error) {
+          const r = await this._rr(0x41);
+          if (r.error) out.failed = true; else out.error = flagNames(ERROR_FLAGS, r.data);
+      }
+      return out;
+  }
+
+  async _readGain(mode) {
+      const readRes = await this._rr(0x00);
       if (readRes.error) return { error: true, value: null, raw: null };
       const value = mode === '2px'
           ? (readRes.data >> 6) & 0x003F

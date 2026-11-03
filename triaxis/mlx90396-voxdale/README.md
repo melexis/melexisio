@@ -71,7 +71,7 @@ MLX90396-WebUI/
 │                     # setCalibrationParams) — one source of truth, also used by the Thumbstick page
 └── resources/
     ├── background.jpg# UI background image asset
-    └── 1317-500-JoystickDemonstratorMLX90396.glb  # CAD joystick/dome model (Idle tab)
+    └── 1317-500-JoystickDemonstratorMLX90396.glb  # CAD joystick/dome model (3D Joystick Model tab)
 ```
 Getting Started
 Prerequisites

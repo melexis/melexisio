@@ -11,7 +11,9 @@
  *     beta  = atan2(Z13, Y13)             strength = sqrt(Z13^2 + Y13^2)
  *
  *  The calibrated (Desmos) angles are computed by the shared ../angle_calib.js
- *  module so the thumbstick and the Voxdale page run one and the same engine.
+ *  module. 1px is identical on both pages; for 2px this page assigns the channels by
+ *  name (z1 = Z02/Z13), while the SFI page assigns them by the roles measured on the
+ *  rig (z1 = X02/Y13) - see calculateSfiDifferentialAngles in angle_calib.js.
  */
 
 import {
@@ -104,7 +106,7 @@ export function computeTwistSignals(mode = '1px', input = null) {
 // Derive 1px + 2px inputs from the 4 pixel readouts, converted from raw LSB to
 // physical units (absolute mT, differential mT/mm) so the strengths the panel
 // prints carry true units. Both divisors live in angle_calib.js and are shared
-// with the Voxdale page; dividing every component of a signal by the same
+// with the SFI page; dividing every component of a signal by the same
 // divisor leaves the atan2 angles untouched.
 // When the chip's dedicated differential channels are available (SCPI resDiff:
 // x02/y02/z02/x13/y13/z13) use them directly for the 2px pair, so the 2px

@@ -1,4 +1,4 @@
-import { MLX90396_API } from './mlx_api.js';
+import { MLX90396_API, FLAG_TEXT } from './mlx_api.js';
 import { Arduino_API } from './arduino_api.js';
 import { 
   initSfiDemo, 
@@ -209,8 +209,13 @@ async function scpiQuery(cmd, options = {}) {
   let releaseLock;
   const nextLock = new Promise(resolve => { releaseLock = resolve; });
 
-  await scpiLock;
+  // Join the queue before awaiting. Reading scpiLock after the await let every
+  // caller queued behind the same in-flight query wake together and overwrite
+  // each other's scpiWaiter - one reply went to the wrong caller and the other
+  // caller never settled (reproduced on the bench with two gain clicks).
+  const prevLock = scpiLock;
   scpiLock = nextLock;
+  await prevLock;
 
   return new Promise((resolve, reject) => {
     lastDataLine = '';
@@ -548,7 +553,18 @@ window.addEventListener('beforeunload', () => {
 });
 
 // --- EXACT UNCHANGED ORIGINAL LIVE STREAMING LOOP ---
+// The gain controls stay locked for the whole session, released only once the
+// loop below has returned (see lockGainControls).
 async function runJoystickDemo() {
+  lockGainControls(+1);
+  try {
+    await runDemoSession();
+  } finally {
+    lockGainControls(-1);
+  }
+}
+
+async function runDemoSession() {
   btnStartDemo.disabled = true;
   btnStopDemo.disabled = false;
   isDemoRunning = true;
@@ -574,12 +590,21 @@ async function runJoystickDemo() {
           await scpiQuery(":VDD:3V3");
         }
 
-        // Trim BOTH gain fields to the selected preset before streaming. The
-        // chip powers up with GAINSEL_2PX = 0, which leaves the differential
-        // (2px) channels near zero: the SFI radar then flags "no magnet" while
-        // the 1px legacy path still reads fine. Writing the preset here makes
-        // the 2px path work without the user having to touch the gain control.
-        await setVoxGain(voxGain);
+        // Clear what latched before this session (RST is always set after a
+        // power-up) so Diagnostics only reports events from here on.
+        lastFlagEvent = null;
+        const startFlags = await activeDevice.readFlags();
+        if (startFlags.warn.length || startFlags.error.length) {
+          appendLog(`[FLAGS] Cleared at start: ${describeFlags(startFlags)}\n`, 'log-okprompt');
+        }
+
+        // Apply each pixel's own trim before streaming. The chip powers up with
+        // GAINSEL_2PX = 0, which leaves the differential (2px) channels near
+        // zero: the SFI radar then flags "no magnet" while the 1px legacy path
+        // still reads fine. The two fields are independent, so both are written
+        // here with whatever value the user trimmed for that pixel.
+        await setVoxGain('1px', voxGains['1px']);
+        await setVoxGain('2px', voxGains['2px']);
       }
 
       const K_ROT_X = 0.10, K_ROT_Y = 0.10;
@@ -614,6 +639,16 @@ async function runJoystickDemo() {
             await activeDevice.awaitReady();
             const resDiff = await activeDevice.rm(false, 0x000AC);
 
+            // ERROR (bit 2) or WARN (bit 1) in any good reply: read the register
+            // that latched it, which names the cause and clears the flag.
+            const statusBits = [res01, res23, resDiff]
+              .reduce((acc, r) => acc | (r && !r.error ? r.status : 0), 0);
+            let flags = null;
+            if (statusBits & 0x06) {
+              flags = await activeDevice.readFlags({ warn: !!(statusBits & 0x02), error: !!(statusBits & 0x04) });
+              noteFlagEvent(flags);
+            }
+
             if (!res01.error && !res23.error && !resDiff.error) {
               hasLiveSample = true;
               const avgX = (res01.x0 + res01.x1 + res23.x2 + res23.x3) / 4;
@@ -637,7 +672,7 @@ async function runJoystickDemo() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               rawX = avgX; rawY = avgY; rawZ = avgZ;
 
-              // Extract actual individual pixel values for Requirement 1-3 Battle Matrix
+              // Extract actual individual pixel values for Requirement 1-3 stray-field comparison
               p0Raw = { x: res01.x0, y: res01.y0, z: res01.z0 };
               diffRaw = { x: rawGradX, y: rawGradY, z: rawGradZx, bzY: rawGradZy };
             }
@@ -647,7 +682,7 @@ async function runJoystickDemo() {
               diagPeriodMs = diagPeriodMs === null ? cycleMs : diagPeriodMs * 0.8 + cycleMs * 0.2;
             }
             diagCyclePrev = performance.now();
-            updateDiagnosticsFrame(res01, res23, resDiff, diagPeriodMs);
+            updateDiagnosticsFrame(res01, res23, resDiff, diagPeriodMs, flags);
           } else {
             const sample = await activeDevice.getSample();
             if (!sample.error) {
@@ -841,106 +876,150 @@ btnCalibReset?.addEventListener('click', () => {
   appendLog('[CALIBRATION] Reset parameters to default (K=1.0, Ortho=0.0, pitch=1.0 mm).\n', 'log-okprompt');
 });
 
-// --- 2. GAINSEL PRESET (1x / 3x) ---
+// --- 2. GAINSEL PRESET (1x / 3x), INDEPENDENT PER PIXEL ---
 // Two factory presets plus a free 0-63 trim field for the AE's final-test
-// value. The control lives in the Calibration Tuning drawer alongside the k/o
-// constants, and writes BOTH the 1px and 2px fields.
+// value. PX1 and PX2 each have their own control and are written separately:
+// GAINSEL_1PX lives in reg 0x00 bits [5:0], GAINSEL_2PX in bits [11:6], so a
+// trim on one path must never overwrite the other.
 const VOX_GAIN_COUNTS = { 9: '~72', 37: '~219' };
-const voxGainSeg = document.getElementById('vox-gain-seg');
-const voxGainHint = document.getElementById('vox-gain-hint');
-const voxGainReadback = document.getElementById('vox-gain-readback');
-// Default 3x: the AE specifies 37 for the 1px path, and Voxdale shows 1px and
-// 2px together, so both fields start at the higher trim.
-let voxGain = 37;
+const VOX_GAIN_MODES = ['1px', '2px'];
+// Defaults follow the AE's guidance for the two paths: 3x on the 1px legacy
+// channel, factory 1x on the differential (2px) pair. Each is independently
+// trimmable afterwards.
+const VOX_GAIN_DEFAULTS = { '1px': 37, '2px': 9 };
+let voxGains = { ...VOX_GAIN_DEFAULTS };
 
-function syncVoxGainControl() {
-  if (voxGainSeg) {
-    voxGainSeg.querySelectorAll('button[data-gain]').forEach((btn) => {
-      const on = parseInt(btn.dataset.gain, 10) === voxGain;
+// The part rejects register writes while the stream has a measurement in
+// flight (it latches BUS_ERROR and the write is lost), so the gain controls are
+// locked from Start until the loop has actually exited - not merely until Stop
+// is pressed. Start Live Stream writes both fields anyway. The depth count
+// keeps an overlapping old loop from unlocking early.
+let gainLockDepth = 0;
+function lockGainControls(delta) {
+  gainLockDepth = Math.max(0, gainLockDepth + delta);
+  const locked = gainLockDepth > 0;
+  document.querySelectorAll(
+    '#vox-gain-seg-1px button[data-gain], #vox-gain-seg-2px button[data-gain], #vox-gain-custom-1px, #vox-gain-custom-2px'
+  ).forEach((el) => {
+    el.disabled = locked;
+    el.title = locked ? 'Stop the stream to change the gain' : '';
+  });
+}
+
+const voxGainUI = {
+  '1px': {
+    seg: document.getElementById('vox-gain-seg-1px'),
+    hint: document.getElementById('vox-gain-hint-1px'),
+    readback: document.getElementById('vox-gain-readback-1px'),
+    custom: document.getElementById('vox-gain-custom-1px')
+  },
+  '2px': {
+    seg: document.getElementById('vox-gain-seg-2px'),
+    hint: document.getElementById('vox-gain-hint-2px'),
+    readback: document.getElementById('vox-gain-readback-2px'),
+    custom: document.getElementById('vox-gain-custom-2px')
+  }
+};
+
+function gainBits(g) {
+  return `0b${g.toString(2).padStart(6, '0')}`;
+}
+
+function syncVoxGainControl(mode) {
+  const ui = voxGainUI[mode];
+  if (!ui) return;
+  const g = voxGains[mode];
+  if (ui.seg) {
+    ui.seg.querySelectorAll('button[data-gain]').forEach((btn) => {
+      const on = parseInt(btn.dataset.gain, 10) === g;
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       btn.className = on
         ? 'ds-button ds-button--primary ds-button--sm'
         : 'ds-button ds-button--secondary ds-button--sm';
     });
   }
-  if (voxGainHint) {
-    const counts = VOX_GAIN_COUNTS[voxGain] ? ` → ${VOX_GAIN_COUNTS[voxGain]}` : '';
-    voxGainHint.textContent = `1px & 2px gain = ${voxGain} (0b${voxGain.toString(2).padStart(6, '0')})${counts}`;
+  if (ui.hint) {
+    const counts = VOX_GAIN_COUNTS[g] ? ` → ${VOX_GAIN_COUNTS[g]}` : '';
+    ui.hint.textContent = `${mode} gain = ${g} (${gainBits(g)})${counts}`;
   }
-  const custom = document.getElementById('vox-gain-custom');
-  if (custom) custom.value = voxGain;
+  if (ui.custom) ui.custom.value = g;
 }
 
-function setVoxGainReadback(value) {
-  if (!voxGainReadback) return;
+function syncAllVoxGainControls() {
+  VOX_GAIN_MODES.forEach(syncVoxGainControl);
+}
+
+function setVoxGainReadback(mode, value) {
+  const el = voxGainUI[mode]?.readback;
+  if (!el) return;
   if (typeof value === 'number' && !isNaN(value)) {
-    voxGainReadback.textContent = `Device confirmed: ${value} (0b${value.toString(2).padStart(6, '0')})`;
-    voxGainReadback.style.color = '#59FFB0';
+    el.textContent = `Device confirmed: ${value} (${gainBits(value)})`;
+    el.style.color = '#59FFB0';
   } else {
-    voxGainReadback.textContent = 'Device: not read';
-    voxGainReadback.style.color = 'var(--color-ink-muted)';
+    el.textContent = 'Device: not read';
+    el.style.color = 'var(--color-ink-muted)';
   }
 }
 
-async function setVoxGain(gainVal, persist = false) {
+async function setVoxGain(mode, gainVal, persist = false) {
+  const targetMode = mode === '2px' ? '2px' : '1px';
   const requested = parseInt(gainVal, 10);
   // Accept any 0-63 code as well as the two presets: the AE's final-test trim
   // can sit between the factory 1x (9) and 3x (37) codes.
-  const g = Number.isFinite(requested) ? Math.min(63, Math.max(0, requested)) : voxGain;
-  voxGain = g;
-  syncVoxGainControl();
+  const g = Number.isFinite(requested)
+    ? Math.min(63, Math.max(0, requested))
+    : voxGains[targetMode];
+  voxGains[targetMode] = g;
+  syncVoxGainControl(targetMode);
 
   if (!isConnected || currentDriverType !== 'scpi') {
-    setVoxGainReadback(null);
+    setVoxGainReadback(targetMode, null);
     return false;
   }
 
   try {
-    const bits = `0b${g.toString(2).padStart(6, '0')}`;
-    appendLog(`[GAIN] Writing GAINSEL_1PX = ${g} (${bits}) and GAINSEL_2PX = ${g} (${bits})...\n`, 'log-okprompt');
-    // Voxdale compares the 1px and 2px paths, so both gain fields are trimmed
-    // together; writing only 1px would leave the differential (2px) gain on the
-    // sensor untouched and the GAINSEL_2PX preset meaningless.
-    const res1 = await activeDevice.setGain('1px', g, persist);
-    const res2 = await activeDevice.setGain('2px', g, persist);
-    if (res1.ok && res2.ok) {
-      const rb1 = await activeDevice.readGain('1px');
-      const rb2 = await activeDevice.readGain('2px');
-      const v1 = rb1 && !rb1.error ? rb1.value : null;
-      const v2 = rb2 && !rb2.error ? rb2.value : null;
-      if (v1 !== null && v2 !== null) {
-        voxGainReadback.textContent = `Device confirmed: 1px ${v1} (0b${v1.toString(2).padStart(6, '0')}), 2px ${v2} (0b${v2.toString(2).padStart(6, '0')})`;
-        voxGainReadback.style.color = '#59FFB0';
-      } else {
-        setVoxGainReadback(null);
-      }
-      const good = v1 === g && v2 === g;
-      appendLog(good ? `[GAIN] Verified 1px=${v1}, 2px=${v2} on device.\n` : '[GAIN] Write/verify returned no readback.\n', good ? 'log-okprompt' : 'log-badprompt');
+    appendLog(`[GAIN] Writing GAINSEL_${targetMode.toUpperCase()} = ${g} (${gainBits(g)})...\n`, 'log-okprompt');
+    const res = await activeDevice.setGain(targetMode, g, persist);
+    if (res.ok) {
+      const rb = await activeDevice.readGain(targetMode);
+      const v = rb && !rb.error ? rb.value : null;
+      setVoxGainReadback(targetMode, v);
+      const good = v === g;
+      appendLog(
+        good
+          ? `[GAIN] Verified ${targetMode}=${v} on device.\n`
+          : `[GAIN] Wrote ${targetMode}=${g} but readback returned ${v === null ? 'nothing' : v}.\n`,
+        good ? 'log-okprompt' : 'log-badprompt'
+      );
       return good;
     }
-    setVoxGainReadback(null);
-    appendLog(`[GAIN] Write/verify failed for ${g}.\n`, 'log-badprompt');
+    setVoxGainReadback(targetMode, null);
+    appendLog(`[GAIN] Write/verify failed for ${targetMode}=${g}.\n`, 'log-badprompt');
     return false;
   } catch (err) {
     appendLog(`[GAIN ERROR] ${err.message}\n`, 'log-badprompt');
-    setVoxGainReadback(null);
+    setVoxGainReadback(targetMode, null);
     return false;
   }
 }
 
+// Console hooks: setVoxGain('1px', 12), or the two pixel-specific shortcuts.
 window.setVoxGain = setVoxGain;
+window.setVoxGain1Px = (g, persist) => setVoxGain('1px', g, persist);
+window.setVoxGain2Px = (g, persist) => setVoxGain('2px', g, persist);
 
-voxGainSeg?.querySelectorAll('button[data-gain]').forEach((btn) => {
-  btn.addEventListener('click', () => setVoxGain(parseInt(btn.dataset.gain, 10)));
+VOX_GAIN_MODES.forEach((mode) => {
+  const ui = voxGainUI[mode];
+  ui.seg?.querySelectorAll('button[data-gain]').forEach((btn) => {
+    btn.addEventListener('click', () => setVoxGain(mode, parseInt(btn.dataset.gain, 10)));
+  });
+  ui.custom?.addEventListener('change', () => {
+    const v = parseInt(ui.custom.value, 10);
+    if (Number.isFinite(v)) setVoxGain(mode, v);
+  });
 });
 
-const voxGainCustom = document.getElementById('vox-gain-custom');
-voxGainCustom?.addEventListener('change', () => {
-  const v = parseInt(voxGainCustom.value, 10);
-  if (Number.isFinite(v)) setVoxGain(v);
-});
-
-syncVoxGainControl();
+syncAllVoxGainControls();
 
 // --- 3. SENSOR DIAGNOSTICS (thumbstick-style frame health + raw LSB) ---
 // Mirrors the MLX90396 thumbstick diagnostics: status byte decode, per-transfer
@@ -974,7 +1053,27 @@ function diagState(id, text, tone) {
   el.classList.toggle('diagnostics-state--bad', tone === 'bad');
 }
 
-function updateDiagnosticsFrame(res01, res23, resDiff, periodMs) {
+// Latest WARN/ERROR event read back from the part. Reading the register clears
+// the flag, so this is what keeps the cause visible in Diagnostics afterwards.
+let lastFlagEvent = null;
+
+function describeFlags(flags) {
+  return [...flags.error, ...flags.warn]
+    .map(n => (FLAG_TEXT[n] ? `${n} (${FLAG_TEXT[n]})` : n))
+    .join(', ');
+}
+
+function noteFlagEvent(flags) {
+  const names = [...flags.error, ...flags.warn].join(', ');
+  if (!names) return;
+  // A persistent cause (e.g. OVF on every frame) is logged once, not per frame.
+  if (names !== lastFlagEvent?.names) {
+    appendLog(`[FLAGS] ${describeFlags(flags)}\n`, flags.error.length ? 'log-badprompt' : 'log-okprompt');
+  }
+  lastFlagEvent = { names, at: new Date() };
+}
+
+function updateDiagnosticsFrame(res01, res23, resDiff, periodMs, flags = null) {
   const tab = document.getElementById('tab-diagnostics');
   if (tab && !tab.classList.contains('active')) return;
 
@@ -982,15 +1081,21 @@ function updateDiagnosticsFrame(res01, res23, resDiff, periodMs) {
 
   const st = decodeStatus(res01?.status);
   if (st) {
+    // The loop reads 0x41/0x42 whenever any reply carried ERROR or WARN, so the
+    // cause can be named here; the read also clears the latch for the next frame.
+    const isError = st.error || !!flags?.error.length;
+    const isWarn = st.warn || !!flags?.warn.length;
+    const cause = flags ? describeFlags(flags) : '';
+    const last = lastFlagEvent ? `  · last: ${lastFlagEvent.names} at ${lastFlagEvent.at.toLocaleTimeString()}` : '';
     diagText('diag-status', `${st.hex}  (${st.fnBits})`);
     diagText('diag-fn', `${st.fn} · counter ${st.counter}`);
     diagText('diag-drdy', st.drdy ? 'Ready' : 'Not ready');
-    diagText('diag-flags', `ERROR=${st.error ? 1 : 0}  WARN=${st.warn ? 1 : 0}`);
+    diagText('diag-flags', `ERROR=${isError ? 1 : 0}  WARN=${isWarn ? 1 : 0}${last}`);
     diagState('diag-health',
-      st.error ? 'Status ERROR set - the part rejected a command' :
+      isError ? `ERROR: ${cause || 'the part rejected a command'}` :
       !st.drdy ? 'DRDY clear - measurement not ready yet' :
-      st.warn ? 'WARN set - register 0x42 holds the detail' : 'Status clean',
-      st.error ? 'bad' : (!st.drdy || st.warn) ? 'warn' : null);
+      isWarn ? `WARN: ${cause || 'see register 0x42'}` : 'Status clean',
+      isError ? 'bad' : (!st.drdy || isWarn) ? 'warn' : null);
   } else {
     diagText('diag-status', '--');
     diagText('diag-fn', '--');

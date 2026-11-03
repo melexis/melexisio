@@ -321,7 +321,7 @@
     .val-orange { color: var(--color-success); }
     .val-green { color: var(--color-success); }
 
-    /* SFI BATTLE MATRIX STYLING */
+    /* STRAY FIELD COMPARISON STYLING */
     .battle-matrix-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -697,7 +697,7 @@
     .hidden { display: none !important; }
     /* Temporary graph-first layout: remove class="temporary-hidden" from any block to restore it. */
     .temporary-hidden { display: none !important; }
-    .telemetry-graphs-expanded .plot3d-canvas { height: 560px; }
+    .telemetry-graphs-expanded .plot3d-canvas { height: 504px; }
     @media (max-width: 900px) {
       .telemetry-hud-grid, .radar-matrix-row, .diagnostics-grid { grid-template-columns: 1fr; }
     }
@@ -707,7 +707,7 @@
       .header-row { align-items: flex-start; gap: var(--space-2); }
       #canvas3d-container { height: 420px; }
       .telemetry-summary { grid-template-columns: 1fr; }
-      .telemetry-graphs-expanded .plot3d-canvas { height: 420px; }
+      .telemetry-graphs-expanded .plot3d-canvas { height: 378px; }
     }
 
     /* --- HELP MODAL --- */
@@ -758,6 +758,75 @@
       display: block; margin-top: 8px; color: var(--color-ink-muted);
       background: none; padding: 0; word-break: break-all;
     }
+
+    /* --- FIT-TO-SCREEN (presentation) LAYOUT ---
+       On a desktop-sized window the page fills the viewport exactly: the header,
+       controls and tabs take their natural height and the active tab gets the
+       rest, so nothing scrolls and the plots and radars grow with the monitor.
+       The root font scales with the viewport (14-20 px), so text and controls
+       stay readable from a distance on a 27" screen without crowding a laptop.
+       Smaller windows keep the normal scrolling layout above. */
+    @media (min-width: 1024px) and (min-height: 640px) {
+      html { font-size: clamp(14px, calc(0.5vw + 0.5vh), 20px); }
+      html, body { height: 100%; }
+      body { padding: var(--space-3) var(--space-4); overflow: hidden; }
+      .page { width: 100%; height: 100%; }
+      .app-shell {
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: var(--space-4);
+      }
+      .header-row { margin-bottom: var(--space-3); }
+      .sfi-controls-bar { margin-bottom: var(--space-3); }
+      .header-row, .sfi-controls-bar, .view-tabs, #mini-log-window { flex: none; }
+
+      .tab-content.active {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        overflow: auto;
+      }
+
+      /* Stray Field Comparison: the plot row and the radar row split the
+         height; the calibration drawer, when open, scrolls inside its own box. */
+      #tab-telemetry.active { overflow: hidden; }
+      #tab-telemetry > * { flex: none; margin-bottom: 0; }
+      #panel-calibration { max-height: 42%; overflow: auto; }
+      #tab-telemetry > .battle-matrix-grid { flex: 1.25 1 0; min-height: 0; }
+      #tab-telemetry > .radar-matrix-row { flex: 1 1 0; min-height: 0; }
+      .battle-matrix-grid .battle-card { min-height: 0; }
+      .battle-matrix-grid .plot3d-canvas,
+      .telemetry-graphs-expanded .plot3d-canvas {
+        flex: 1;
+        height: auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .radar-card { min-height: 0; padding: var(--space-3); }
+      .radar-stage { flex: 1; min-height: 0; width: 100%; max-width: none; }
+      .radar-canvas { width: 100%; height: 100%; max-width: none; }
+      /* Value boxes on the plots and radars follow the scaled root font
+         (!important beats the inline 12px on the plot overlays). */
+      .plot-overlay { font-size: 0.75rem !important; }
+      .xyz-value-box { min-width: 7.5rem; }
+      .xyz-value-lbl { font-size: 0.5625rem; }
+      .xyz-value-box b { font-size: 0.75rem; }
+
+      /* 3D Joystick Model: the scene takes the whole tab. */
+      #tab-idle > .ds-card { flex: 1; min-height: 0; }
+      #tab-idle > .ds-card > div { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      #canvas3d-container { flex: 1; height: auto; min-height: 0; }
+    }
+    /* Short screens (laptops): the radars are limited by their row height, so
+       give them an equal share instead of 1 : 1.25. */
+    @media (min-width: 1024px) and (min-height: 640px) and (max-height: 950px) {
+      #tab-telemetry > .battle-matrix-grid { flex-grow: 1; }
+    }
   </style>
 </head>
 <body>
@@ -778,7 +847,7 @@
           MLX90396 Stray Field Immune (SFI) Joystick
         </h2>
         <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">
-          Kinematics, Raw Signals, Polar Radar & SFI Battle Matrix
+          3D Joystick Model, Raw Signals, Polar Radars &amp; Stray Field Comparison
         </span>
       </div>
       <div style="display: flex; gap: var(--space-2); align-items: center;">
@@ -811,12 +880,12 @@
 
     <!-- MAIN OPERATIONAL TABS -->
     <div class="view-tabs ds-tabs__list">
-      <button class="view-tab-btn ds-tabs__tab active" data-tab="tab-telemetry">Live Telemetry &amp; Battle Matrix</button>
-      <button class="view-tab-btn ds-tabs__tab" data-tab="tab-idle">Idle / Auto-Pattern &amp; Dome Kinematics</button>
+      <button class="view-tab-btn ds-tabs__tab active" data-tab="tab-telemetry">Stray Field Comparison</button>
+      <button class="view-tab-btn ds-tabs__tab" data-tab="tab-idle">3D Joystick Model</button>
       <button class="view-tab-btn ds-tabs__tab" data-tab="tab-diagnostics">Sensor Diagnostics</button>
     </div>
 
-    <!-- TAB 1: LIVE TELEMETRY & BATTLE MATRIX -->
+    <!-- TAB 1: STRAY FIELD COMPARISON -->
     <div id="tab-telemetry" class="tab-content active">
       
       <!-- TEMPORARILY HIDDEN: remove temporary-hidden to restore the coil controls. -->
@@ -853,21 +922,39 @@
   </div>
 
   <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-bottom: var(--space-4);">
-    <div class="ds-field" style="min-width: 240px; margin-bottom: 0;">
-      <span class="ds-field__label">GAINSEL (electrical gain)</span>
-      <div id="vox-gain-seg" role="group" aria-label="Electrical gain preset" style="display: flex; gap: 6px;">
+    <div class="ds-field" style="min-width: 300px; margin-bottom: 0;">
+      <span class="ds-field__label">GAINSEL_1PX (electrical gain)</span>
+      <div id="vox-gain-seg-1px" role="group" aria-label="1px electrical gain preset" style="display: flex; gap: 6px;">
         <button type="button" class="ds-button ds-button--secondary ds-button--sm" data-gain="9" aria-pressed="false">1x (gain 9)</button>
         <button type="button" class="ds-button ds-button--primary ds-button--sm" data-gain="37" aria-pressed="true">3x (gain 37)</button>
       </div>
       <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
-        <label for="vox-gain-custom" style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">trim</label>
-        <input id="vox-gain-custom" type="number" min="0" max="63" step="1" class="ds-field__input" style="width: 5.5rem;" />
-        <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">0&ndash;63 (final-test value)</span>
+        <label for="vox-gain-custom-1px" style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">trim</label>
+        <input id="vox-gain-custom-1px" type="number" min="0" max="63" step="1" class="ds-field__input" style="width: 5.5rem;" />
+        <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">0&ndash;63 (PX1 only)</span>
       </div>
-      <small id="vox-gain-hint" style="display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
-        1px &amp; 2px gain = 37 (0b100101) &rarr; ~219
+      <small id="vox-gain-hint-1px" style="display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
+        1px gain = 37 (0b100101) &rarr; ~219
       </small>
-      <small id="vox-gain-readback" style="display: block; margin-top: 2px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
+      <small id="vox-gain-readback-1px" style="display: block; margin-top: 2px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
+        Device: not read
+      </small>
+    </div>
+    <div class="ds-field" style="min-width: 300px; margin-bottom: 0;">
+      <span class="ds-field__label">GAINSEL_2PX (electrical gain)</span>
+      <div id="vox-gain-seg-2px" role="group" aria-label="2px electrical gain preset" style="display: flex; gap: 6px;">
+        <button type="button" class="ds-button ds-button--primary ds-button--sm" data-gain="9" aria-pressed="true">1x (gain 9)</button>
+        <button type="button" class="ds-button ds-button--secondary ds-button--sm" data-gain="37" aria-pressed="false">3x (gain 37)</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px;">
+        <label for="vox-gain-custom-2px" style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">trim</label>
+        <input id="vox-gain-custom-2px" type="number" min="0" max="63" step="1" class="ds-field__input" style="width: 5.5rem;" />
+        <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">0&ndash;63 (PX2 only)</span>
+      </div>
+      <small id="vox-gain-hint-2px" style="display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
+        2px gain = 9 (0b001001) &rarr; ~72
+      </small>
+      <small id="vox-gain-readback-2px" style="display: block; margin-top: 2px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
         Device: not read
       </small>
     </div>
@@ -909,8 +996,8 @@
   <div class="ds-field" style="width: min(100%, 360px); margin-bottom: var(--space-3);">
     <label class="ds-field__label" for="sel-angle-formula">Differential angle formula</label>
     <select id="sel-angle-formula" class="ds-field__input">
-      <option value="normal" selected>Normal: ATAN2(X02, Z02) / ATAN2(Y13, Z13)</option>
-      <option value="enhanced">Enhanced: cross-axis calibrated</option>
+      <option value="normal">Normal: ATAN2(X02, Z02) / ATAN2(Y13, Z13)</option>
+      <option value="enhanced" selected>Enhanced: cross-axis calibrated</option>
     </select>
     <small style="display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--color-ink-muted);">
       Enhanced mode applies k1, k2 and o11–o22 to the differential channels.
@@ -923,7 +1010,7 @@
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&beta; = atan2( &radic;(Y13&sup2; + (k2&middot;(Z02 &minus; o21&middot;Y13))&sup2;), Z13 &minus; o22&middot;Y13 )<br/>
     Angles in degrees; calibration constants update live.
   </p>
-</div>
+
       <!-- TEMPORARILY HIDDEN: remove temporary-hidden to restore the angle summary. -->
       <details style="margin-bottom: var(--space-4); background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px 12px;">
         <summary style="cursor: pointer; font-family: var(--font-display); font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; color: var(--color-ink);">
@@ -960,33 +1047,36 @@
             b1 = atan2( &radic;(z1&sup2; + (k2&middot;(x1 &minus; o21&middot;z1))&sup2;), y1 &minus; o22&middot;z1 )
           </p>
           <p>
-            The default 2px selection runs the reviewer&rsquo;s <b>normal formula</b> (their step 1),
-            each in its own differential axis:
+            The plain <b>Normal</b> formula uses each gradient pair directly, one pair per axis:
           </p>
           <p style="font-family: ui-monospace, Consolas, monospace;">
             &alpha; = ATAN2(dB<sub>x</sub>/dx, dB<sub>z</sub>/dx) &nbsp;=&nbsp; ATAN2(X02, Z02)<br>
             &beta; = ATAN2(dB<sub>y</sub>/dy, dB<sub>z</sub>/dy) &nbsp;=&nbsp; ATAN2(Y13, Z13)
           </p>
           <p>
-            The radar plots that &alpha; on the X axis and &beta; on the Y axis in the same circular
-            polar style as the legacy radar (centre = (90&deg;,&nbsp;90&deg;)), and every readout
-            (summary, radar labels, Tilt&nbsp;X/Y) uses the same two numbers.
+            The differential radar is a tilt scope: its needle plots the Tilt&nbsp;X/Y pair that drives
+            the dome (centre = neutral, &plusmn;60&deg; reaches the rim), while &alpha;/&beta; stay in the
+            readout box as numbers.
           </p>
           <p>
-            Select <b>Enhanced</b> in Calibration Tuning to apply the reviewed cross-axis formula:
+            <b>Enhanced</b> (the default) is the same Desmos model on the 2px channels. On the rig the
+            in-plane gradients X02/Y13 hold the large resting value and the Z gradients Z02/Z13 follow
+            the tilt direction, so X02/Y13 take the z1 slot, Z02/Z13 the x1/y1 slot and the other
+            axis&rsquo; Z gradient is the cross term:
           </p>
           <p style="font-family: ui-monospace, Consolas, monospace;">
             &alpha; = atan2( &radic;(X02&sup2; + (k1&middot;(Z13 &minus; o11&middot;X02))&sup2;), Z02 &minus; o12&middot;X02 )<br>
             &beta; = atan2( &radic;(Y13&sup2; + (k2&middot;(Z02 &minus; o21&middot;Y13))&sup2;), Z13 &minus; o22&middot;Y13 )
           </p>
           <p>
-            The selected formula feeds the &alpha;/&beta; readouts, radars and live gimbal.
+            The selected formula feeds the &alpha;/&beta; readouts and the live gimbal.
           </p>
           <p>
             Inputs and parameters are normalised against NaN/Infinity, so a bad sample can never break the loop.
           </p>
         </div>
       </details>
+      </div>
       <div class="telemetry-summary temporary-hidden" style="margin-bottom: var(--space-4);">
         <div><span>Alpha tilt</span><b id="angle-alpha">0.0°</b></div>
         <div><span>Beta tilt</span><b id="angle-beta">0.0°</b></div>
@@ -1087,7 +1177,7 @@
       <div class="battle-matrix-grid telemetry-graphs-expanded">
         <div class="battle-card fail">
           <div class="battle-card-header"><span>Legacy field and 6 mm magnet model</span><span class="ds-badge ds-badge--success">STRAY-SENSITIVE</span></div>
-          <div class="plot3d-canvas" id="canvas3d-std-plot"><div id="plot-overlay-std" class="plot-overlay" style="font-size: 13px;"><div class="plot-overlay-row"><span id="plot-std-velocity">v 0.0 px/s</span><span class="plot-overlay-units">mT</span></div><div class="plot-overlay-boxes"><span class="xyz-value-box"><span class="xyz-value-lbl">Bx</span><b id="plot-std-bx">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">By</span><b id="plot-std-by">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">Bz</span><b id="plot-std-bz">0.0</b></span></div></div></div>
+          <div class="plot3d-canvas" id="canvas3d-std-plot"><div id="plot-overlay-std" class="plot-overlay" style="font-size: 12px;"><div class="plot-overlay-row"><span id="plot-std-velocity">v 0.0 px/s</span><span class="plot-overlay-units">mT</span></div><div class="plot-overlay-boxes"><span class="xyz-value-box"><span class="xyz-value-lbl">Bx</span><b id="plot-std-bx">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">By</span><b id="plot-std-by">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">Bz</span><b id="plot-std-bz">0.0</b></span></div></div></div>
         </div>
         <div class="battle-card pass">
           <div class="battle-card-header"><span>MLX90396 differential field and 6 mm magnet model</span><span class="ds-badge ds-badge--success">SFI COMPENSATED</span></div>
@@ -1131,7 +1221,7 @@
       </div>
 
       </div>
-    <!-- TAB 2: IDLE / AUTO-PATTERN & DOME KINEMATICS -->
+    <!-- TAB 2: 3D JOYSTICK MODEL -->
     <div id="tab-idle" class="tab-content">
       <div class="ds-card ds-card--pad-md" style="width: 100%; display: flex; flex-direction: column; gap: var(--space-4);">
         <div>
@@ -1144,6 +1234,11 @@
                 Zero: α 90.0°, β 90.0°
               </span>
               <button id="btn-zero-gimbal" class="ds-button ds-button--secondary ds-button--sm">Zero Position</button>
+              <label class="coil-dwell-lbl" for="press-threshold">push at</label>
+              <input type="number" id="press-threshold" class="ds-field__input coil-dwell-input" min="0.5" max="200" step="0.5" value="10"
+                     title="Press magnitude in mT/mm at which the knob reads PUSHED (the live value is shown next to Press)"
+                     aria-label="Push threshold in mT/mm" />
+              <span class="coil-dwell-lbl">mT/mm</span>
               <span style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-accent);" id="joy-pos-text">
                 Tilt X: 0.0° | Tilt Y: 0.0° | Press: —
               </span>
@@ -1220,7 +1315,7 @@
 
         <section class="diagnostics-card">
           <h3>Dome Output</h3>
-          <p>What the Idle / Auto-Pattern tab is drawing, after the 2px gradient &rarr; tilt mapping is applied.</p>
+          <p>What the 3D Joystick Model tab is drawing, after the 2px gradient &rarr; tilt mapping is applied.</p>
           <table class="diagnostics-table">
             <tbody>
               <tr><th>Position source</th><td id="diag-joy-src">Differential 2px (dBz/dx, dBz/dy)</td></tr>
@@ -1248,12 +1343,12 @@
         </div>
         <div class="ds-modal__body">
           <div id="help-body" class="help-body">
-            <div class="help-loading">Loading voxdale_help_readme.md&hellip;</div>
+            <div class="help-loading">Loading sfi_help_readme.md&hellip;</div>
           </div>
         </div>
         <div class="ds-modal__footer">
           <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted); align-self: center;">
-            Source: voxdale_help_readme.md
+            Source: sfi_help_readme.md
           </span>
         </div>
       </div>

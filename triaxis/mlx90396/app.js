@@ -1,4 +1,4 @@
-import { MLX90396_API } from './mlx_api.js';
+import { MLX90396_API, FLAG_TEXT } from './mlx_api.js';
 import { Arduino_API } from './arduino_api.js';
 import { resizeSfiCanvases } from './sfi_demo.js';
 import {
@@ -152,6 +152,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initGridReordering();
   initTwistControls();
   refreshPortGuide();
+  initFitLayout();
 });
 
 // --- Drag & Drop Reordering logic ---
@@ -392,7 +393,10 @@ function initTwistControls() {
     // the display. readSensorGain then adopts whatever the part actually holds
     // (no-op without an SCPI device attached).
     syncTwistGainSeg();
-    await readSensorGain();
+    // While the demo runs, the readback comes from what Start confirmed rather
+    // than a register read squeezed between the loop's measurements.
+    if (gainLockDepth > 0) setTwistGainReadback(confirmedGain[twistMode]);
+    else await readSensorGain();
     updateTwistUI(latestTwistPoints);
   });
 
@@ -401,14 +405,14 @@ function initTwistControls() {
   gainSeg?.querySelectorAll('button[data-gain]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const v = parseInt(btn.dataset.gain, 10);
-      if (TWIST_GAIN_PRESETS.includes(v)) { twistGainUserSet = true; setSensorGain(v); }
+      if (TWIST_GAIN_PRESETS.includes(v)) setSensorGain(v);
     });
   });
 
   const gainCustom = document.getElementById('twist-gain-custom');
   gainCustom?.addEventListener('change', () => {
     const v = parseInt(gainCustom.value, 10);
-    if (Number.isFinite(v)) { twistGainUserSet = true; setSensorGain(v); }
+    if (Number.isFinite(v)) setSensorGain(v);
   });
 
   calKeys.forEach(key => {
@@ -428,7 +432,7 @@ function initTwistControls() {
 
   // 2px display scale: the differential channels are raw counts, so the mT/mm
   // strength needs the on-die pixel pitch (derivation in angle_calib.js, shared
-  // with the Voxdale page). Datasheet value unconfirmed, so it is trimmable.
+  // with the SFI page). Datasheet value unconfirmed, so it is trimmable.
   const calPitch = document.getElementById('cal-pitch');
   if (calPitch) {
     calPitch.value = String(getSensorPixelPitchMm());
@@ -442,10 +446,26 @@ function initTwistControls() {
 // plus a free 0-63 trim field for the AE's final-test value.
 const TWIST_GAIN_PRESETS = [9, 37];
 const TWIST_GAIN_COUNTS = { 9: '~72', 37: '~219' };
-// Steering defaults per mode: the AE specifies 3x (37) for the 1px twist demo;
-// 2px keeps the 1x factory trim. Applied on Start unless the user picked a value.
-const TWIST_GAIN_DEFAULTS = { '1px': 37, '2px': 9 };
-let twistGainUserSet = false;
+// The per-mode defaults (3x for 1px, 1x for 2px) live in the GAINSEL table in
+// twist_api.js; Start writes both fields from that table every time.
+
+// What the chip last confirmed for each field, so the readback line can follow
+// a mode switch while the demo runs without reading the part mid-loop.
+const confirmedGain = { '1px': null, '2px': null };
+
+// The part rejects register writes while the demo loop has a measurement in
+// flight (it latches BUS_ERROR and the write is lost), so the gain controls are
+// locked from Start until the loop has actually exited - not merely until Stop
+// is pressed. The depth count keeps an overlapping old loop from unlocking early.
+let gainLockDepth = 0;
+function lockGainControls(delta) {
+  gainLockDepth = Math.max(0, gainLockDepth + delta);
+  const locked = gainLockDepth > 0;
+  document.querySelectorAll('#twist-gain-seg button[data-gain], #twist-gain-custom').forEach((el) => {
+    el.disabled = locked;
+    el.title = locked ? 'Stop the demo to change the gain' : '';
+  });
+}
 
 function syncTwistGainSeg() {
   const g = getGainSel(twistMode);
@@ -481,49 +501,55 @@ function setTwistGainReadback(value) {
 }
 
 // --- GAINSEL hardware write/read (SCPI only) ---
-// setSensorGain writes the current twistMode's gain field (reg 0x00 bits [5:0]
-// for 1px, [11:6] for 2px) through MLX90396_API.setGain, which performs the
-// unlock sequence and a readback verify. Without a connected SCPI device the
-// local table still updates and the readback reads "not read".
-async function setSensorGain(gainVal) {
+// setSensorGain writes one mode's gain field (reg 0x00 bits [5:0] for 1px,
+// [11:6] for 2px; the current twistMode unless told otherwise) through
+// MLX90396_API.setGain, which performs the unlock sequence and a readback
+// verify. Without a connected SCPI device the local table still updates and
+// the readback reads "not read".
+async function setSensorGain(gainVal, mode = twistMode) {
   const requested = parseInt(gainVal, 10);
   // Accept any 0-63 code as well as the two presets: the AE's final-test trim
   // can sit between the factory 1x (9) and 3x (37) codes.
   const g = Number.isFinite(requested)
     ? Math.min(63, Math.max(0, requested))
-    : getGainSel(twistMode);
-  setGainSel(twistMode, g);
+    : getGainSel(mode);
+  setGainSel(mode, g);
   syncTwistGainSeg();
 
+  const confirm = (v) => {
+    confirmedGain[mode] = v;
+    if (mode === twistMode) setTwistGainReadback(v);
+  };
+
   if (!activeDevice || currentDriverType !== 'scpi') {
-    setTwistGainReadback(null);
+    confirm(null);
     return false;
   }
 
   try {
-    appendLog(`[GAIN] Writing GAINSEL_${twistMode.toUpperCase()} = ${g} (0b${g.toString(2).padStart(6, '0')})...\n`, 'log-okprompt');
-    const res = await activeDevice.setGain(twistMode, g, false);
+    appendLog(`[GAIN] Writing GAINSEL_${mode.toUpperCase()} = ${g} (0b${g.toString(2).padStart(6, '0')})...\n`, 'log-okprompt');
+    const res = await activeDevice.setGain(mode, g, false);
     if (res.ok) {
-      setGainSel(twistMode, res.value);
+      setGainSel(mode, res.value);
       syncTwistGainSeg();
-      setTwistGainReadback(res.value);
-      appendLog(`[GAIN] Verified ${res.value} on device.\n`, 'log-okprompt');
+      confirm(res.value);
+      appendLog(`[GAIN] Verified ${mode}=${res.value} on device.\n`, 'log-okprompt');
     } else {
-      setTwistGainReadback(null);
-      appendLog(`[GAIN] Write/verify failed for ${g}.\n`, 'log-badprompt');
+      confirm(null);
+      appendLog(`[GAIN] Write/verify failed for ${mode}=${g}.\n`, 'log-badprompt');
     }
     return res.ok;
   } catch (err) {
     appendLog(`[GAIN ERROR] ${err.message}\n`, 'log-badprompt');
-    setTwistGainReadback(null);
+    confirm(null);
     return false;
   }
 }
 
 // readSensorGain reports the chip's active gain field for the current twistMode
 // in the "Device confirmed" line. It does NOT overwrite the local selection:
-// the selected value is what Start writes (see TWIST_GAIN_DEFAULTS), so the UI
-// always shows what will be applied rather than what the part happens to hold.
+// the selected value is what Start writes, so the UI always shows what will be
+// applied rather than what the part happens to hold.
 async function readSensorGain() {
   if (!activeDevice || currentDriverType !== 'scpi') {
     setTwistGainReadback(null);
@@ -531,8 +557,29 @@ async function readSensorGain() {
   }
   const res = await activeDevice.readGain(twistMode);
   const v = res && !res.error ? res.value : null;
+  confirmedGain[twistMode] = v;
   setTwistGainReadback(v);
   return v;
+}
+
+// Latest WARN/ERROR event read back from the part. Reading the register clears
+// the flag, so this is what keeps the cause visible in Diagnostics afterwards.
+let lastFlagEvent = null;
+
+function describeFlags(flags) {
+  return [...flags.error, ...flags.warn]
+    .map(n => (FLAG_TEXT[n] ? `${n} (${FLAG_TEXT[n]})` : n))
+    .join(', ');
+}
+
+function noteFlagEvent(flags) {
+  const names = [...flags.error, ...flags.warn].join(', ');
+  if (!names) return;
+  // A persistent cause (e.g. OVF on every frame) is logged once, not per frame.
+  if (names !== lastFlagEvent?.names) {
+    appendLog(`[FLAGS] ${describeFlags(flags)}\n`, flags.error.length ? 'log-badprompt' : 'log-okprompt');
+  }
+  lastFlagEvent = { names, at: new Date() };
 }
 
 const latestTwistPoints = [];
@@ -689,15 +736,22 @@ function updateDiagnostics(frames, knob) {
   diagText('diag-source', currentDriverType === 'scpi' ? 'Live hardware (SCPI)' : 'Live hardware (Arduino)');
   const st = decodeStatus(res01?.status);
   if (st) {
+    // The loop reads 0x41/0x42 whenever any reply carried ERROR or WARN, so the
+    // cause can be named here; the read also clears the latch for the next frame.
+    const flags = frames?.flags;
+    const isError = st.error || !!flags?.error.length;
+    const isWarn = st.warn || !!flags?.warn.length;
+    const cause = flags ? describeFlags(flags) : '';
+    const last = lastFlagEvent ? `  · last: ${lastFlagEvent.names} at ${lastFlagEvent.at.toLocaleTimeString()}` : '';
     diagText('diag-status', `${st.hex}  (${st.fnBits})`);
     diagText('diag-fn', `${st.fn} · counter ${st.counter}`);
     diagText('diag-drdy', st.drdy ? 'Ready' : 'Not ready');
-    diagText('diag-flags', `ERROR=${st.error ? 1 : 0}  WARN=${st.warn ? 1 : 0}`);
+    diagText('diag-flags', `ERROR=${isError ? 1 : 0}  WARN=${isWarn ? 1 : 0}${last}`);
     diagState('diag-health',
-      st.error ? 'Status ERROR set - the part rejected a command' :
+      isError ? `ERROR: ${cause || 'the part rejected a command'}` :
       !st.drdy ? 'DRDY clear - measurement not ready yet' :
-      st.warn ? 'WARN set - register 0x42 holds the detail' : 'Status clean',
-      st.error ? 'bad' : (!st.drdy || st.warn) ? 'warn' : null);
+      isWarn ? `WARN: ${cause || 'see register 0x42'}` : 'Status clean',
+      isError ? 'bad' : (!st.drdy || isWarn) ? 'warn' : null);
   } else {
     diagText('diag-status', '--');
     diagText('diag-fn', '--');
@@ -757,8 +811,8 @@ function updateDiagnostics(frames, knob) {
   if (knob?.periodMs) diagText('diag-period', `${knob.periodMs} ms`);
 }
 
-// --- 2D Polar Radar (Voxdale-style field-vector scope) ---
-// Mirrors the Voxdale page's drawRadar: a reticle with 25% rings and +X/+Y
+// --- 2D Polar Radar (SFI-style field-vector scope) ---
+// Mirrors the SFI page's drawRadar: a reticle with 25% rings and +X/+Y
 // compass labels, a theme-coloured measured vector clamped to the rim and a
 // glowing head. +Y is UP, so the vector points the same way the joystick knob
 // does; it feeds on the same coordinates as the knob (absolute-field average),
@@ -794,7 +848,7 @@ function pushRadarFromAvg(x, y, z) {
   const by = (typeof y === 'number' && Number.isFinite(y) ? y : 0) * scale;
   const bz = (typeof z === 'number' && Number.isFinite(z) ? z : 0) * scale;
   // Park at the neutral point (α=β=90° → offset 0,0) while the field is
-  // negligible, mirroring the Voxdale no-signal park instead of pinning to the
+  // negligible, mirroring the SFI no-signal park instead of pinning to the
   // rim on a degenerate atan2(0,0).
   if (Math.hypot(bx, by, bz) < RADAR_NO_MAG_MT) {
     pushRadarPoint(0, 0);
@@ -812,14 +866,80 @@ function pushRadarFromAvg(x, y, z) {
   pushRadarPoint(offset.x * RADAR_SCALE, offset.y * RADAR_SCALE);
 }
 
+// --- Fit-to-screen sizing (see the FIT-TO-SCREEN block in index.html) ---
+// In that layout the boxes grow with the monitor, so the parts drawn at fixed
+// pixel sizes follow them: the magnet disk keeps its 200 px : 700 px ratio to
+// the grid, the CSS stick is zoomed into its cell, and the radar canvas is
+// sized to its cell on a device-pixel-ratio backing store so it stays sharp.
+const FIT_MEDIA = window.matchMedia('(min-width: 1024px) and (min-height: 640px)');
+const RADAR_DEFAULT_PX = 340;
+const stickCell = document.getElementById('joy-stick-cell');
+const radarCell = document.getElementById('joy-radar-cell');
+const stickWrapper = stickCell ? stickCell.querySelector('.joystick-wrapper') : null;
+
+function sizeRadarCanvas(cssPx) {
+  if (!radarCanvas || !radarCtx) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  radarCanvas.style.width = `${cssPx}px`;
+  radarCanvas.style.height = `${cssPx}px`;
+  radarCanvas.cssSize = cssPx;
+  radarCanvas.width = Math.round(cssPx * dpr);
+  radarCanvas.height = Math.round(cssPx * dpr);
+  radarCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function fitThumbstickViews() {
+  const fit = FIT_MEDIA.matches;
+
+  if (magnetDisk && magnetSensorEl && magnetSensorEl.clientWidth > 0) {
+    const d = fit ? Math.round(magnetSensorEl.clientWidth * 200 / 700) : 200;
+    magnetDisk.style.width = `${d}px`;
+    magnetDisk.style.height = `${d}px`;
+    magnetDisk.style.marginTop = `${-d / 2}px`;
+    magnetDisk.style.marginLeft = `${-d / 2}px`;
+    magnetDisk.querySelectorAll('.magnet-pole').forEach(p => { p.style.fontSize = `${(2.3 * d / 200).toFixed(2)}rem`; });
+  }
+
+  if (stickWrapper && stickCell && stickCell.clientWidth > 0) {
+    const z = Math.min(stickCell.clientWidth / 340, stickCell.clientHeight / 400);
+    stickWrapper.style.zoom = fit ? String(Math.max(0.5, Math.min(3, z)).toFixed(3)) : '';
+  }
+
+  if (radarCell && radarCell.clientWidth > 0) {
+    // Room for the "Polar Radar" title and the readout line under the dial.
+    const px = fit
+      ? Math.max(160, Math.floor(Math.min(radarCell.clientWidth - 16, radarCell.clientHeight - 64)))
+      : RADAR_DEFAULT_PX;
+    if (radarCanvas && radarCanvas.cssSize !== px) sizeRadarCanvas(px);
+  }
+}
+
+function initFitLayout() {
+  let queued = false;
+  const refit = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; fitThumbstickViews(); });
+  };
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(refit);
+    [magnetSensorEl, stickCell, radarCell].forEach(el => { if (el) observer.observe(el); });
+  }
+  window.addEventListener('resize', refit);
+  FIT_MEDIA.addEventListener?.('change', refit);
+  refit();
+}
+
 function drawRadar() {
   if (!radarCtx || !isViewActive('view-joystick')) return;
 
   const { canvas } = radarCtx;
-  const w = canvas.width;
-  const h = canvas.height;
+  const w = canvas.cssSize || canvas.width;
+  const h = canvas.cssSize || canvas.height;
   const cx = w / 2, cy = h / 2;
-  const R = Math.min(cx, cy) - 25;
+  // Labels, needle and margin scale with the dial (1x at the original 340 px).
+  const k = Math.max(1, Math.min(w, h) / RADAR_DEFAULT_PX);
+  const R = Math.min(cx, cy) - 25 * k;
   const ctx = radarCtx;
 
   ctx.clearRect(0, 0, w, h);
@@ -846,13 +966,16 @@ function drawRadar() {
   ctx.stroke();
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '10px monospace';
+  ctx.font = `${Math.round(10 * k)}px monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('0° (+X)', cx + R - 18, cy - 6);
-  ctx.fillText('90° (+Y)', cx, cy - R + 14);
-  ctx.fillText('180° (-X)', cx - R + 24, cy - 6);
-  ctx.fillText('270° (-Y)', cx, cy + R - 8);
+  ctx.fillText('90° (+Y)', cx, cy - R + 14 * k);
+  ctx.fillText('270° (-Y)', cx, cy + R - 8 * k);
+  // Side labels anchored inside the rim, so they never cross the dial's edge.
+  ctx.textAlign = 'right';
+  ctx.fillText('0° (+X)', cx + R - 6 * k, cy - 6 * k);
+  ctx.textAlign = 'left';
+  ctx.fillText('180° (-X)', cx - R + 6 * k, cy - 6 * k);
 
   // Measured vector (solid line), boundary-clamped to the rim, +Y up.
   const dist = Math.hypot(radarSmooth.x, radarSmooth.y);
@@ -862,7 +985,7 @@ function drawRadar() {
   const range = Math.min(RADAR_SCALE, dist);
 
   ctx.strokeStyle = '#65BBA9';
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 2.5 * k;
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(bx, by);
@@ -870,9 +993,9 @@ function drawRadar() {
 
   ctx.save();
   ctx.shadowColor = '#65BBA9';
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 10 * k;
   ctx.fillStyle = '#65BBA9';
-  ctx.beginPath(); ctx.arc(bx, by, 5.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(bx, by, 5.5 * k, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
   if (radarReadout) {
@@ -1001,8 +1124,13 @@ async function scpiQuery(cmd, options = {}) {
   let releaseLock;
   const nextLock = new Promise(resolve => { releaseLock = resolve; });
 
-  await scpiLock;
+  // Join the queue before awaiting. Reading scpiLock after the await let every
+  // caller queued behind the same in-flight query wake together and overwrite
+  // each other's scpiWaiter - one reply went to the wrong caller and the other
+  // caller never settled (reproduced on the bench with two gain clicks).
+  const prevLock = scpiLock;
   scpiLock = nextLock;
+  await prevLock;
 
   return new Promise((resolve, reject) => {
     lastDataLine = '';
@@ -1196,7 +1324,18 @@ window.addEventListener('beforeunload', () => {
 });
 
 // --- Live Unified Demo Loop ---
+// The gain controls stay locked for the whole session, released only once the
+// loop below has returned (see lockGainControls).
 async function runJoystickDemo() {
+  lockGainControls(+1);
+  try {
+    await runDemoSession();
+  } finally {
+    lockGainControls(-1);
+  }
+}
+
+async function runDemoSession() {
   btnStartDemo.disabled = true;
   btnStopDemo.disabled = false;
   isDemoRunning = true;
@@ -1223,12 +1362,19 @@ async function runJoystickDemo() {
           await scpiQuery(":VDD:3V3");
         }
 
-        // Apply the AE's steering gain for the active mode unless the user
-        // chose one: the chip powers up at 1px = 9, and the 1px twist demo
-        // needs the 3x (37) trim, so a fresh part would otherwise under-drive.
-        if (!twistGainUserSet) {
-          await setSensorGain(TWIST_GAIN_DEFAULTS[twistMode]);
+        // Clear what latched before this session (RST is always set after a
+        // power-up) so Diagnostics only reports events from here on.
+        lastFlagEvent = null;
+        const startFlags = await activeDevice.readFlags();
+        if (startFlags.warn.length || startFlags.error.length) {
+          appendLog(`[FLAGS] Cleared at start: ${describeFlags(startFlags)}\n`, 'log-okprompt');
         }
+
+        // Write both gain fields from the GAINSEL table every time. The chip
+        // powers up at its factory trim, so a value picked before connecting
+        // (or before a power cycle) only lives in the table until it is sent.
+        await setSensorGain(getGainSel('1px'), '1px');
+        await setSensorGain(getGainSel('2px'), '2px');
       }
 
       const K_ROT_X = 0.10, K_ROT_Y = 0.10;
@@ -1266,7 +1412,17 @@ async function runJoystickDemo() {
               await activeDevice.awaitReady();
               resDiff = await activeDevice.rm(false, 0x000FC);
             }
-            frames = { res01, res23, resDiff };
+
+            // ERROR (bit 2) or WARN (bit 1) in any good reply: read the register
+            // that latched it, which names the cause and clears the flag.
+            const statusBits = [res01, res23, resDiff]
+              .reduce((acc, r) => acc | (r && !r.error ? r.status : 0), 0);
+            let flags = null;
+            if (statusBits & 0x06) {
+              flags = await activeDevice.readFlags({ warn: !!(statusBits & 0x02), error: !!(statusBits & 0x04) });
+              noteFlagEvent(flags);
+            }
+            frames = { res01, res23, resDiff, flags };
 
             if (!res01.error && !res23.error) {
               const avgX = (res01.x0 + res01.x1 + res23.x2 + res23.x3) / 4;

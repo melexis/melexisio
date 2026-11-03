@@ -93,7 +93,7 @@ browser DevTools console (there is no on-screen terminal window).
 - **28-LED radial ring** — 360°/28 ≈ 12.86° per LED. The LED nearest the vector **angle**
   lights `led-active` with a ±2-LED falloff (`led-low-1`, `led-low-2`). Active only when the
   deviation from center is > 5 units.
-- **Polar Radar** (canvas) — a Voxdale-style field-vector scope: dark reticle with 25% rings
+- **Polar Radar** (canvas) — a SFI-style field-vector scope: dark reticle with 25% rings
   and a crosshair, compass labels `0° (+X)` / `90° (+Y)` / `180° (-X)` / `270° (-Y)`, and a
   theme-coloured measured vector (glowing head) clamped to the rim. **+Y is up**, matching
   the joystick knob, because it is fed the same absolute-field coordinates. Readout:
@@ -161,7 +161,7 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
 - **Units** — the raw LSB are converted to physical units before display, using the
   shared scale in `../angle_calib.js`: absolute `÷ 20` (mT), differential `÷ (20 × pixel
   pitch)` (mT/mm). The pitch is live-trimmable in the config card (default 1.0 mm) and is
-  the same value the Voxdale page uses. Dividing a whole signal by one constant leaves
+  the same value the SFI page uses. Dividing a whole signal by one constant leaves
   every `atan2` angle untouched, so this only rescales the strength readouts.
 
 ### Twist panel — gain & calibration config
@@ -174,10 +174,13 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
   - **Hardware write (SCPI only)** — `setGainSel` is the local table; the line below it,
     `Device confirmed: …`, is a readback of register `0x00` bits `[5:0]`/`[11:6]` via
     `MLX90396_API.setGain`/`readGain` (unlock `0x43=0x9952, 0x44=0x84DE`, field write,
-    readback verify). Choosing a preset or entering a trim writes in real time.
-    Switching 1px↔2px mode re-syncs the display; starting the demo writes the
-    configured gain for the active mode (the AE default 1px = 3x / 2px = 1x, or
-    the value the user chose). The `Device confirmed` line reports what the part
+    readback verify). Choosing a preset or entering a trim writes immediately while
+    the demo is stopped; while it runs the controls are disabled, because the part
+    rejects register writes mid-measurement (BUS_ERROR in register `0x41`). Starting
+    the demo writes **both** fields from the table (the AE default 1px = 3x / 2px = 1x,
+    or the values the user chose, also before connecting). Switching 1px↔2px mode
+    re-syncs the display; while running, the readback shows what Start confirmed
+    instead of reading the part. The `Device confirmed` line reports what the part
     actually holds.
     Without an SCPI device every value stays local and the readback shows `not read`.
 - **Calibration constants** `k1, k2, o11, o12, o21, o22` — edited live; every change
@@ -188,9 +191,10 @@ Six readouts (updating while the panel is open on the Thumbstick tab):
   b1 = atan2( sqrt(z1² + (k2·(x1 − o21·z1))²), (y1 − o22·z1) )
   ```
 
-  **Default = identity no-op.** With `k1 = k2 = 1, o11…o22 = 0` the calibrated readout is
-  *exactly* the raw `atan2` — no tangential cross-axis mixing — so "clean" vanilla readings
-  are shown until you actually enter offsets/gains.
+  **Defaults are not the raw angle.** With `k1 = k2 = 1, o11…o22 = 0` the cross-axis term is
+  fully in, so the calibrated angle is the 3D direction angle (`atan2(√(z1² + y1²), x1)` for α),
+  not the raw two-signal `atan2(z1, x1)`. The two columns match only when the cross term is
+  zero; `k = 0` removes it (the calibrated angle then uses `|z1|`, raw keeps the sign).
 
 ---
 
@@ -283,7 +287,7 @@ Both remain functional if a future tab navigator is added; they are simply not r
 | `index.html` | Structure, inline app CSS, SVG grid assets, modal, sub-views. |
 | `app.js` | Controller: serial manager, SCPI wait/route, demo loop, all three views' renderers, tab routing, modal logic. |
 | `twist_api.js` | Twist-specific layer: 1px/2px raw `atan2`, signal → formula mapping, GAINSEL table; delegates the Desmos calibration to `../angle_calib.js`. |
-| `../angle_calib.js` | Shared α/β calibration engine (Desmos model). One source of truth, also used by the Voxdale page. |
+| `../angle_calib.js` | Shared α/β calibration engine (Desmos model). One source of truth, also used by the SFI page. |
 | `mlx_api.js` | `MLX90396_API`: SPI command builder, CRC-8 (poly 0x2F) verify, register read/write, measurement mask handling. |
 | `arduino_api.js` | `Arduino_API`: 15-/6-field frame parser, latest-sample store. |
 | `sfi_demo.js` | Standalone SFI dome visual + `updateSfiDomeKinematics` (fed raw X/Y/Z, normalized to ±1). |

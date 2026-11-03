@@ -45,7 +45,7 @@
       <label>Mode</label>
       <select id="mode" title="1px = single-pixel B field (mT); 2px = differential gradients (mT/mm)">
         <option value="1px">1px — {Bx, By, Bz} (Thumbstick)</option>
-        <option value="2px">2px — {dBxdx, dBzdx, dBydy, dBzdy} (Voxdale)</option>
+        <option value="2px">2px — {dBxdx, dBzdx, dBydy, dBzdy} (SFI)</option>
       </select>
       <button id="reset" title="Restore default calibration params">Reset calib</button>
     </div>
@@ -91,7 +91,7 @@
 
   <div class="card">
     <div id="summary" class="kv"></div>
-    <div class="hint">Default calibration: k&#8321;=k&#8322;=1, all o&middot;&middot;=0 &rarr; every reading with zero Z-component yields &alpha;=&beta;=0&#176;. Set k&#8321;=1.5 with Bz=By=1, Bx=2 to feel the Desmos K-factor lane: &alpha;=&nbsp;atan2(&radic;(1&#178;+(1.5&middot;1)&#178;),&nbsp;2). Parameters and formulas match Desmos calculator <code>usvd0znwuh</code> and the Voxdale <code>sfi_demo.js</code> engine.</div>
+    <div class="hint">Default calibration: k&#8321;=k&#8322;=1, all o&middot;&middot;=0 &rarr; every reading with zero Z-component yields &alpha;=&beta;=0&#176;. Set k&#8321;=1.5 with Bz=By=1, Bx=2 to feel the Desmos K-factor lane: &alpha;=&nbsp;atan2(&radic;(1&#178;+(1.5&middot;1)&#178;),&nbsp;2). Parameters and formulas match Desmos calculator <code>usvd0znwuh</code> and the SFI demo <code>sfi_demo.js</code> engine.</div>
   </div>
 
 <script type="module">

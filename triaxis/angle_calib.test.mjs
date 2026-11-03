@@ -4,7 +4,7 @@
  * The reference implementation below is an exact copy of the Desmos-derived
  * math shipped in triaxis/mlx90396-voxdale/sfi_demo.js (calculateDesmosAngles,
  * computeSfi1Px, computeSfi2Px), so the parity sweep proves the clean module
- * reproduces the values the Voxdale app already displays.
+ * reproduces the values the SFI app already displays.
  *
  * Run: node triaxis/angle_calib.test.mjs
  */
@@ -15,8 +15,14 @@ import {
   calculate2pxAngles,
   calculateSfiDifferentialAngles,
   calculateDifferentialGimbalInput,
-  createCalibrator
+  createCalibrator,
+  SINGLE_PIXEL_LSB_PER_MT,
+  DEFAULT_SENSOR_PIXEL_PITCH_MM,
+  getSensorPixelPitchMm,
+  setSensorPixelPitchMm,
+  lsbPerMtMm
 } from './angle_calib.js';
+import { deriveTwistInputsFromPoints } from './mlx90396/twist_api.js';
 
 // --- Reference oracle (verbatim math from sfi_demo.js) ---
 const REF_PARAMS = { k1: 1.0, o11: 0.0, o12: 0.0, k2: 1.0, o21: 0.0, o22: 0.0 };
@@ -102,6 +108,17 @@ const defaultEnhanced = calculateSfiDifferentialAngles(
 chk('SFI enhanced defaults apply the unscaled cross-axis terms',
   near(defaultEnhanced.alphaRad, Math.atan2(Math.hypot(2, 7), 5))
   && near(defaultEnhanced.betaRad, Math.atan2(Math.hypot(3, 5), 7)));
+{
+  // Bench shape: X02/Y13 large at rest, Z02/Z13 ~0 and signed with the tilt.
+  const rest = calculateSfiDifferentialAngles({ X02: 4.4, Z02: 0, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  const right = calculateSfiDifferentialAngles({ X02: 4.4, Z02: 2, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  const left = calculateSfiDifferentialAngles({ X02: 4.4, Z02: -2, Y13: 5, Z13: 0 }, DEFAULT_CALIBRATION_PARAMS, 'enhanced');
+  chk('SFI enhanced sits at 90° at rest and keeps the tilt direction (Z02 = +2 vs -2)',
+    near(rest.alphaDeg, 90) && right.alphaDeg < 90 && left.alphaDeg > 90
+    && near(left.alphaDeg + right.alphaDeg, 180));
+}
+chk('gimbal full scale sets the deflection span',
+  near(calculateDifferentialGimbalInput(60, 90, 90, 90, 60).x, 0.5));
 chk('SFI differential rejects invalid samples',
   calculateSfiDifferentialAngles({ X02: NaN, Z02: 1, Y13: 2, Z13: 3 }).valid === false);
 const centeredGimbal = calculateDifferentialGimbalInput(90, 90);
@@ -176,6 +193,48 @@ chk('set() merges and notifies', (cal.set({ o11: 0.5 }), notified === 1 && cal.p
 chk('reset() restores defaults', (cal.reset(), cal.params.k1 === 1 && cal.params.o22 === 0));
 chk('compute uses live params', (cal.set({ k1: 3 }), near(cal.calculate1px({ Bx: 2, By: 1, Bz: 1 }).alphaDeg, ref1px(2, 1, 1, { k1: 3 }).alphaDeg)));
 chk('params getter returns a copy', (cal.set({ k1: 1 }), (() => { const p = cal.params; p.k1 = 999; return cal.params.k1 === 1; })()));
+
+console.log('\n=== shared display scale (raw LSB -> physical units) ===');
+chk('single-pixel scale is 20 counts per mT', SINGLE_PIXEL_LSB_PER_MT === 20);
+chk('default pixel pitch is 1.0 mm', DEFAULT_SENSOR_PIXEL_PITCH_MM === 1.0);
+chk('default 2px divisor is 20 counts per mT/mm', near(lsbPerMtMm(), 20));
+chk('pitch 0.5 mm -> divisor 10', (setSensorPixelPitchMm(0.5), near(lsbPerMtMm(), 10)));
+chk('pitch 6.0 mm reproduces the old hard-coded divisor of 120',
+  (setSensorPixelPitchMm(6), near(lsbPerMtMm(), 120)));
+chk('non-positive / NaN pitch is ignored',
+  (setSensorPixelPitchMm(0), setSensorPixelPitchMm(-3), setSensorPixelPitchMm(NaN), near(lsbPerMtMm(), 120)));
+chk('a numeric string is accepted', (setSensorPixelPitchMm('2'), near(lsbPerMtMm(), 40)));
+chk('reset restores the 1.0 mm default',
+  (setSensorPixelPitchMm(DEFAULT_SENSOR_PIXEL_PITCH_MM), near(lsbPerMtMm(), 20) && getSensorPixelPitchMm() === 1.0));
+
+// The scale only ever multiplies a whole signal by one constant, which is what
+// lets the pages re-range mT/mm without touching the calibration.
+const raw1 = calculate1pxAngles({ Bx: 31, By: 343, Bz: 8 });
+const scaled1 = calculate1pxAngles({ Bx: 31 / 20, By: 343 / 20, Bz: 8 / 20 });
+chk('1px angle is invariant under the mT scaling',
+  near(raw1.alphaDeg, scaled1.alphaDeg) && near(raw1.betaDeg, scaled1.betaDeg));
+const raw2 = calculate2pxAngles({ dBxdx: 21, dBzdx: -3, dBydy: -61, dBzdy: 39 });
+const scaled2 = calculate2pxAngles({ dBxdx: 21 / 20, dBzdx: -3 / 20, dBydy: -61 / 20, dBzdy: 39 / 20 });
+chk('2px angle is invariant under the mT/mm scaling',
+  near(raw2.alphaDeg, scaled2.alphaDeg) && near(raw2.betaDeg, scaled2.betaDeg));
+
+console.log('\n=== thumbstick input scaling (twist_api) ===');
+const PTS = [
+  { x: 31, y: 343, z: 8 },
+  { x: 5, y: 286, z: 27 },
+  { x: 0, y: 0, z: 0 },
+  { x: 0, y: 0, z: 0 }
+];
+const chipDiff = { x02: 21, z02: -3, y13: -61, z13: 39 };
+const withChip = deriveTwistInputsFromPoints(PTS, chipDiff);
+chk('1px fields arrive in mT', near(withChip.X0, 31 / 20) && near(withChip.Y0, 343 / 20) && near(withChip.Z0, 8 / 20));
+chk('chip differential pair arrives in mT/mm',
+  near(withChip.X02, 21 / 20) && near(withChip.Z02, -3 / 20)
+  && near(withChip.Y13, -61 / 20) && near(withChip.Z13, 39 / 20));
+const noChip = deriveTwistInputsFromPoints(PTS, null);
+chk('without chip channels the pair falls back to (p2-p0)/2, still scaled',
+  near(noChip.X02, ((0 - 31) / 2) / 20) && near(noChip.Z02, ((0 - 8) / 2) / 20)
+  && near(noChip.Y13, ((0 - 286) / 2) / 20) && near(noChip.Z13, ((0 - 27) / 2) / 20));
 
 console.log(`\n${pass}/${total} checks passed`);
 if (pass !== total) process.exit(1);

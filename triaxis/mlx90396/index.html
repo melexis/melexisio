@@ -377,6 +377,76 @@
     @media (max-width: 900px) { .diagnostics-grid { grid-template-columns: 1fr; } }
 
     .hidden { display: none !important; }
+
+    /* --- FIT-TO-SCREEN (presentation) LAYOUT ---
+       Same frame as the SFI page: on a desktop-sized window the page fills the
+       viewport, the active view gets the remaining height and nothing scrolls;
+       the root font scales 14-20 px with the viewport. The magnet grid, the
+       stick and the radar size themselves to their box (app.js fitThumbstickViews).
+       Smaller windows keep the normal scrolling layout above. */
+    @media (min-width: 1024px) and (min-height: 640px) {
+      html { font-size: clamp(14px, calc(0.5vw + 0.5vh), 20px); }
+      html, body { height: 100%; }
+      body { padding: var(--space-3) var(--space-4); overflow: hidden; }
+      .page { width: 100%; height: 100%; }
+      .app-shell {
+        width: 100%;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: var(--space-4);
+      }
+      .header-row { margin-bottom: var(--space-3); padding-bottom: var(--space-2); }
+      .demo-menu-bar { margin-bottom: var(--space-3); }
+      .header-row, .demo-menu-bar { flex: none; }
+
+      .demo-view.active { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .demo-view.active > .ds-tabs { flex: none; margin-bottom: var(--space-3) !important; }
+      .demo-view.active > .view.active { flex: 1; min-height: 0; overflow: auto; }
+
+      /* Thumbstick with twist: the square grid takes the whole height. */
+      #view-magnet.active { display: flex; flex-direction: column; overflow: hidden; }
+      #view-magnet > .ds-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      /* Square plane (width follows the height) so the edge arrows stay next
+         to the grid instead of drifting to the sides of a wide screen. */
+      .magnet-plane {
+        flex: 1; height: auto; min-height: 0;
+        aspect-ratio: 1 / 1; width: auto; max-width: 100%; align-self: center;
+      }
+      .magnet-sensor { width: auto; height: 88%; max-width: 88%; }
+
+      /* Thumbstick: stick and radar side by side; Signal & Calibration, when
+         open, takes a third column and scrolls inside itself. */
+      #view-joystick.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        column-gap: var(--space-4);
+        overflow: hidden;
+      }
+      #view-joystick.active:has(> #twist-panel:not(.hidden)) {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr);
+      }
+      #view-joystick > :first-child { grid-column: 1 / -1; }
+      .joy-stage {
+        grid-row: 2;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-4);
+      }
+      .joy-cell {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0 !important;
+      }
+      #twist-panel { grid-row: 2; min-height: 0; overflow: auto; }
+    }
   </style>
 </head>
 <body>
@@ -391,25 +461,28 @@
 
   <main class="app-shell">
 
-    <!-- TOP: MAIN DEMO TAB -->
+    <!-- TOP: TITLE + CONNECTION (same header as the SFI page) -->
     <div class="header-row">
-      <div class="ds-tabs" style="width: 100%;">
-        <div class="ds-tabs__list">
-          <button class="ds-tabs__tab ds-tabs__tab--active demo-tab-btn" data-target="demo-jwt">EVB90396 Demo UI</button>
-        </div>
+      <div>
+        <h2 style="margin: 0; font-family: var(--font-display); font-size: var(--font-size-lg); font-weight: 700; color: var(--color-ink);">
+          MLX90396 Thumbstick Demo
+        </h2>
+        <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);">
+          EVB90396 Demo UI &middot; Thumbstick with Twist, Thumbstick Radar &amp; Sensor Diagnostics
+        </span>
+      </div>
+      <div style="display: flex; gap: var(--space-2); align-items: center;">
+        <button id="btn-connect" class="ds-button ds-button--primary ds-button--md">Connect USB</button>
+        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md">Help</button>
       </div>
     </div>
 
-    <!-- DEMO CONTROL MENU (GROUPED UNDER THE TAB) -->
+    <!-- DEMO CONTROL MENU -->
     <div class="demo-menu-bar">
       <div class="demo-controls">
         <button id="btn-start-demo" class="ds-button ds-button--primary ds-button--md">Start</button>
         <button id="btn-stop-demo" class="ds-button ds-button--secondary ds-button--md" disabled>Stop</button>
         <span id="demo-status" class="demo-status">Idle</span>
-      </div>
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <button id="btn-connect" class="ds-button ds-button--primary ds-button--md">Connect USB</button>
-        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md">Help</button>
       </div>
     </div>
 
@@ -608,7 +681,7 @@
           <div style="margin-top: 8px; font-size: var(--font-size-xs); color: var(--color-ink-muted); line-height: 1.7;">
             <p>
               The raw readouts are plain <code>atan2</code> over the magnet reply. The calibrated ones run the
-              same Desmos model as the Voxdale page &mdash; the shared <code>angle_calib.js</code> module.
+              same Desmos model as the SFI page &mdash; the shared <code>angle_calib.js</code> module.
               The formula above rewrites the &alpha; and &beta; angles so each of them sees two components:
               an in-plane (tangential) one X/Y and a perpendicular Z one, with the cross-axis mixing
               scaled out by k and the orthogonality terms.
@@ -633,9 +706,11 @@
               <li><b>k1, k2</b> &mdash; K-factors. Scale the cross-axis component feeding each angle: 1.0 keeps it as measured, &gt;1 amplifies it, &lt;1 attenuates it. Use these when one axis reads stronger/weaker than the geometry really is (gain trim).</li>
               <li><b>o11, o12</b> &mdash; &alpha; orthogonality terms; <b>o21, o22</b> &mdash; &beta; orthogonality terms. Each subtracts the Z feedthrough from an in-plane axis (lower term, o12/o22, acting on x1/y1) or the in-plane feedthrough from the Z leg (upper term, o11/o21, acting inside the square root). Non-zero values cancel mounting or sensitivity crosstalk.</li>
             </ul>
-            <p><b>Identity = raw.</b> With k = 1 and every o = 0 the calibrated readout is the pure
-            <code>atan2</code> (no cross-axis mixing), which keeps the two columns equal until you enter
-            constants. Values normalize live; non-finite inputs never break the loop.</p>
+            <p><b>Defaults are not raw.</b> With k = 1 and every o = 0 the cross-axis term is still fully
+            in, so the calibrated angle is the 3D direction angle (e.g. &alpha; = atan2(&radic;(z1&sup2; + y1&sup2;), x1)),
+            not the two-signal raw angle; the columns match only when that cross term is zero. Setting
+            k = 0 removes it, and the calibrated angle then uses |z1| where raw keeps the sign of z1.
+            Values normalize live; non-finite inputs never break the loop.</p>
           </div>
         </details>
         </div>
@@ -647,19 +722,25 @@
         <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
           <button id="btn-toggle-twist-joy" class="ds-button ds-button--secondary ds-button--sm" type="button" data-twist-toggle>Signal &amp; Calibration</button>
         </div>
-        <div class="joystick-wrapper">
-          <div class="joystick" id="joystick-base">
-            <div class="joystick__zero"></div>
-            <div class="joystick__stick" id="joystick-stick"></div>
-            <div class="joystick__ball"></div>
+        <!-- The stage and its two cells only matter in the fit-to-screen layout,
+             where the stick and the radar sit side by side and scale to their cell. -->
+        <div class="joy-stage">
+          <div class="joy-cell" id="joy-stick-cell">
+            <div class="joystick-wrapper">
+              <div class="joystick" id="joystick-base">
+                <div class="joystick__zero"></div>
+                <div class="joystick__stick" id="joystick-stick"></div>
+                <div class="joystick__ball"></div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-          <div style="text-align: center;">
-            <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--color-ink-muted); margin-bottom: 8px;">Polar Radar</div>
-            <canvas id="radar-canvas" width="340" height="340" style="display: block;"></canvas>
-            <div id="radar-readout" style="margin-top: 8px; font-size: 11px; font-family: ui-monospace, Consolas, monospace; color: var(--color-ink-muted);">Azimuth: 0.0° | Range: 0.0%</div>
+          <div class="joy-cell" id="joy-radar-cell" style="display: flex; justify-content: center; margin-top: 20px;">
+            <div style="text-align: center;">
+              <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--color-ink-muted); margin-bottom: 8px;">Polar Radar</div>
+              <canvas id="radar-canvas" width="340" height="340" style="display: block;"></canvas>
+              <div id="radar-readout" style="margin-top: 8px; font-size: 11px; font-family: ui-monospace, Consolas, monospace; color: var(--color-ink-muted);">Azimuth: 0.0° | Range: 0.0%</div>
+            </div>
           </div>
         </div>
       </div>
