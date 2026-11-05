@@ -12,17 +12,16 @@ This demo shows that the MLX90396 ignores outside magnetic fields. A coil adds a
 6. Click **Stray Field Coil** and watch the two sides of the **Stray Field Comparison** screen.
 7. When you are done, click **Stop**, then **Disconnect** before you unplug the board.
 
-**No board with you?** Click **Start Live Stream** without connecting. The page plays a built-in simulation, so you can still show every screen.
-
+**No board with you?** You do not need to click anything: until a live stream runs, the page plays a built-in simulation (the **Auto-Pattern**), so you can still show every screen.
 ## The buttons
 
 - **Connect USB** - opens the connection window. Once connected, the same button disconnects.
-- **Help** - opens this page.
-- **Start Live Stream** - starts reading the sensor.
-- **Stop** - stops reading. It also switches the coil off if it is on.
-- **Auto-Pattern** - in the simulation, moves the knob through a repeating pattern by itself. Click it to turn it off (the button dims). Dragging the knob in the 3D model also turns it off. It has no effect while a real board is streaming.
-- **Stray Field Coil (5 mT)** - switches the coil on for a few seconds to add a stray field.
-    - **pulse** sets how long the coil stays on, from 0.5 to 60 seconds (default 5). You cannot change it while a pulse is running.
+- **Help** - opens this help beside the demo. The demo keeps working while it is open, so you can read a step and do it. Click **Help** again or **✕** to close it. **Open in new window** moves the help into its own window, for example on a second screen.
+- **Start Live Stream** - starts reading the sensor. Without a board connected it opens the connection window instead.
+- **Stop** - stops reading and goes back to the simulation. It also switches the coil off if it is on. The board stays connected.
+- **Auto-Pattern** - in the simulation, moves the knob through a repeating pattern by itself. Click it to turn it off (the button dims). Dragging the knob in the 3D model also turns it off. While a live stream runs the board moves the knob, and the pattern comes back when you click **Stop**.
+- **Stray Field Coil (5 mT)** - in the tab bar, next to **Hide menus**, so it is always on screen. Switches the coil on for a few seconds to add a stray field.
+    - **coil pulse**, in the row of buttons, sets how long the coil stays on, from 0.5 to 60 seconds (default 5). You cannot change it while a pulse is running.
     - While the coil is on, the button counts down the seconds. Click it again to switch the coil off early.
     - Without a board connected, the pulse is only simulated.
     - If the button shows **Coil Fault**, the coil could not be switched on. Click it to try again.
@@ -43,12 +42,14 @@ The defaults in the connection window are right for the standard demo kit.
 
 Choose a screen with the tabs above the demo area.
 
+**Hide menus**, at the right end of the tab bar, hides the title and the two rows of buttons so the screen shows only the tabs and the data. **Stray Field Coil** stays in the tab bar, so you can still pulse the coil; set the pulse length before hiding the menus. Click **Show menus** to bring them back. Streaming carries on either way.
+
 ### Stray Field Comparison
 
 The screen is split in two, so the two sensors can be compared side by side. On a narrow window the Legacy side is on top instead of on the left.
 
-- **Left - Legacy Standard 3D Hall** - an ordinary magnetic sensor, marked **STRAY-SENSITIVE**. It is disturbed when the coil is on.
-- **Right - MLX90396 Differential SFI** - the MLX90396, marked **SFI COMPENSATED**. It keeps reading correctly while the coil is on.
+- **Left - STRAY-SENSITIVE** - an ordinary 3D Hall sensor. It is disturbed when the coil is on.
+- **Right - STRAY FIELD IMMUNE** - the MLX90396 differential reading. It keeps reading correctly while the coil is on.
 
 Each side has:
 

@@ -18,7 +18,7 @@
 - **Stop** - stops reading. The pictures go back to the centre.
 - **Status** - shows **Idle** (stopped), **Running** or **Error**.
 - **Connect USB** - opens the connection window. Once connected, the same button reads **Disconnect**.
-- **Help** - opens this page.
+- **Help** - opens this help beside the demo. The demo keeps working while it is open, so you can read a step and do it. Click **Help** again or **✕** to close it. **Open in new window** moves the help into its own window, for example on a second screen.
 
 ## Connecting to the board
 
@@ -38,6 +38,8 @@ If the connection fails, a red box in the window explains what went wrong.
 ## The three screens
 
 Choose a screen with the tabs above the demo area. Only the screen you are looking at updates.
+
+**Hide menus**, at the right end of the tab bar, hides the title, **Connect USB**, **Start** and **Stop** so the screen shows only the tabs and the data. Click **Show menus** to bring them back. Reading carries on either way.
 
 ### Thumbstick with twist
 

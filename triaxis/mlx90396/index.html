@@ -6,6 +6,7 @@
   <title>MLX90396 Multi-Demo Platform</title>
   
   <link rel="stylesheet" href="webdesign.css" />
+  <link rel="stylesheet" href="help.css" />
 
   <style>
     body {
@@ -96,54 +97,6 @@
     }
     .demo-status.active { color: var(--color-accent); }
 
-    /* --- HELP MODAL --- */
-    /* `minmax(0, 1fr)` on the body row plus `min-height: 0` are both required:
-       a grid item defaults to `min-height: auto`, so without them the body
-       refuses to shrink below its content height and the modal clips it. */
-    .ds-modal--wide {
-      width: min(100%, 56rem);
-      max-height: min(88vh, 60rem);
-      grid-template-rows: auto minmax(0, 1fr) auto;
-    }
-    .ds-modal--wide .ds-modal__body {
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding-right: 6px;
-    }
-    .help-body { font-size: var(--font-size-sm); }
-    .help-body h1 {
-      font-family: var(--font-display); font-size: var(--font-size-lg);
-      margin: 0 0 var(--space-3) 0; color: var(--color-ink);
-    }
-    .help-body h2 {
-      font-family: var(--font-display); font-size: var(--font-size-md);
-      margin: var(--space-4) 0 var(--space-2) 0; color: var(--color-accent);
-      padding-bottom: 4px; border-bottom: 1px solid var(--color-border);
-    }
-    .help-body h3 { font-size: var(--font-size-sm); margin: var(--space-3) 0 6px 0; color: var(--color-ink); }
-    .help-body p { margin: 0 0 var(--space-2) 0; }
-    .help-body ul, .help-body ol { margin: 0 0 var(--space-2) 0; padding-left: 1.35em; }
-    .help-body li { margin-bottom: 4px; }
-    .help-body strong { color: var(--color-ink); }
-    .help-body code {
-      font-family: ui-monospace, Consolas, monospace; font-size: 0.92em;
-      background: var(--color-code-bg); color: var(--color-accent);
-      padding: 1px 4px; border-radius: 3px;
-    }
-    .help-body hr { border: 0; border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
-    .help-body a { color: var(--color-accent); }
-    .help-body em { color: var(--color-ink-muted); }
-    .help-loading, .help-error {
-      padding: var(--space-3); border-radius: var(--radius-sm);
-      border: 1px solid var(--color-border); background: var(--color-surface);
-      font-size: var(--font-size-sm);
-    }
-    .help-error { border-color: var(--color-danger); color: var(--color-danger); }
-    .help-error code {
-      display: block; margin-top: 8px; color: var(--color-ink-muted);
-      background: none; padding: 0; word-break: break-all;
-    }
 
     /* Top-Level Demo & Sub-Tab View Switching */
     .demo-view { display: none; }
@@ -447,6 +400,15 @@
       }
       #twist-panel { grid-row: 2; min-height: 0; overflow: auto; }
     }
+
+    /* --- HIDE MENUS ---
+       Presentation mode: the title, connection and Start/Stop rows go away and
+       the tabs and data take the freed height. The toggle lives in the tab bar,
+       which stays visible. */
+    body.menus-hidden .home-link,
+    body.menus-hidden .header-row,
+    body.menus-hidden .demo-menu-bar { display: none; }
+    .menus-toggle { flex: none; align-self: center; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -473,7 +435,7 @@
       </div>
       <div style="display: flex; gap: var(--space-2); align-items: center;">
         <button id="btn-connect" class="ds-button ds-button--primary ds-button--md">Connect USB</button>
-        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md">Help</button>
+        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md" aria-controls="help-panel" aria-expanded="false">Help</button>
       </div>
     </div>
 
@@ -492,6 +454,8 @@
           <button class="ds-tabs__tab ds-tabs__tab--active tab-btn" data-target="view-magnet">Thumbstick with twist</button>
           <button class="ds-tabs__tab tab-btn" data-target="view-joystick">Thumbstick</button>
           <button class="ds-tabs__tab tab-btn" data-target="view-diagnostics">Sensor Diagnostics</button>
+          <button id="btn-toggle-menus" class="menus-toggle ds-button ds-button--ghost ds-button--sm" aria-pressed="false"
+                  title="Hide the title, connection and Start/Stop rows to give the data more room">Hide menus</button>
         </div>
       </div>
 
@@ -825,26 +789,20 @@
         </div>
       </div>
 
-    <!-- HELP MODAL -->
-    <div id="help-modal" class="ds-modal-root hidden">
-      <div class="ds-modal__backdrop" id="help-backdrop"></div>
-      <div class="ds-modal ds-modal--wide" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
-        <div class="ds-modal__header">
-          <h3 class="ds-modal__title" id="help-modal-title">Help</h3>
-          <button id="btn-close-help" class="ds-modal__close" aria-label="Close help">&#10005;</button>
-        </div>
-        <div class="ds-modal__body">
-          <div id="help-body" class="help-body">
-            <div class="help-loading">Loading joystick_help_readme.md&hellip;</div>
-          </div>
-        </div>
-        <div class="ds-modal__footer">
-          <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted); align-self: center;">
-            Source: joystick_help_readme.md
-          </span>
+    <!-- HELP PANEL: docked, not modal, so the page stays usable next to it (help.js) -->
+    <aside id="help-panel" class="help-panel hidden" aria-labelledby="help-panel-title">
+      <div class="help-panel__header">
+        <h3 class="help-panel__title" id="help-panel-title">Help</h3>
+        <button id="btn-popout-help" class="ds-button ds-button--ghost ds-button--sm"
+                title="Open the help in its own window, e.g. on a second screen">Open in new window</button>
+        <button id="btn-close-help" class="ds-modal__close" aria-label="Close help">&#10005;</button>
+      </div>
+      <div class="help-panel__body">
+        <div id="help-body" class="help-body">
+          <div class="help-loading">Loading joystick_help_readme.md&hellip;</div>
         </div>
       </div>
-    </div>
+    </aside>
 
     <!-- POLYMORPHIC HARDWARE CONNECT MODAL -->
     <div id="connect-modal" class="ds-modal-root hidden">

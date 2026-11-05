@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   
   <link rel="stylesheet" href="webdesign.css" />
+  <link rel="stylesheet" href="help.css" />
 
   <style>
     body {
@@ -90,7 +91,7 @@
       justify-content: center;
       white-space: nowrap;
     }
-    .sfi-controls-bar .coil-dwell-input { min-width: 4.5rem; }
+    .coil-dwell-input { min-width: 4.5rem; }
 
     /* P10: the coil label is longer than the shared 132px button floor, so it
        gets its own width plus tabular figures; the ON countdown then ticks
@@ -156,12 +157,39 @@
       height: 560px;
       border-radius: var(--radius-md);
       overflow: hidden;
-      background: var(--color-surface-raised);
+      /* The renderer clears to transparent, so this image is the scene backdrop. */
+      background: #050b1c url('resources/3dplot_bg.jpg') center / cover no-repeat;
       position: relative;
       cursor: grab;
       border: 1.5px solid var(--color-border);
     }
     #canvas3d-container:active { cursor: grabbing; }
+    /* Backdrop picked in the "background" dropdown (sfi_demo.js initBackgroundSelect). */
+    /* "center 75% / cover" is mirrored in sfi_demo.js WALLPAPER_HAT. */
+    #canvas3d-container[data-bg="city"] {
+      background: #050b1c url('resources/city_bg.jpg') center 75% / cover no-repeat;
+    }
+    /* Own stacking context, so the wallpaper hat (z-index -1) sits on the
+       background but under the 3D canvas, its snow and the overlays. */
+    #canvas3d-container { isolation: isolate; }
+    .wallpaper-hat {
+      position: absolute;
+      z-index: -1;
+      display: none;
+      pointer-events: none;
+      /* Dimmed to sit in the night photo rather than glow on top of it. */
+      filter: brightness(0.78) saturate(0.9);
+    }
+    #canvas3d-container[data-bg="gradient"] {
+      background: #0b2a40 url('resources/background.jpg') center / cover no-repeat;
+    }
+    #canvas3d-container[data-bg="plain"] { background: #050b1c; }
+    .bg-select {
+      width: auto;
+      min-height: 2rem;
+      padding: 0.25rem 0.5rem;
+      font-size: var(--font-size-sm);
+    }
 
     #canvas4d-container {
       width: 100%;
@@ -322,9 +350,12 @@
     .val-green { color: var(--color-success); }
 
     /* STRAY FIELD COMPARISON STYLING */
+    /* minmax(0, ...) and min-width: 0 let the columns shrink below the 3D
+       canvases' current pixel size (window narrowed, help panel opened); the
+       ResizeObserver then redraws the canvases at the new width. */
     .battle-matrix-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: var(--space-4);
       margin-bottom: var(--space-4);
     }
@@ -361,10 +392,11 @@
       font-size: var(--font-size-md);
     }
     @media (max-width: 900px) {
-      .battle-matrix-grid { grid-template-columns: 1fr; }
+      .battle-matrix-grid { grid-template-columns: minmax(0, 1fr); }
     }
 
     .battle-card {
+      min-width: 0;
       border: 1.5px solid var(--color-border);
       border-radius: var(--radius-md);
       background: var(--color-surface);
@@ -484,6 +516,29 @@
       border-radius: var(--radius-sm);
     }
 
+    /* Logos, fixed where they were placed by eye. left/top/width are % of the
+       radar card or 3D view they sit in; height follows the image. */
+    .fixed-logo {
+      position: absolute;
+      z-index: 2;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+    }
+    /* Anchored to the card's bottom-left corner, not its top: Hide/Show menus
+       changes the card's height, and a top-anchored logo then ran off the
+       bottom. Both sizes are caps, so it also shrinks on a short card. */
+    .fixed-logo--sfi-radar {
+      left: 1.11%;
+      bottom: 4%;
+      width: auto;
+      max-width: 13.69%;
+      max-height: 42%;
+    }
+    .fixed-logo--melexis { left: 77.70%; top: 0.98%; width: 22%; }
+    /* object-view-box trims the empty margin baked into the PNGs. */
+    .logo-melexis { object-view-box: inset(22% 10.9% 21.6% 10.9%); }
+    .logo-sfi { object-view-box: inset(21.4% 12.7% 25.1% 14.8%); }
     .plot3d-canvas {
       width: 100%;
       height: 260px;
@@ -492,6 +547,7 @@
       border: 1px solid var(--color-border);
       cursor: grab;
       position: relative;
+      overflow: hidden;
     }
     .plot-overlay {
       position: absolute;
@@ -539,7 +595,6 @@
     }
     .xyz-value-lbl {
       font-size: 9px;
-      text-transform: uppercase;
       opacity: 0.65;
     }
     .xyz-value-box b {
@@ -710,54 +765,6 @@
       .telemetry-graphs-expanded .plot3d-canvas { height: 378px; }
     }
 
-    /* --- HELP MODAL --- */
-    /* `minmax(0, 1fr)` on the body row plus `min-height: 0` are both required:
-       a grid item defaults to `min-height: auto`, so without them the body
-       refuses to shrink below its content height and the modal clips it. */
-    .ds-modal--wide {
-      width: min(100%, 56rem);
-      max-height: min(88vh, 60rem);
-      grid-template-rows: auto minmax(0, 1fr) auto;
-    }
-    .ds-modal--wide .ds-modal__body {
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding-right: 6px;
-    }
-    .help-body { font-size: var(--font-size-sm); }
-    .help-body h1 {
-      font-family: var(--font-display); font-size: var(--font-size-lg);
-      margin: 0 0 var(--space-3) 0; color: var(--color-ink);
-    }
-    .help-body h2 {
-      font-family: var(--font-display); font-size: var(--font-size-md);
-      margin: var(--space-4) 0 var(--space-2) 0; color: var(--color-accent);
-      padding-bottom: 4px; border-bottom: 1px solid var(--color-border);
-    }
-    .help-body h3 { font-size: var(--font-size-sm); margin: var(--space-3) 0 6px 0; color: var(--color-ink); }
-    .help-body p { margin: 0 0 var(--space-2) 0; }
-    .help-body ul, .help-body ol { margin: 0 0 var(--space-2) 0; padding-left: 1.35em; }
-    .help-body li { margin-bottom: 4px; }
-    .help-body strong { color: var(--color-ink); }
-    .help-body code {
-      font-family: ui-monospace, Consolas, monospace; font-size: 0.92em;
-      background: var(--color-code-bg); color: var(--color-accent);
-      padding: 1px 4px; border-radius: 3px;
-    }
-    .help-body hr { border: 0; border-top: 1px solid var(--color-border); margin: var(--space-4) 0; }
-    .help-body a { color: var(--color-accent); }
-    .help-body em { color: var(--color-ink-muted); }
-    .help-loading, .help-error {
-      padding: var(--space-3); border-radius: var(--radius-sm);
-      border: 1px solid var(--color-border); background: var(--color-surface);
-      font-size: var(--font-size-sm);
-    }
-    .help-error { border-color: var(--color-danger); color: var(--color-danger); }
-    .help-error code {
-      display: block; margin-top: 8px; color: var(--color-ink-muted);
-      background: none; padding: 0; word-break: break-all;
-    }
 
     /* --- FIT-TO-SCREEN (presentation) LAYOUT ---
        On a desktop-sized window the page fills the viewport exactly: the header,
@@ -797,7 +804,7 @@
       #tab-telemetry.active { overflow: hidden; }
       #tab-telemetry > * { flex: none; margin-bottom: 0; }
       #panel-calibration { max-height: 42%; overflow: auto; }
-      #tab-telemetry > .battle-matrix-grid { flex: 1.25 1 0; min-height: 0; }
+      #tab-telemetry > .battle-matrix-grid { flex: 2 1 0; min-height: 0; }
       #tab-telemetry > .radar-matrix-row { flex: 1 1 0; min-height: 0; }
       .battle-matrix-grid .battle-card { min-height: 0; }
       .battle-matrix-grid .plot3d-canvas,
@@ -812,10 +819,11 @@
       .radar-canvas { width: 100%; height: 100%; max-width: none; }
       /* Value boxes on the plots and radars follow the scaled root font
          (!important beats the inline 12px on the plot overlays). */
-      .plot-overlay { font-size: 0.75rem !important; }
-      .xyz-value-box { min-width: 7.5rem; }
-      .xyz-value-lbl { font-size: 0.5625rem; }
-      .xyz-value-box b { font-size: 0.75rem; }
+      .plot-overlay { font-size: 0.875rem !important; padding: 0.4rem 0.55rem; }
+      .plot-overlay-boxes { gap: 0.3rem; margin-top: 0.3rem; }
+      .xyz-value-box { min-width: 9.5rem; gap: 0.75rem; padding: 0.2rem 0.5rem; }
+      .xyz-value-lbl { font-size: 0.6875rem; }
+      .xyz-value-box b { font-size: 1.05rem; }
 
       /* 3D Joystick Model: the scene takes the whole tab. */
       #tab-idle > .ds-card { flex: 1; min-height: 0; }
@@ -823,10 +831,27 @@
       #canvas3d-container { flex: 1; height: auto; min-height: 0; }
     }
     /* Short screens (laptops): the radars are limited by their row height, so
-       give them an equal share instead of 1 : 1.25. */
+       give them a little more than the 1 : 2 used on tall screens. */
     @media (min-width: 1024px) and (min-height: 640px) and (max-height: 950px) {
-      #tab-telemetry > .battle-matrix-grid { flex-grow: 1; }
+      #tab-telemetry > .battle-matrix-grid { flex-grow: 1.5; }
     }
+
+    /* --- HIDE MENUS ---
+       Presentation mode: the title, connection and stream controls go away and
+       the tabs and data take the freed height. The toggle lives in the tab bar,
+       which stays visible. */
+    body.menus-hidden .home-link,
+    body.menus-hidden .header-row,
+    body.menus-hidden .sfi-controls-bar { display: none; }
+    .menus-toggle { flex: none; align-self: center; white-space: nowrap; }
+    /* The stray field coil sits in the tab bar too, so it is there in both modes. */
+    .tab-bar-coil { flex: none; align-self: center; margin: 0 var(--space-2); justify-content: center; white-space: nowrap; }
+
+    /* Fixed-width fields so the tilt readout (and the controls to its left)
+       do not shift as the numbers change. */
+    .joy-pos { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .joy-num { display: inline-block; min-width: 6ch; text-align: right; }
+    .joy-press { display: inline-block; min-width: 8ch; text-align: center; }
   </style>
 </head>
 <body>
@@ -852,7 +877,7 @@
       </div>
       <div style="display: flex; gap: var(--space-2); align-items: center;">
         <button id="btn-connect" class="ds-button ds-button--primary ds-button--md">Connect USB</button>
-        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md">Help</button>
+        <button id="btn-open-help" class="ds-button ds-button--secondary ds-button--md" aria-controls="help-panel" aria-expanded="false">Help</button>
       </div>
     </div>
 
@@ -862,8 +887,7 @@
     <button id="btn-start-demo" class="ds-button ds-button--primary ds-button--sm">Start Live Stream</button>
     <button id="btn-stop-demo" class="ds-button ds-button--secondary ds-button--sm" disabled>Stop</button>
     <button id="btn-pattern" class="ds-button ds-button--secondary ds-button--sm">Auto-Pattern</button>
-    <button id="btn-coil" class="ds-button ds-button--danger ds-button--sm">Stray Field Coil (5 mT)</button>
-    <label class="coil-dwell-lbl" for="coil-dwell-seconds">pulse</label>
+    <label class="coil-dwell-lbl" for="coil-dwell-seconds">coil pulse</label>
     <input type="number" id="coil-dwell-seconds" class="ds-field__input coil-dwell-input" min="0.5" max="60" step="0.5" value="5"
            title="Coil pulse width in seconds (0.5 - 60)" aria-label="Coil pulse width in seconds" />
     <button id="btn-calib-toggle" class="ds-button ds-button--secondary ds-button--sm">Calibration Tuning</button>
@@ -874,7 +898,7 @@
 
   </div>
   <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);" id="status-mode-txt">
-    Standby Mode (Connect USB or Start)
+    Simulation - connect USB and press Start for live
   </span>
 </div>
 
@@ -883,6 +907,11 @@
       <button class="view-tab-btn ds-tabs__tab active" data-tab="tab-telemetry">Stray Field Comparison</button>
       <button class="view-tab-btn ds-tabs__tab" data-tab="tab-idle">3D Joystick Model</button>
       <button class="view-tab-btn ds-tabs__tab" data-tab="tab-diagnostics">Sensor Diagnostics</button>
+      <!-- In the tab bar rather than the controls bar so it stays usable with the
+           menus hidden. Its pulse width stays with the other settings above. -->
+      <button id="btn-coil" class="tab-bar-coil ds-button ds-button--danger ds-button--sm">Stray Field Coil (5 mT)</button>
+      <button id="btn-toggle-menus" class="menus-toggle ds-button ds-button--ghost ds-button--sm" aria-pressed="false"
+              title="Hide the title, connection and stream controls to give the data more room">Hide menus</button>
     </div>
 
     <!-- TAB 1: STRAY FIELD COMPARISON -->
@@ -1176,11 +1205,11 @@
       <!-- MIDDLE: 3D MAGNET FIELD PLOTS -->
       <div class="battle-matrix-grid telemetry-graphs-expanded">
         <div class="battle-card fail">
-          <div class="battle-card-header"><span>Legacy field and 6 mm magnet model</span><span class="ds-badge ds-badge--success">STRAY-SENSITIVE</span></div>
+          <div class="battle-card-header"><span class="ds-badge ds-badge--danger">STRAY-SENSITIVE</span></div>
           <div class="plot3d-canvas" id="canvas3d-std-plot"><div id="plot-overlay-std" class="plot-overlay" style="font-size: 12px;"><div class="plot-overlay-row"><span id="plot-std-velocity">v 0.0 px/s</span><span class="plot-overlay-units">mT</span></div><div class="plot-overlay-boxes"><span class="xyz-value-box"><span class="xyz-value-lbl">Bx</span><b id="plot-std-bx">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">By</span><b id="plot-std-by">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">Bz</span><b id="plot-std-bz">0.0</b></span></div></div></div>
         </div>
         <div class="battle-card pass">
-          <div class="battle-card-header"><span>MLX90396 differential field and 6 mm magnet model</span><span class="ds-badge ds-badge--success">SFI COMPENSATED</span></div>
+          <div class="battle-card-header"><span class="ds-badge ds-badge--success">STRAY FIELD IMMUNE</span></div>
           <div class="plot3d-canvas" id="canvas3d-mlx-plot"><div id="plot-overlay-mlx" class="plot-overlay" style="font-size: 12px;"><div class="plot-overlay-row"><span id="plot-mlx-velocity">v 0.0 px/s</span><span class="plot-overlay-units">mT/mm</span></div><div class="plot-overlay-boxes"><span class="xyz-value-box"><span class="xyz-value-lbl">dBx/dx</span><b id="plot-mlx-dbx">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">dBy/dy</span><b id="plot-mlx-dby">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">dBz/dx</span><b id="plot-mlx-dbzdx">0.0</b></span><span class="xyz-value-box"><span class="xyz-value-lbl">dBz/dy</span><b id="plot-mlx-dbzdy">0.0</b></span></div></div></div>
         </div>
       </div>
@@ -1190,8 +1219,7 @@
         <div class="radar-card" style="border-top: 3px solid var(--color-success);">
           <span class="radar-badge ds-badge ds-badge--success">
             Legacy Standard 3D Hall Radar
-          </span>
-          <div class="plot-overlay" style="top: 12px; right: 14px; bottom: auto;">
+          </span>          <div class="plot-overlay" style="top: 12px; right: 14px; bottom: auto;">
             <div class="plot-overlay-boxes">
               <span class="xyz-value-box"><span class="xyz-value-lbl">|B|</span><b id="radar-mag-std">0.0 mT</b></span>
               <span class="xyz-value-box"><span class="xyz-value-lbl">α_std</span><b id="radar-alpha-std">0.0°</b></span>
@@ -1207,6 +1235,7 @@
           <span class="radar-badge ds-badge ds-badge--success">
             MLX90396 Differential SFI Radar
           </span>
+          <img class="fixed-logo fixed-logo--sfi-radar logo-sfi" src="resources/SFI_logo_2025_white_transparent.png" alt="SFI by Melexis" draggable="false" />
           <div class="plot-overlay" style="top: 12px; right: 14px; bottom: auto;">
             <div class="plot-overlay-boxes">
               <span class="xyz-value-box"><span class="xyz-value-lbl">|∇B|</span><b id="radar-mag-mlx">0.0 mT/mm</b></span>
@@ -1233,19 +1262,42 @@
               <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted);" id="gimbal-zero-status">
                 Zero: α 90.0°, β 90.0°
               </span>
+              <label class="coil-dwell-lbl" for="sel-3d-background">background</label>
+              <select id="sel-3d-background" class="ds-field__input bg-select">
+                <option value="stars">Night sky</option>
+                <option value="city">City at night</option>
+                <option value="gradient">Melexis blue</option>
+                <option value="plain">Plain dark</option>
+              </select>
+              <button id="btn-snow" class="ds-button ds-button--ghost ds-button--sm" aria-pressed="false"
+                      title="Snow round the 3D model, and a Christmas hat on the knob">Snow</button>
               <button id="btn-zero-gimbal" class="ds-button ds-button--secondary ds-button--sm">Zero Position</button>
               <label class="coil-dwell-lbl" for="press-threshold">push at</label>
               <input type="number" id="press-threshold" class="ds-field__input coil-dwell-input" min="0.5" max="200" step="0.5" value="10"
                      title="Press magnitude in mT/mm at which the knob reads PUSHED (the live value is shown next to Press)"
                      aria-label="Push threshold in mT/mm" />
               <span class="coil-dwell-lbl">mT/mm</span>
-              <span style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-accent);" id="joy-pos-text">
-                Tilt X: 0.0° | Tilt Y: 0.0° | Press: —
+              <span class="joy-pos" style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-accent);" id="joy-pos-text">
+                Tilt X: <span class="joy-num" id="joy-tilt-x">0.0°</span> | Tilt Y: <span class="joy-num" id="joy-tilt-y">0.0°</span>
+                | Press: <span class="joy-press" id="joy-press-state">—</span>
+                (<span class="joy-num" id="joy-press-mag">0.0</span> mT/mm)
               </span>
             </div>
           </div>
           <div id="canvas3d-container">
             <div class="hint-overlay">Fixed XYZ view | Scroll: Zoom</div>
+            <!-- Christmas hat for the man in the "City at night" wallpaper; placed by
+                 sfi_demo.js placeWallpaperHat. Units are wallpaper pixels, brim centre at 0,0. -->
+            <svg id="wallpaper-hat" class="wallpaper-hat" viewBox="-150 -210 300 240" aria-hidden="true">
+              <path d="M -105,-12 Q -95,-90 -60,-140 Q -95,-150 -125,-118 Q -80,-188 10,-178 C 70,-170 100,-90 105,-12 Z" fill="#c8102e" />
+              <path d="M -60,-140 Q -95,-150 -125,-118 Q -88,-160 -40,-162 Z" fill="#8f0b20" />
+              <path d="M 10,-178 C 70,-170 100,-90 105,-12 L 75,-12 C 72,-80 50,-150 10,-178 Z" fill="#a30d25" opacity="0.6" />
+              <rect x="-122" y="-34" width="244" height="50" rx="25" fill="#eef1f4" />
+              <rect x="-122" y="-4" width="244" height="20" rx="10" fill="#c9d0d8" opacity="0.7" />
+              <circle cx="-128" cy="-116" r="24" fill="#eef1f4" />
+              <circle cx="-122" cy="-108" r="14" fill="#c9d0d8" opacity="0.5" />
+            </svg>
+            <img class="fixed-logo fixed-logo--melexis logo-melexis" src="resources/MelexisLogoWhiteWhite2023.png" alt="Melexis" draggable="false" />
           </div>
         </div>
 
@@ -1333,26 +1385,20 @@
     <!-- TERMINAL DEBUG -->
     <div id="mini-log-window" class="log-window hidden"></div>
 
-    <!-- HELP MODAL -->
-    <div id="help-modal" class="ds-modal-root hidden">
-      <div class="ds-modal__backdrop" id="help-backdrop"></div>
-      <div class="ds-modal ds-modal--wide" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
-        <div class="ds-modal__header">
-          <h3 class="ds-modal__title" id="help-modal-title">Help</h3>
-          <button id="btn-close-help" class="ds-modal__close" aria-label="Close help">&#10005;</button>
-        </div>
-        <div class="ds-modal__body">
-          <div id="help-body" class="help-body">
-            <div class="help-loading">Loading sfi_help_readme.md&hellip;</div>
-          </div>
-        </div>
-        <div class="ds-modal__footer">
-          <span style="font-size: var(--font-size-xs); color: var(--color-ink-muted); align-self: center;">
-            Source: sfi_help_readme.md
-          </span>
+    <!-- HELP PANEL: docked, not modal, so the page stays usable next to it (help.js) -->
+    <aside id="help-panel" class="help-panel hidden" aria-labelledby="help-panel-title">
+      <div class="help-panel__header">
+        <h3 class="help-panel__title" id="help-panel-title">Help</h3>
+        <button id="btn-popout-help" class="ds-button ds-button--ghost ds-button--sm"
+                title="Open the help in its own window, e.g. on a second screen">Open in new window</button>
+        <button id="btn-close-help" class="ds-modal__close" aria-label="Close help">&#10005;</button>
+      </div>
+      <div class="help-panel__body">
+        <div id="help-body" class="help-body">
+          <div class="help-loading">Loading sfi_help_readme.md&hellip;</div>
         </div>
       </div>
-    </div>
+    </aside>
 
     <!-- SERIAL MODAL -->
     <div id="connect-modal" class="ds-modal-root hidden">

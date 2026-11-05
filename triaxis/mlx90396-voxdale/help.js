@@ -1,12 +1,21 @@
-﻿// Renders a Markdown help file into the #help-modal.
+// Renders a Markdown help file, either into the docked #help-panel on the demo
+// page (index.html) or as the whole page in its own window (help.html).
+//
+// The panel is deliberately not modal: the page stays usable next to it, so
+// the presenter can read a step and do it at the same time. "Open in new
+// window" moves the help to help.html for a second screen and closes the panel
+// so the demo gets its full width back.
 //
 // The .md file is fetched at click time rather than inlined, so the document on
 // disk stays the single source of truth and cannot drift from the GUI. This only
-// works when the page is served over http(s) â€” which it already must be, because
+// works when the page is served over http(s) - which it already must be, because
 // Web Serial requires a secure context. Opened straight off the filesystem the
-// fetch is blocked and the modal says so rather than failing silently.
+// fetch is blocked and the panel says so rather than failing silently.
 
 const HELP_SOURCE = 'sfi_help_readme.md';
+const HELP_WINDOW_URL = 'help.html';
+// A fixed name makes a second click reuse (and raise) the same window.
+const HELP_WINDOW_NAME = 'mlx90396-sfi-help';
 
 // Escapes only the angle brackets. `&` is left alone on purpose: the help text
 // uses entities such as `&plusmn;` and bare ampersands, both of which render
@@ -131,7 +140,7 @@ function renderMarkdown(markdown) {
       continue;
     }
 
-    // Any other text ends the list â€” it is a new paragraph, not a loose item.
+    // Any other text ends the list - it is a new paragraph, not a loose item.
     closeLists();
     paragraph.push(line.trim());
   }
@@ -141,50 +150,76 @@ function renderMarkdown(markdown) {
   return html.join('\n');
 }
 
-function initHelp() {
-  const modal = document.getElementById('help-modal');
-  const body = document.getElementById('help-body');
+// Fetches and renders the help into `body`. Resolves true once it rendered.
+async function loadHelp(body) {
+  body.innerHTML = `<div class="help-loading">Loading ${HELP_SOURCE}&hellip;</div>`;
+  try {
+    const response = await fetch(HELP_SOURCE, { cache: 'no-cache' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    body.innerHTML = renderMarkdown(await response.text());
+    return true;
+  } catch (err) {
+    body.innerHTML =
+      `<div class="help-error"><strong>Could not load ${HELP_SOURCE}.</strong>` +
+      '<br>The help file is fetched at runtime, so the page must be served over ' +
+      'http://localhost or https:// &mdash; opening the page directly from the ' +
+      'filesystem blocks it.' +
+      `<code>${escapeHtml(String(err))}</code></div>`;
+    return false;
+  }
+}
+
+function initHelpPanel(body) {
+  const panel = document.getElementById('help-panel');
   const openBtn = document.getElementById('btn-open-help');
-  if (!modal || !body || !openBtn) return;
+  if (!panel || !openBtn) return;
 
   let loaded = false;
-  let lastFocused = null;
+  const isOpen = () => !panel.classList.contains('hidden');
 
-  const close = () => {
-    modal.classList.add('hidden');
-    if (lastFocused) lastFocused.focus();
+  const setOpen = (open) => {
+    panel.classList.toggle('hidden', !open);
+    document.body.classList.toggle('help-open', open);
+    openBtn.setAttribute('aria-expanded', String(open));
+    // The page just got narrower or wider: let the canvases and fitted views
+    // follow straight away.
+    window.dispatchEvent(new Event('resize'));
   };
 
-  const load = async () => {
-    if (loaded) return;
-    body.innerHTML = `<div class="help-loading">Loading ${HELP_SOURCE}&hellip;</div>`;
-    try {
-      const response = await fetch(HELP_SOURCE, { cache: 'no-cache' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      body.innerHTML = renderMarkdown(await response.text());
-      loaded = true;
-    } catch (err) {
-      body.innerHTML =
-        `<div class="help-error"><strong>Could not load ${HELP_SOURCE}.</strong>` +
-        '<br>The help file is fetched at runtime, so the page must be served over ' +
-        'http://localhost or https:// &mdash; opening index.html directly from the ' +
-        'filesystem blocks it.' +
-        `<code>${escapeHtml(String(err))}</code></div>`;
-    }
-  };
-
+  // The Help button toggles, so the same button that opened it closes it.
   openBtn.addEventListener('click', async () => {
-    lastFocused = document.activeElement;
-    modal.classList.remove('hidden');
-    document.getElementById('btn-close-help')?.focus();
-    await load();
+    const open = !isOpen();
+    setOpen(open);
+    if (open && !loaded) loaded = await loadHelp(body);
   });
 
-  document.getElementById('btn-close-help')?.addEventListener('click', close);
-  document.getElementById('help-backdrop')?.addEventListener('click', close);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  document.getElementById('btn-close-help')?.addEventListener('click', () => setOpen(false));
+
+  document.getElementById('btn-popout-help')?.addEventListener('click', () => {
+    const win = window.open(HELP_WINDOW_URL, HELP_WINDOW_NAME, 'popup,width=760,height=900');
+    // Blocked pop-up: keep the panel rather than leave the user with nothing.
+    if (!win) return;
+    win.focus();
+    setOpen(false);
   });
+
+  // Escape closes the panel, but not while typing in a field on the page.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !isOpen()) return;
+    if (e.target.closest?.('input, select, textarea')) return;
+    setOpen(false);
+  });
+}
+
+function initHelp() {
+  const body = document.getElementById('help-body');
+  if (!body) return;
+  // help.html: the help is the whole page, so render it straight away.
+  if ('standalone' in body.dataset) {
+    loadHelp(body);
+    return;
+  }
+  initHelpPanel(body);
 }
 
 if (document.readyState === 'loading') {
@@ -192,4 +227,3 @@ if (document.readyState === 'loading') {
 } else {
   initHelp();
 }
-
