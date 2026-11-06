@@ -649,7 +649,7 @@ async function runDemoSession() {
         try {
           let posX_mm = 0, posY_mm = 0, angleDeg = 0;
           let rawX = 0, rawY = 0, rawZ = 0;
-          let p0Raw = { x: 0, y: 0, z: 0 };
+          let absRaw = { x: 0, y: 0, z: 0 };
           let diffRaw = { x: 0, y: 0, z: 0 };
           let hasLiveSample = false;
 
@@ -700,8 +700,11 @@ async function runDemoSession() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               rawX = avgX; rawY = avgY; rawZ = avgZ;
 
-              // Extract actual individual pixel values for Requirement 1-3 stray-field comparison
-              p0Raw = { x: res01.x0, y: res01.y0, z: res01.z0 };
+              // The stray-sensitive side: the absolute field averaged over the
+              // four pixels, i.e. at the chip's centre, where the differential
+              // channels also measure. (Pixel 0 alone sat off to one side.)
+              // Still fully stray-sensitive: a uniform field reaches all four.
+              absRaw = { x: avgX, y: avgY, z: avgZ };
               diffRaw = { x: rawGradX, y: rawGradY, z: rawGradZx, bzY: rawGradZy };
             }
 
@@ -721,7 +724,7 @@ async function runDemoSession() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               angleDeg = sample.angleDeg;
               rawX = sample.rawX; rawY = sample.rawY; rawZ = sample.rawZ;
-              p0Raw = { x: rawX, y: rawY, z: rawZ };
+              absRaw = { x: rawX, y: rawY, z: rawZ };
               if (Array.isArray(sample.points) && sample.points.length === 4) {
                 // The Arduino frame carries the four absolute pixels; derive the
                 // differential pair (X02, Y13, Z02, Z13) exactly as 2px mode
@@ -744,13 +747,13 @@ async function runDemoSession() {
           if (hasLiveSample && isDemoRunning) {
             setSfiHardwareTracking(true);
             if (currentDriverType === 'scpi') {
-              updateSfiHardwareTelemetry({ p0Raw, diffRaw, hasDifferential: true });
+              updateSfiHardwareTelemetry({ absRaw, diffRaw, hasDifferential: true });
             } else {
               updateSfiDomeKinematics(
                 rawX / DOME_LIVE_LSB_SCALE,
                 rawY / DOME_LIVE_LSB_SCALE,
                 rawZ / DOME_LIVE_LSB_SCALE,
-                { p0Raw, diffRaw, hasDifferential: false }
+                { absRaw, diffRaw, hasDifferential: false }
               );
             }
           }

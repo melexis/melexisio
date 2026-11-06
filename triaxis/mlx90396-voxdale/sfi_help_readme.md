@@ -62,7 +62,7 @@ Each side has:
 ### 3D Joystick Model
 
 - A 3D model of the demo joystick that tilts the way the real knob does.
-- **Zero Position** - makes the knob's current position the new centre. Use it while streaming, with your hand off the knob.
+- **Zero Position** - makes the knob's current position the new centre, for the 3D model and both radars. Use it while streaming, with your hand off the knob.
 - The line next to it shows **Tilt X**, **Tilt Y** and **Press**. Press reads **PUSHED** when the knob is pushed down.
 - **push at** - how hard the knob has to be pushed before it reads **PUSHED** (default 10). The number in brackets after Press is the live value: push the knob, note the number, and set **push at** a little below it. The page remembers the setting.
 - In the simulation you can drag the knob with the mouse. Scroll to zoom. The camera angle is fixed.
@@ -114,6 +114,6 @@ The formulas shown in the panel are background for engineers. You can ignore the
 - **"Port already in use"** - close any other program or browser tab that has the board open, then connect again.
 - **The right-hand radar says no magnet while the left one works** - open **Calibration Tuning** and check that the **2px** gain shows **Device confirmed**. If not, click **Stop** and then **Start Live Stream** again.
 - **The coil button says Coil Fault** - the board did not switch the coil on. Click it again; if that fails, disconnect and reconnect.
-- **The picture sits off centre when you are not touching the knob** - click **Zero Graphs** (plots) or **Zero Position** (3D model).
+- **The picture sits off centre when you are not touching the knob** - click **Zero Graphs** (plots) or **Zero Position** (3D model and radars).
 - **The gain buttons are greyed out** - the stream is running. Click **Stop** first.
 - **Help says it could not load** - the page was opened as a file. Open it through its web address instead.

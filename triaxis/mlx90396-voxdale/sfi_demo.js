@@ -169,6 +169,21 @@ let radarCanvasMlx = null, radarCtxMlx = null;
 let liveHardwarePacket = null;
 let liveSfiAngles = { alpha: 90, beta: 90 };
 let gimbalZeroAngles = { alpha: 90, beta: 90 };
+
+// The stray-sensitive (legacy) side goes through the same steps as the SFI
+// side, so the comparison only differs in the input data: its radar shows the
+// tilt from its own calibrated alpha/beta, measured from its own zero, and its
+// plot's push comes from its own field, not from the SFI press.
+// Both zeros are captured together by Zero Position.
+let liveLegacy = { alpha: 90, beta: 90, magMt: 0 };
+let legacyZeroAngles = { alpha: 90, beta: 90 };
+// |B| (mT) of the legacy side with the knob at rest: its push is measured from
+// here. null = take the first live reading (knob at rest at Start).
+let legacyRestMagMt = null;
+let legacyPress = 0;   // smoothed 0..1, the legacy plot's push
+// Rise of |B| above rest that reads as pushed on the legacy side. Starting
+// value, the counterpart of "push at" on the SFI side: check it on the bench.
+const LEGACY_PUSH_MT = 6;
 // Display scale for the two field plots (see angle_calib.js for the derivation
 // and the pitch caveat). SINGLE_PIXEL_LSB_PER_MT and lsbPerMtMm() are imported
 // from the shared module so the Thumbstick page uses the same numbers.
@@ -397,6 +412,8 @@ export function setSfiHardwareTracking(enabled, { keepZero = false } = {}) {
     targetJoyZ = 0;
     if (!keepZero) {
       gimbalZeroAngles = { alpha: 90, beta: 90 };
+      legacyZeroAngles = { alpha: 90, beta: 90 };
+      legacyRestMagMt = null;
       const zeroStatus = document.getElementById('gimbal-zero-status');
       if (zeroStatus) zeroStatus.textContent = 'Zero: α 90.0°, β 90.0°';
     }
@@ -944,6 +961,9 @@ export function initSfiDemo() {
 
   btnZeroGimbal?.addEventListener('click', () => {
     gimbalZeroAngles = { ...liveSfiAngles };
+    // Both sides from the same instant, so the two radars share one rest.
+    legacyZeroAngles = { alpha: liveLegacy.alpha, beta: liveLegacy.beta };
+    legacyRestMagMt = liveLegacy.magMt;
     if (gimbalZeroStatus) {
       gimbalZeroStatus.textContent =
         `Zero captured: α ${gimbalZeroAngles.alpha.toFixed(1)}°, β ${gimbalZeroAngles.beta.toFixed(1)}°`;
@@ -1291,7 +1311,7 @@ export function initSfiDemo() {
     // offset to measured data would fake the very comparison the demo shows.
     // (This read a `coilActive` flag that nothing ever set, so the simulated
     // disturbance never appeared; coilView is the state setCoilState owns.)
-    const liveData = isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.p0Raw;
+    const liveData = isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.absRaw;
     const simStray = coilView.active && !liveData;
     let noiseX = simStray ? 6.2 + (Math.random() - 0.5) * 0.6 : 0;
     let noiseY = simStray ? -5.8 + (Math.random() - 0.5) * 0.6 : 0;
@@ -1317,9 +1337,9 @@ export function initSfiDemo() {
     let mlxDBzY = simDiffR * Math.sin(simThetaY);
 
     if (liveData) {
-      stdBx = liveHardwarePacket.p0Raw.x / SINGLE_PIXEL_LSB_PER_MT;
-      stdBy = liveHardwarePacket.p0Raw.y / SINGLE_PIXEL_LSB_PER_MT;
-      stdBz = liveHardwarePacket.p0Raw.z / SINGLE_PIXEL_LSB_PER_MT;
+      stdBx = liveHardwarePacket.absRaw.x / SINGLE_PIXEL_LSB_PER_MT;
+      stdBy = liveHardwarePacket.absRaw.y / SINGLE_PIXEL_LSB_PER_MT;
+      stdBz = liveHardwarePacket.absRaw.z / SINGLE_PIXEL_LSB_PER_MT;
 
       const lsbPerMtMmNow = lsbPerMtMm();
       mlxDBx = liveHardwarePacket.diffRaw.x / lsbPerMtMmNow;
@@ -1367,6 +1387,36 @@ export function initSfiDemo() {
     const tiltX = gimbalInput.valid ? gimbalInput.x * 90 : 0;
     const tiltY = gimbalInput.valid ? gimbalInput.y * 90 : 0;
     liveSfiAngles = { alpha: angleAlpha, beta: angleBeta };
+
+    // The stray-sensitive side through the same steps: its own calibrated
+    // alpha/beta, parked at 90° without a magnet, measured from its own zero.
+    const stdHasSignal = sfi1px.signalStrength > NO_MAG_STD_MT;
+    const stdAlpha = stdHasSignal ? sfi1px.alphaDeg : 90;
+    const stdBeta = stdHasSignal ? sfi1px.betaDeg : 90;
+    const legacyGimbal = calculateDifferentialGimbalInput(
+      stdAlpha,
+      stdBeta,
+      legacyZeroAngles.alpha,
+      legacyZeroAngles.beta,
+      GIMBAL_FULL_SCALE_DEG
+    );
+    const legacyTiltX = legacyGimbal.valid ? legacyGimbal.x * 90 : 0;
+    const legacyTiltY = legacyGimbal.valid ? legacyGimbal.y * 90 : 0;
+    const legacyMagMt = Math.hypot(displayStdBx, displayStdBy, displayStdBz);
+    liveLegacy = { alpha: stdAlpha, beta: stdBeta, magMt: legacyMagMt };
+
+    // Legacy push, live: |B| rising above its rest reading (the first live
+    // frame, until Zero Position captures one), smoothed like the knob's press.
+    // A stray field that raises |B| reads as a push here, as it would on a real
+    // single-point sensor. The simulation has no rest reading of its own, so
+    // there both plots take the simulated push.
+    let legacyAxial = joyZ;
+    if (liveData) {
+      if (legacyRestMagMt === null) legacyRestMagMt = Math.hypot(stdBx, stdBy, stdBz);
+      const legacyPushed = legacyMagMt - legacyRestMagMt >= LEGACY_PUSH_MT;
+      legacyPress += ((legacyPushed ? 1 : 0) - legacyPress) * smoothing;
+      legacyAxial = legacyPress;
+    }
 
     // Each field has its own fixed-width span, so the line does not shift.
     const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
@@ -1447,16 +1497,16 @@ export function initSfiDemo() {
         const lastStd = stdTraceHistory[stdTraceHistory.length - 1];
         const lastMlx = mlxTraceHistory[mlxTraceHistory.length - 1];
 
-        // Both magnet heads ride the same gimbal arc. `axial` is the shared
-        // press component, so a push slides each head down its tilted axis;
-        // the raw Z values stay in the readout boxes instead of being a fake
-        // height. The channel pair remains the horizontal projection.
+        // Both magnet heads ride the same gimbal arc. `axial` is each side's
+        // own push (legacyAxial, joyZ), so a push slides the head down its
+        // tilted axis; the raw Z values stay in the readout boxes instead of
+        // being a fake height. The channel pair remains the horizontal projection.
         if (!lastStd || Math.abs(lastStd.x - displayStdBx) > 0.05 || Math.abs(lastStd.y - displayStdBy) > 0.05
-            || Math.abs((lastStd.axial || 0) - joyZ) > 0.02) {
-          stdTraceHistory.push({ 
-            x: displayStdBx, 
-            y: displayStdBy, 
-            axial: joyZ,
+            || Math.abs((lastStd.axial || 0) - legacyAxial) > 0.02) {
+          stdTraceHistory.push({
+            x: displayStdBx,
+            y: displayStdBy,
+            axial: legacyAxial,
             rawZ: displayStdBz 
           });
         }
@@ -1483,9 +1533,9 @@ export function initSfiDemo() {
         if (stdPlot) update3DPlot(stdPlot, stdTraceHistory, true);
         if (mlxPlot) update3DPlot(mlxPlot, mlxTraceHistory, false);
 
-        // Both dials are scaled so the full-scale value reaches the rim: 16 mT
-        // of in-plane field, 60 degrees of tilt.
-        drawRadar(radarCtxStd, displayStdBx, displayStdBy, '#ef4444', RADAR_STD_FULL_MT);
+        // The same tilt dial on both sides (60° to the rim), each fed its own
+        // tilt, so any difference between them comes from the sensor data.
+        drawTiltRadar(radarCtxStd, legacyTiltX, legacyTiltY, '#ef4444');
         drawTiltRadar(radarCtxMlx, tiltX, tiltY, '#10b981');
       }
     } else if (activeTab === 'tab-idle' && mainSceneObj) {
@@ -1588,82 +1638,14 @@ function radarGeometry(ctx) {
   return { w, h, cx: w / 2, cy: h / 2, radius: Math.min(w, h) / 2 - 25 * k, k };
 }
 
-// `label` used to be passed in ('LEGACY 3D HALL') but was never drawn - the card
-// badge already names the plot - so the parameter is gone.
-function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
-  if (!ctx || !ctx.canvas) return;
-  const { w, h, cx, cy, radius, k } = radarGeometry(ctx);
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Background Reticle
-  ctx.fillStyle = '#030816';
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 1;
-  for (let r = 0.25; r <= 1.0; r += 0.25) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
-  ctx.stroke();
-
-  ctx.fillStyle = '#64748b';
-  ctx.font = `${Math.round(10 * k)}px monospace`;
-  ctx.textAlign = 'center';
-  ctx.fillText('90° (+Y)', cx, cy - radius + 14 * k);
-  ctx.fillText('270° (-Y)', cx, cy + radius - 8 * k);
-  // Side labels anchored inside the rim, so they never cross the dial's edge.
-  ctx.textAlign = 'right';
-  ctx.fillText('0° (+X)', cx + radius - 6 * k, cy - 6 * k);
-  ctx.textAlign = 'left';
-  ctx.fillText('180° (-X)', cx - radius + 6 * k, cy - 6 * k);
-
-  // (The old dashed "simulation target" reticle was removed: it duplicated the
-  // needle on a second, unsmoothed path and could spill past the rim.)
-
-  // Measured vector (Solid arrow) with boundary clamping
-  const measuredDist = Math.hypot(curX, curY);
-  const clampedMeasuredDist = Math.min(measuredDist, maxScale);
-  const measuredScale = measuredDist > 0 ? (clampedMeasuredDist / measuredDist) : 1;
-  const measuredPxX = cx + ((curX * measuredScale) / maxScale) * radius;
-  const measuredPxY = cy - ((curY * measuredScale) / maxScale) * radius;
-
-  ctx.strokeStyle = themeColor;
-  ctx.lineWidth = 2.5 * k;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(measuredPxX, measuredPxY);
-  ctx.stroke();
-
-  ctx.fillStyle = themeColor;
-  ctx.shadowColor = themeColor;
-  ctx.shadowBlur = 10 * k;
-  ctx.beginPath();
-  ctx.arc(measuredPxX, measuredPxY, 5.5 * k, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-}
-
-// The frame centre is α/β = 90°; a 90° change reaches the radar rim.
-// Radar full-scale. Both dials are more sensitive than before: the needle was
-// only reaching the middle of the disc because the full scale was well above
-// the values actually seen. 16 mT of in-plane field / 60 deg of tilt now reach
-// the rim at full stick deflection.
-const RADAR_STD_FULL_MT = 16.0;
+// Radar full-scale: 60 degrees of tilt reaches the rim at full stick deflection.
 const RADAR_TILT_FULL_DEG = 60.0;
 
-// Differential radar: a TILT scope, not an angle dial. The needle plots the
-// same (tiltX, tiltY) pair that drives the dome, so the dial and the model can
-// never disagree: centre = neutral, +60° reaches the rim on each axis. alpha and
-// beta stay in the readout box as numbers. (The old version plotted the raw
+// Both radars: a TILT scope, not an angle dial. On the SFI side the needle
+// plots the same (tiltX, tiltY) pair that drives the dome, so the dial and the
+// model can never disagree; the legacy side gets its own tilt the same way.
+// Centre = neutral, +60° reaches the rim on each axis. alpha and beta stay in
+// the readout boxes as numbers. (The old version plotted the raw
 // alpha/beta angles through (90 - a)/90, which folded +/- onto one needle and
 // pointed somewhere unrelated to the stick.)
 function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
@@ -1672,7 +1654,7 @@ function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
   const xOf = (v) => v / RADAR_TILT_FULL_DEG;
   const yOf = (v) => v / RADAR_TILT_FULL_DEG;
 
-  // Clamp to the circular rim (same boundary behaviour as the legacy drawRadar).
+  // Clamp to the circular rim.
   const clampPoint = (vx, vy) => {
     const dist = Math.hypot(vx, vy);
     const s = dist > 1 ? 1 / dist : 1;
