@@ -1,0 +1,12 @@
+{
+  "extraKnownMarketplaces": {
+    "melexis-tools": {
+      "source": { "source": "git", "url": "git@gitlab.melexis.com:ces/claude.git" }
+    }
+  },
+  "enabledPlugins": {
+    "mlx-scpi@melexis-tools": true,
+    "mlx-webtools@melexis-tools": true,
+    "mlx-esp32@melexis-tools": true
+  }
+}
