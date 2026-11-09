@@ -286,7 +286,9 @@
     rx: "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
     tx: "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
   };
-  const BLE_NAME_PREFIX = "melexis-";
+  /* melexis-XXXXXX for the sensor firmware; esp32-clock-XXXXXX for the clock,
+     which carries the same console under its own name. The filters are OR'ed. */
+  const BLE_NAME_PREFIXES = ["melexis-", "esp32-clock-"];
   // What the ATT default of 23 leaves. The firmware negotiates 517, which Web
   // Bluetooth does not expose, so this stays at the size that always fits.
   const BLE_CHUNK = 20;
@@ -297,7 +299,7 @@
     }
 
     const device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: BLE_NAME_PREFIX }],
+      filters: BLE_NAME_PREFIXES.map((namePrefix) => ({ namePrefix })),
       optionalServices: [NUS.service],
     });
 

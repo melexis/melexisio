@@ -273,7 +273,9 @@
   const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
   const NUS_RX      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
   const NUS_TX      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-  const BLE_NAME_PREFIX = 'melexis-';
+  /* melexis-XXXXXX for the sensor firmware; esp32-clock-XXXXXX for the clock,
+     which carries the same console under its own name. The filters are OR'ed. */
+  const BLE_NAME_PREFIXES = ['melexis-', 'esp32-clock-'];
   const BLE_CHUNK = 20;          // what the ATT default of 23 leaves for payload
 
   async function connectBluetooth() {
@@ -287,7 +289,7 @@
       setConnectionState('connecting');
 
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: BLE_NAME_PREFIX }],
+        filters: BLE_NAME_PREFIXES.map(namePrefix => ({ namePrefix })),
         optionalServices: [NUS_SERVICE],
       });
 
