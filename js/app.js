@@ -894,7 +894,7 @@
 
     // Tolerate a prompt at the very start of the buffer and trailing whitespace
     // after '>', both of which the anchored form used to miss (silent timeout).
-    const match = probe.buffer.match(/(?:^|\r?\n)\((\w+)\)>\s*$/);
+    const match = probe.buffer.match(/(?:^|\r?\n)\(([\w:]+)\)>\s*$/);
     if (!match) {
       return true;
     }

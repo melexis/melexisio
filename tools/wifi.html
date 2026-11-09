@@ -390,7 +390,7 @@
       setConnected(false);
     }
 
-    const PROMPT_RE = /(?:^|\r?\n)\((\w+)\)>\s*$/;
+    const PROMPT_RE = /(?:^|\r?\n)\(([\w:]+)\)>\s*$/;
 
     /* Unlike the other pages this one keeps the text of a failed command. The
        firmware explains a refused join in words — "wrong password (reason 15)",

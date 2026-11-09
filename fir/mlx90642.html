@@ -374,7 +374,7 @@
     /* The prompt is the only reliable end-of-response marker: responses are
      * free-form text and the firmware does not echo. Tolerate a prompt at the
      * very start of the buffer and trailing whitespace after '>'. */
-    const PROMPT_RE = /(?:^|\r?\n)\((\w+)\)>\s*$/;
+    const PROMPT_RE = /(?:^|\r?\n)\(([\w:]+)\)>\s*$/;
 
     async function scpi(command, timeoutMs = 2000) {
       if (state.handleLost) throw new Error("the browser has lost its handle to this board");

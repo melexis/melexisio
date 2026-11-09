@@ -1423,7 +1423,7 @@
                 idleMs: 300,
                 // End-of-response prompt, e.g. "(OK)>", "(ERROR)>", "(SOME_CODE)>", or "(*)>".
                 // Matches a whole line (optionally preceded by whitespace) to avoid false positives in payload.
-                terminatorRegex: /^\s*\([A-Z0-9_*_]+\)>\s*$/,
+                terminatorRegex: /^\s*\([A-Z0-9_:*]+\)>\s*$/,
                 allowIdleReturn: false,
             });
 

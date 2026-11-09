@@ -330,7 +330,7 @@
       })();
     }
 
-    const PROMPT_RE = /(?:^|\r?\n)\((\w+)\)>\s*$/;
+    const PROMPT_RE = /(?:^|\r?\n)\(([\w:]+)\)>\s*$/;
 
     async function scpi(command, timeoutMs = 3000) {
       if (state.handleLost) throw new Error("the browser has lost its handle to this board");
