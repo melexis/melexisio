@@ -4,7 +4,7 @@
  * a cache-first worker keeps serving stale HTML/JS long after a change. The
  * cache is only a fallback for when the network is unavailable.
  */
-const CACHE = "melexis-io-tools-v5";
+const CACHE = "melexis-io-tools-v6";
 
 const SHELL = [
   "./",
@@ -39,6 +39,8 @@ const SHELL = [
   "./triaxis/mlx90396/sfi_demo.js",
   "./triaxis/mlx90396/twist_api.js",
   "./triaxis/mlx90396/help.js",
+  "./triaxis/mlx90396/help.html",
+  "./triaxis/mlx90396/help.css",
   "./triaxis/mlx90396/joystick_help_readme.md",
   "./triaxis/mlx90396/webdesign.css",
   "./triaxis/mlx90396-voxdale/",
@@ -48,6 +50,8 @@ const SHELL = [
   "./triaxis/mlx90396-voxdale/arduino_api.js",
   "./triaxis/mlx90396-voxdale/sfi_demo.js",
   "./triaxis/mlx90396-voxdale/help.js",
+  "./triaxis/mlx90396-voxdale/help.html",
+  "./triaxis/mlx90396-voxdale/help.css",
   "./triaxis/mlx90396-voxdale/sfi_help_readme.md",
   "./triaxis/mlx90396-voxdale/webdesign.css",
   "./fir/",

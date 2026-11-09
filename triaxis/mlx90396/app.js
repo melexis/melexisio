@@ -153,7 +153,22 @@ window.addEventListener('DOMContentLoaded', () => {
   initTwistControls();
   refreshPortGuide();
   initFitLayout();
+  initMenuToggle();
 });
+
+// "Hide menus" in the tab bar: hides the title, connection and Start/Stop
+// rows so the active view gets the whole screen. The resize event refits the
+// grid, stick and radar to the new height.
+function initMenuToggle() {
+  const btn = document.getElementById('btn-toggle-menus');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const hidden = document.body.classList.toggle('menus-hidden');
+    btn.textContent = hidden ? 'Show menus' : 'Hide menus';
+    btn.setAttribute('aria-pressed', String(hidden));
+    window.dispatchEvent(new Event('resize'));
+  });
+}
 
 // --- Drag & Drop Reordering logic ---
 function initGridReordering() {

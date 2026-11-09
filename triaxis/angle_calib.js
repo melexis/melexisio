@@ -44,16 +44,22 @@ export const DEFAULT_CALIBRATION_PARAMS = Object.freeze({
 //   absolute pixel : field[mT]       = counts / SINGLE_PIXEL_LSB_PER_MT
 //   differential   : gradient[mT/mm] = counts / (SINGLE_PIXEL_LSB_PER_MT * pitch_mm)
 //
-// The 2px channels carry the raw difference between two neighbouring pixels in
-// the same LSB scale as the absolute pixels - the chip does not pre-divide by
-// its pixel pitch - so one mT/mm is (LSB per mT) x (pitch) counts.
+// 1px: 20 LSB/mT is the datasheet V0.5 figure (table 11), valid at the factory
+// GAINSEL_1PX (9 per the AE); at the 3x setting the mT values read ~3x high.
 //
-// NOTE: the pitch is NOT in the preliminary datasheet we have. 1.0 mm is the
-// working assumption: it reproduces the simulator's ~6.5 mT/mm nominal and
-// keeps the press target (~20 mT/mm) reachable. The old hard-coded divisor of
-// 120 implied a 6 mm pitch - that is the magnet diameter, not an on-die spacing
-// - and read every gradient ~6x low, which dropped the differential radar
-// under its "no magnet" gate. Trim it live until the part confirms the figure.
+// 2px: this is a DISPLAY scale, not datasheet units. The datasheet gives
+// 120 LSB per mT/mm (table 12, at the factory GAINSEL_2PX, which the GUI
+// overwrites with 9 or 37) and labels the pixel spacing dHE = 1.10 mm
+// (figure 25). Dividing by 120 would read every gradient 6x lower: worked
+// through on bench captures, the full-tilt readings (0.5-1.5 on this scale)
+// fall under the "no magnet" gate (sfi_demo.js NO_MAG_DIFF_MT_MM = 1), which
+// holds alpha/beta at 90°. That was calculated, not run in the GUI.
+// The thresholds - no magnet 1, weak 3, PUSHED 10 mT/mm, the 8 mT/mm plot full
+// scale - were chosen on this scale (PUSHED and the plot scale against the
+// simulator), so change the divisor only together with all of them, ideally
+// from a bench calibration (X02 counts against (Bx0 - Bx2) / 1.10 mm at a known
+// 2px gain). The angles do not depend on this scale: every channel is divided
+// by the same number.
 export const SINGLE_PIXEL_LSB_PER_MT = 20;
 export const DEFAULT_SENSOR_PIXEL_PITCH_MM = 1.0;
 

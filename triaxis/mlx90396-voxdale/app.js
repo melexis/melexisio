@@ -61,7 +61,9 @@ window.addEventListener('DOMContentLoaded', () => {
   initCoilControls();
   initSfiDemo();
   initTabNavigation();
+  initMenuToggle();
   initSerialPortEvents();
+  updateStatusText();
   window.addEventListener('resize', resizeSfiCanvases);
   window.addEventListener('pagehide', releaseCoilOnUnload);
 });
@@ -84,6 +86,20 @@ function initTabNavigation() {
 
       setTimeout(resizeSfiCanvases, 40);
     });
+  });
+}
+
+// "Hide menus" in the tab bar: hides the title, connection and stream
+// controls so the active tab gets the whole screen. The canvases follow
+// through their ResizeObserver.
+function initMenuToggle() {
+  const btn = document.getElementById('btn-toggle-menus');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const hidden = document.body.classList.toggle('menus-hidden');
+    btn.textContent = hidden ? 'Show menus' : 'Hide menus';
+    btn.setAttribute('aria-pressed', String(hidden));
+    resizeSfiCanvases();
   });
 }
 
@@ -135,7 +151,10 @@ function processRx(text) {
           // raced the loop and used a different scaling (rawZ/1000 vs the
           // loop's DOME_LIVE_LSB_SCALE), so the dome jittered between the two.
           const sample = activeDevice.processLine(line);
-          if (!sample.error) setSfiHardwareTracking(true);
+          // The sketch streams from the moment the port opens; only take over
+          // the views while a session runs, so Auto-Pattern keeps going before
+          // Start and comes back after Stop.
+          if (!sample.error && isDemoRunning) setSfiHardwareTracking(true);
         } else {
           handlePrompt(line);
         }
@@ -408,24 +427,32 @@ function setUIConnected(connected) {
   isConnected = connected;
   btnConnect.textContent = connected ? 'Disconnect' : 'Connect USB';
   btnConnect.className = connected ? 'ds-button ds-button--danger ds-button--md' : 'ds-button ds-button--primary ds-button--md';
-  if (statusModeTxt) {
-    statusModeTxt.textContent = connected 
-      ? `Connected via ${currentDriverType.toUpperCase()} at ${selBaudRate.value} baud` 
-      : 'Standby Mode (Disconnected)';
+  updateStatusText();
+}
+
+// Says whether the views show real measurements or the simulation, so
+// nobody mistakes the Auto-Pattern for the sensor.
+function updateStatusText() {
+  if (!statusModeTxt) return;
+  const link = `${currentDriverType.toUpperCase()}, ${selBaudRate ? selBaudRate.value : ''} baud`;
+  if (isConnected && isDemoRunning) {
+    statusModeTxt.textContent = `Live measurements (${link})`;
+  } else if (isConnected) {
+    statusModeTxt.textContent = `Connected (${link}) - simulation shown, press Start for live`;
+  } else {
+    statusModeTxt.textContent = 'Simulation - connect USB and press Start for live';
   }
+}
+
+// Ends a session's hold on the views: back to the simulation, keeping the
+// Zero Position for the next Start on the same board.
+function returnToSimulation() {
+  setSfiHardwareTracking(false, { keepZero: isConnected });
+  updateStatusText();
 }
 
 async function connectSerial() {
   try {
-    // A Start pressed before connecting left the standalone emulation loop
-    // running. Stop it and reset the controls before this session takes over,
-    // otherwise the emulation keeps writing to the UI and #btn-start-demo
-    // stays disabled, leaving the page stuck in emulation.
-    isDemoRunning = false;
-    if (btnStartDemo) btnStartDemo.disabled = false;
-    if (btnStopDemo) btnStopDemo.disabled = true;
-    await new Promise(r => setTimeout(r, 50));
-
     currentDriverType = selDriverType ? selDriverType.value : 'scpi';
     const baudRate = selBaudRate ? parseInt(selBaudRate.value, 10) : 115200;
 
@@ -568,6 +595,7 @@ async function runDemoSession() {
   btnStartDemo.disabled = true;
   btnStopDemo.disabled = false;
   isDemoRunning = true;
+  updateStatusText();
 
   if (isConnected && activeDevice) {
     try {
@@ -621,7 +649,7 @@ async function runDemoSession() {
         try {
           let posX_mm = 0, posY_mm = 0, angleDeg = 0;
           let rawX = 0, rawY = 0, rawZ = 0;
-          let p0Raw = { x: 0, y: 0, z: 0 };
+          let absRaw = { x: 0, y: 0, z: 0 };
           let diffRaw = { x: 0, y: 0, z: 0 };
           let hasLiveSample = false;
 
@@ -672,8 +700,11 @@ async function runDemoSession() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               rawX = avgX; rawY = avgY; rawZ = avgZ;
 
-              // Extract actual individual pixel values for Requirement 1-3 stray-field comparison
-              p0Raw = { x: res01.x0, y: res01.y0, z: res01.z0 };
+              // The stray-sensitive side: the absolute field averaged over the
+              // four pixels, i.e. at the chip's centre, where the differential
+              // channels also measure. (Pixel 0 alone sat off to one side.)
+              // Still fully stray-sensitive: a uniform field reaches all four.
+              absRaw = { x: avgX, y: avgY, z: avgZ };
               diffRaw = { x: rawGradX, y: rawGradY, z: rawGradZx, bzY: rawGradZy };
             }
 
@@ -693,7 +724,7 @@ async function runDemoSession() {
               posY_mm = latestRawMagnet.y - magnetOffsets.y;
               angleDeg = sample.angleDeg;
               rawX = sample.rawX; rawY = sample.rawY; rawZ = sample.rawZ;
-              p0Raw = { x: rawX, y: rawY, z: rawZ };
+              absRaw = { x: rawX, y: rawY, z: rawZ };
               if (Array.isArray(sample.points) && sample.points.length === 4) {
                 // The Arduino frame carries the four absolute pixels; derive the
                 // differential pair (X02, Y13, Z02, Z13) exactly as 2px mode
@@ -711,16 +742,18 @@ async function runDemoSession() {
           }
 
           // A valid sample takes the dome seamlessly from its idle pattern to hardware tracking.
-          if (hasLiveSample) {
+          // Not once Stop was pressed: a read still in flight must not take the
+          // views back from the simulation.
+          if (hasLiveSample && isDemoRunning) {
             setSfiHardwareTracking(true);
             if (currentDriverType === 'scpi') {
-              updateSfiHardwareTelemetry({ p0Raw, diffRaw, hasDifferential: true });
+              updateSfiHardwareTelemetry({ absRaw, diffRaw, hasDifferential: true });
             } else {
               updateSfiDomeKinematics(
                 rawX / DOME_LIVE_LSB_SCALE,
                 rawY / DOME_LIVE_LSB_SCALE,
                 rawZ / DOME_LIVE_LSB_SCALE,
-                { p0Raw, diffRaw, hasDifferential: false }
+                { absRaw, diffRaw, hasDifferential: false }
               );
             }
           }
@@ -734,20 +767,9 @@ async function runDemoSession() {
     } catch (err) {
       appendLog(`[DEMO ERROR]: ${err.message}\n`, 'log-badprompt');
       isDemoRunning = false;
+      returnToSimulation();
       btnStartDemo.disabled = false;
       btnStopDemo.disabled = true;
-    }
-  } else {
-    // Standalone Emulation Mode
-    let angle = 0;
-    while (isDemoRunning) {
-      angle += 0.08; 
-      const emulatedX = Math.sin(angle * 0.7) * 1.8;
-      const emulatedY = Math.cos(angle * 0.9) * 1.8;
-
-      updateSfiDomeKinematics(emulatedX / 2, emulatedY / 2, 0);
-
-      await new Promise(r => setTimeout(r, 33)); 
     }
   }
 }
@@ -771,13 +793,23 @@ btnModalConnect?.addEventListener('click', async () => {
   await connectSerial();
 });
 
-btnStartDemo?.addEventListener('click', runJoystickDemo);
+// Start means "read the sensor". Without a board there is nothing to read
+// (the simulation runs on its own), so ask for the connection instead.
+btnStartDemo?.addEventListener('click', () => {
+  if (!isConnected || !activeDevice) {
+    appendLog('[SYSTEM] Connect a board to stream live measurements.\n', 'log-badprompt');
+    connectModal?.classList.remove('hidden');
+    return;
+  }
+  runJoystickDemo();
+});
 btnStopDemo?.addEventListener('click', async () => {
   isDemoRunning = false;
   if (coilEnergised) {
     await handleHardwareCoilCommand({ action: 'off' });
   }
-  if (!isConnected) setSfiHardwareTracking(false);
+  // Back to the attract pattern until the next Start, connected or not.
+  returnToSimulation();
   btnStartDemo.disabled = false;
   btnStopDemo.disabled = true;
   appendLog('[SYSTEM] Demo stopped.\n', 'log-badprompt');

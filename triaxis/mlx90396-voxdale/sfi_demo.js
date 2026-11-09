@@ -169,6 +169,21 @@ let radarCanvasMlx = null, radarCtxMlx = null;
 let liveHardwarePacket = null;
 let liveSfiAngles = { alpha: 90, beta: 90 };
 let gimbalZeroAngles = { alpha: 90, beta: 90 };
+
+// The stray-sensitive (legacy) side goes through the same steps as the SFI
+// side, so the comparison only differs in the input data: its radar shows the
+// tilt from its own calibrated alpha/beta, measured from its own zero, and its
+// plot's push comes from its own field, not from the SFI press.
+// Both zeros are captured together by Zero Position.
+let liveLegacy = { alpha: 90, beta: 90, magMt: 0 };
+let legacyZeroAngles = { alpha: 90, beta: 90 };
+// |B| (mT) of the legacy side with the knob at rest: its push is measured from
+// here. null = take the first live reading (knob at rest at Start).
+let legacyRestMagMt = null;
+let legacyPress = 0;   // smoothed 0..1, the legacy plot's push
+// Rise of |B| above rest that reads as pushed on the legacy side. Starting
+// value, the counterpart of "push at" on the SFI side: check it on the bench.
+const LEGACY_PUSH_MT = 6;
 // Display scale for the two field plots (see angle_calib.js for the derivation
 // and the pitch caveat). SINGLE_PIXEL_LSB_PER_MT and lsbPerMtMm() are imported
 // from the shared module so the Thumbstick page uses the same numbers.
@@ -384,17 +399,33 @@ export function initCoilControls() {
   setCoilState({ active: false, hardware: false });
 }
 
-export function setSfiHardwareTracking(enabled) {
+// Off hands the views back to the simulation (Auto-Pattern, if it is on).
+// keepZero: Stop keeps the captured Zero Position, so the next Start on the
+// same board does not need re-zeroing; a disconnect clears it.
+export function setSfiHardwareTracking(enabled, { keepZero = false } = {}) {
   isLiveHardwareConnected = Boolean(enabled);
   if (!isLiveHardwareConnected) {
     liveHardwarePacket = null;
     liveSfiAngles = { alpha: 90, beta: 90 };
-    gimbalZeroAngles = { alpha: 90, beta: 90 };
     targetJoyX = 0;
     targetJoyY = 0;
     targetJoyZ = 0;
-    const zeroStatus = document.getElementById('gimbal-zero-status');
-    if (zeroStatus) zeroStatus.textContent = 'Zero: α 90.0°, β 90.0°';
+    if (!keepZero) {
+      gimbalZeroAngles = { alpha: 90, beta: 90 };
+      legacyZeroAngles = { alpha: 90, beta: 90 };
+      legacyRestMagMt = null;
+      const zeroStatus = document.getElementById('gimbal-zero-status');
+      if (zeroStatus) zeroStatus.textContent = 'Zero: α 90.0°, β 90.0°';
+    }
+  }
+}
+
+function setAutoPattern(on) {
+  autoPattern = on;
+  const btn = document.getElementById('btn-pattern');
+  if (btn) {
+    btn.style.opacity = on ? '1' : '0.5';
+    btn.setAttribute('aria-pressed', String(on));
   }
 }
 
@@ -412,18 +443,517 @@ export function updateSfiHardwareTelemetry(telemetryPayload) {
   liveHardwarePacket = telemetryPayload;
 }
 
+// Copper band in the slot of each coil former (CAD node 1317-Coils45mm-1),
+// so the empty spools read as wound coils. Plain colour, no texture. It is a
+// child of the former, so it shares the former's transform and stays put.
+// Dimensions are measured from the GLB in the former's local frame (metres):
+// spool axis = local X, slots centred at x = 0 and x = -36 mm, 7 mm between
+// the flanges. The flanges are cut flat at y = +-25.5 mm, so the band stops at
+// 25 mm and never shows past them. Only the outer face is drawn: the ends sit
+// against the flanges and are never seen.
+const COIL_WINDING = {
+  slotCentresX: [0, -0.036],
+  radius: 0.025,
+  width: 0.0069
+};
+const COIL_COPPER = { color: 0xc8521c, emissive: 0x401204, metalness: 0.45, roughness: 0.35 };
+
+function addCoilWindings(coilFormer) {
+  const material = new THREE.MeshStandardMaterial(COIL_COPPER);
+  // CylinderGeometry runs along Y; turn it onto the spool axis (X).
+  const geometry = new THREE.CylinderGeometry(
+    COIL_WINDING.radius, COIL_WINDING.radius, COIL_WINDING.width, 96, 1, true
+  );
+  geometry.rotateZ(Math.PI / 2);
+  COIL_WINDING.slotCentresX.forEach((x, i) => {
+    const winding = new THREE.Mesh(geometry, material);
+    winding.name = `coil-winding-${i + 1}`;
+    winding.position.x = x;
+    coilFormer.add(winding);
+  });
+}
+
+// Field lines of the stray field coil, always shown (not tied to the coil
+// button) so the model always shows what the coil does.
+// The two windings are a coaxial pair on the former's X axis, driven with the
+// same current sense, so between them the field runs straight along the axis
+// and is close to uniform; outside it bends round and closes on itself. The
+// sensor board sits exactly halfway between the coils (x = -18 mm, measured
+// from the GLB), i.e. in that uniform region: the differential channels see
+// the same field on every pixel and cancel it, the single-pixel ones do not.
+// The lines are traced through a Biot-Savart model of the two loops, in the
+// former's local frame (metres), and drawn dim with dots drifting along B.
+const COIL_FIELD = {
+  pairCentreX: -0.018,
+  loopSegments: 72,
+  step: 0.0012,          // trace step, m
+  maxSteps: 600,
+  extent: 0.05,          // stop tracing this far from the pair centre (inside the dome), m
+  // Seeds: through both coils on the mid-plane, and round each winding.
+  midRadii: [0.007, 0.0135, 0.019],
+  outerRadius: 0.036,
+  azimuths: 6,
+  dotSpacing: 0.012,     // one moving dot per this much line length, m
+  dotSpeed: 0.022,       // m/s in the uniform region, scaled by |B| elsewhere
+  color: 0x64bcaa,
+  lineOpacity: 0.32
+};
+
+let coilFieldViz = null;
+
+function makeCoilPairField() {
+  const { loopSegments: n } = COIL_FIELD;
+  const R = COIL_WINDING.radius;
+  const segs = [];
+  COIL_WINDING.slotCentresX.forEach((cx) => {
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2;
+      const a1 = ((k + 1) / n) * Math.PI * 2;
+      const p0 = new THREE.Vector3(cx, R * Math.cos(a0), R * Math.sin(a0));
+      const p1 = new THREE.Vector3(cx, R * Math.cos(a1), R * Math.sin(a1));
+      segs.push({ mid: p0.clone().add(p1).multiplyScalar(0.5), dl: p1.clone().sub(p0) });
+    }
+  });
+  const r = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  // Biot-Savart sum, arbitrary units (normalised below).
+  const raw = (p, out) => {
+    out.set(0, 0, 0);
+    for (const s of segs) {
+      r.subVectors(p, s.mid);
+      const d = Math.max(r.length(), 0.002);
+      out.add(c.crossVectors(s.dl, r).multiplyScalar(1 / (d * d * d)));
+    }
+    return out;
+  };
+  // 1.0 = the field at the sensor, the "5 mT" the demo injects.
+  const ref = raw(new THREE.Vector3(COIL_FIELD.pairCentreX, 0, 0), new THREE.Vector3()).length();
+  return (p, out) => raw(p, out).multiplyScalar(1 / ref);
+}
+
+// RK4 along the unit field direction; sign -1 traces against B.
+function traceFieldLine(field, seed, sign) {
+  const { step, maxSteps, extent, pairCentreX } = COIL_FIELD;
+  const centre = new THREE.Vector3(pairCentreX, 0, 0);
+  const pts = [seed.clone()];
+  const p = seed.clone();
+  const k = [0, 1, 2, 3].map(() => new THREE.Vector3());
+  const tmp = new THREE.Vector3();
+  const dir = (q, out) => {
+    field(q, out);
+    const m = out.length();
+    return m > 1e-9 ? out.multiplyScalar(sign / m) : out.set(0, 0, 0);
+  };
+  for (let i = 0; i < maxSteps; i++) {
+    dir(p, k[0]);
+    dir(tmp.copy(p).addScaledVector(k[0], step / 2), k[1]);
+    dir(tmp.copy(p).addScaledVector(k[1], step / 2), k[2]);
+    dir(tmp.copy(p).addScaledVector(k[2], step), k[3]);
+    p.addScaledVector(k[0], step / 6).addScaledVector(k[1], step / 3)
+      .addScaledVector(k[2], step / 3).addScaledVector(k[3], step / 6);
+    pts.push(p.clone());
+    if (i > 20 && p.distanceTo(seed) < step * 1.5) return { pts, closed: true };
+    if (p.distanceTo(centre) > extent) break;
+  }
+  return { pts, closed: false };
+}
+
+function dotSprite() {
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function addCoilFieldLines(coilFormer) {
+  const field = makeCoilPairField();
+  const seeds = [];
+  const { azimuths, midRadii, outerRadius, pairCentreX } = COIL_FIELD;
+  midRadii.forEach((rad, ri) => {
+    for (let a = 0; a < azimuths; a++) {
+      const phi = ((a + ri / midRadii.length) / azimuths) * Math.PI * 2;
+      seeds.push(new THREE.Vector3(pairCentreX, rad * Math.cos(phi), rad * Math.sin(phi)));
+    }
+  });
+  COIL_WINDING.slotCentresX.forEach((cx) => {
+    for (let a = 0; a < azimuths; a++) {
+      const phi = ((a + 0.5) / azimuths) * Math.PI * 2;
+      seeds.push(new THREE.Vector3(cx, outerRadius * Math.cos(phi), outerRadius * Math.sin(phi)));
+    }
+  });
+
+  const base = new THREE.Color(COIL_FIELD.color);
+  const strength = new THREE.Vector3();
+  const lines = [];
+  const linePositions = [];
+  const lineColors = [];
+  seeds.forEach((seed) => {
+    const fwd = traceFieldLine(field, seed, 1);
+    let pts = fwd.pts;
+    if (!fwd.closed) {
+      // Open within the traced extent: add the part behind the seed too.
+      const back = traceFieldLine(field, seed, -1).pts.reverse();
+      pts = back.concat(pts.slice(1));
+    }
+    const cum = [0];
+    const mags = [];
+    pts.forEach((pt, i) => {
+      if (i > 0) cum.push(cum[i - 1] + pt.distanceTo(pts[i - 1]));
+      mags.push(field(pt, strength).length());
+    });
+    lines.push({ pts, cum, mags, length: cum[cum.length - 1], closed: fwd.closed });
+    // Brightness follows |B|, so the lines fade out where the field is weak.
+    for (let i = 1; i < pts.length; i++) {
+      [i - 1, i].forEach((j) => {
+        linePositions.push(pts[j].x, pts[j].y, pts[j].z);
+        const b = Math.min(1, Math.max(0.05, Math.pow(mags[j], 0.6)));
+        lineColors.push(base.r * b, base.g * b, base.b * b);
+      });
+    }
+  });
+
+  const lineGeom = new THREE.BufferGeometry();
+  lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+  lineGeom.setAttribute('color', new THREE.Float32BufferAttribute(lineColors, 3));
+  const lineMat = new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const lineMesh = new THREE.LineSegments(lineGeom, lineMat);
+
+  const dots = [];
+  lines.forEach((line, li) => {
+    const count = Math.max(1, Math.round(line.length / COIL_FIELD.dotSpacing));
+    for (let d = 0; d < count; d++) dots.push({ line: li, s: (d / count) * line.length });
+  });
+  const dotPositions = new Float32Array(dots.length * 3);
+  const dotGeom = new THREE.BufferGeometry();
+  dotGeom.setAttribute('position', new THREE.BufferAttribute(dotPositions, 3));
+  const dotMat = new THREE.PointsMaterial({
+    color: 0xc9fff2, size: 5, sizeAttenuation: false, map: dotSprite(),
+    transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const dotMesh = new THREE.Points(dotGeom, dotMat);
+
+  const group = new THREE.Group();
+  group.name = 'coil-field-lines';
+  group.visible = false;
+  group.add(lineMesh, dotMesh);
+  coilFormer.add(group);
+
+  return { group, lines, dots, dotPositions, dotGeom, lineMat, dotMat, level: 0 };
+}
+
+// Point and |B| at arc length s along a traced line.
+function sampleFieldLine(line, s, out) {
+  const { cum, pts, mags } = line;
+  let lo = 0;
+  let hi = cum.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid] <= s) lo = mid; else hi = mid;
+  }
+  const span = cum[hi] - cum[lo] || 1;
+  const t = (s - cum[lo]) / span;
+  out.lerpVectors(pts[lo], pts[hi], t);
+  return mags[lo] + (mags[hi] - mags[lo]) * t;
+}
+
+function updateCoilField(viz, dt) {
+  // Always on; the level only fades the lines in once, when the model loads.
+  viz.level += (1 - viz.level) * (1 - Math.exp(-8 * dt));
+  viz.group.visible = true;
+
+  viz.lineMat.opacity = COIL_FIELD.lineOpacity * viz.level;
+  viz.dotMat.opacity = 0.85 * viz.level;
+
+  const p = new THREE.Vector3();
+  viz.dots.forEach((dot, i) => {
+    const line = viz.lines[dot.line];
+    const mag = sampleFieldLine(line, dot.s, p);
+    // Faster where the field is stronger, so the dots also show its strength.
+    dot.s += COIL_FIELD.dotSpeed * Math.min(2.5, Math.max(0.3, mag)) * dt;
+    if (dot.s > line.length) dot.s = line.closed ? dot.s - line.length : 0;
+    viz.dotPositions[i * 3] = p.x;
+    viz.dotPositions[i * 3 + 1] = p.y;
+    viz.dotPositions[i * 3 + 2] = p.z;
+  });
+  viz.dotGeom.attributes.position.needsUpdate = true;
+}
+
+// SFI logo as a sticker on the base (CAD part 1317-BaseBody-2: 108.8 mm
+// across). It is a slice of a cylinder a hair outside the base, so it wraps
+// round it like a printed label. Placed by eye: turned 0.562 rad (32.2°) to the
+// left of the side facing the camera's starting position, centred at
+// y = -15.2 mm in the model's own frame, 25 mm tall.
+// Image: SFI_logo_2022.png cropped, white knocked out.
+const SFI_STICKER = {
+  url: 'resources/sfi_sticker.png',
+  aspect: 1024 / 771,
+  partName: '1317-BaseBody-2',
+  standOff: 0.0003,      // m outside the base, so it never z-fights it
+  turn: -0.5622,         // rad round the base, negative = to the left
+  centreY: -0.0152,      // m
+  height: 0.025          // m
+};
+
+function addSfiSticker(model, facePoint, renderer) {
+  const base = model.getObjectByName(SFI_STICKER.partName);
+  if (!base) {
+    console.warn('[CAD GLB] Base node not found; no SFI sticker.');
+    return;
+  }
+  // Measured in the model's own frame (scale and offset taken out).
+  model.updateMatrixWorld(true);
+  const toModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const box = new THREE.Box3().setFromObject(base).applyMatrix4(toModel);
+  const centre = box.getCenter(new THREE.Vector3());
+  const radius = (box.max.x - box.min.x) / 2 + SFI_STICKER.standOff;
+  const local = model.worldToLocal(facePoint.clone());
+  const facing = Math.atan2(local.x - centre.x, local.z - centre.z) + SFI_STICKER.turn;
+  const arc = (SFI_STICKER.height * SFI_STICKER.aspect) / radius;
+
+  const texture = new THREE.TextureLoader().load(SFI_STICKER.url);
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const sticker = new THREE.Mesh(
+    // Cylinder angles run from +Z towards +X, so from outside the image reads
+    // left to right, not mirrored.
+    new THREE.CylinderGeometry(radius, radius, SFI_STICKER.height, 48, 1, true, facing - arc / 2, arc),
+    // Unlit and not tone mapped: printed brand colours, not the scene's
+    // cyan-tinted light (which washed the navy out to light blue).
+    new THREE.MeshBasicMaterial({
+      map: texture, transparent: true, depthWrite: false, toneMapped: false,
+      polygonOffset: true, polygonOffsetFactor: -2
+    })
+  );
+  sticker.name = 'sfi-sticker';
+  sticker.position.set(centre.x, SFI_STICKER.centreY, centre.z);
+  model.add(sticker);
+}
+
+let christmasHat = null;
+
+// Christmas hat on the knob, shown together with the snow. Built round the knob's radius r (world units)
+// with its base at y = 0: a red cone whose top flops over to one side, a white
+// brim and a pompom on the tip.
+function makeChristmasHat(r) {
+  const group = new THREE.Group();
+  group.name = 'christmas-hat';
+  const red = new THREE.MeshStandardMaterial({ color: 0xd0142c, roughness: 0.75 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xf6f6f6, roughness: 1 });
+
+  const h = r * 2.6;
+  const droop = r * 1.2;
+  const cone = new THREE.ConeGeometry(r, h, 40, 20, true);
+  cone.translate(0, h / 2, 0);
+  // Bend the upper part sideways (and a little down) so it hangs like cloth.
+  const pos = cone.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const t = pos.getY(i) / h;
+    pos.setX(i, pos.getX(i) + droop * t * t * t);
+    pos.setY(i, pos.getY(i) - droop * 0.4 * t * t * t * t);
+  }
+  cone.computeVertexNormals();
+  group.add(new THREE.Mesh(cone, red));
+
+  const brim = new THREE.TorusGeometry(r, r * 0.24, 16, 48);
+  brim.rotateX(Math.PI / 2);
+  group.add(new THREE.Mesh(brim, white));
+
+  const pompom = new THREE.Mesh(new THREE.SphereGeometry(r * 0.3, 20, 14), white);
+  pompom.position.set(droop, h - droop * 0.4, 0);
+  group.add(pompom);
+  return group;
+}
+
+// Puts the hat on top of the knob and parents it to the knob, so it tilts and
+// presses with the stick. Measured with the stick upright at its rest pose.
+function addChristmasHat(knob, assembly, restPosition) {
+  const savedQuat = assembly.quaternion.clone();
+  const savedPos = assembly.position.clone();
+  assembly.quaternion.identity();
+  assembly.position.copy(restPosition);
+  assembly.updateMatrixWorld(true);
+
+  const box = new THREE.Box3().setFromObject(knob);
+  const size = box.getSize(new THREE.Vector3());
+  const r = Math.min(size.x, size.z) / 2 * 1.08;
+  const hat = makeChristmasHat(r);
+  // Sit it down over the top edge of the knob, like a hat on a head.
+  hat.position.set((box.min.x + box.max.x) / 2, box.max.y - r * 0.35, (box.min.z + box.max.z) / 2);
+  hat.updateMatrixWorld(true);
+  knob.attach(hat);
+  // Worn only while it snows (the Snow button).
+  christmasHat = hat;
+  hat.visible = Boolean(snowViz && snowViz.on);
+
+  assembly.quaternion.copy(savedQuat);
+  assembly.position.copy(savedPos);
+  assembly.updateMatrixWorld(true);
+}
+
+// Snow round the 3D model, toggled by the Snow button. Flakes fall through a
+// box around the model in world units (the dome is 5.2 high) and sway as they
+// go; depth testing lets the model hide the ones behind it.
+const SNOW = {
+  count: 1800,
+  halfWidth: 40,
+  top: 30,
+  bottom: -15,
+  fallSpeed: [1.5, 3.5],   // world units/s
+  sway: 0.9,
+  size: 0.75,
+  opacity: 0.85,
+  storageKey: 'sfi-snow'
+};
+
+let snowViz = null;
+
+function createSnow(scene) {
+  const { count, halfWidth, top, bottom, fallSpeed } = SNOW;
+  const positions = new Float32Array(count * 3);
+  const flakes = [];
+  const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = rand(-halfWidth, halfWidth);
+    positions[i * 3 + 1] = rand(bottom, top);
+    positions[i * 3 + 2] = rand(-halfWidth, halfWidth);
+    flakes.push({ speed: rand(fallSpeed[0], fallSpeed[1]), phase: rand(0, Math.PI * 2), freq: rand(0.4, 1.1) });
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({
+    color: 0xffffff, size: SNOW.size, sizeAttenuation: true, map: dotSprite(),
+    transparent: true, opacity: 0, depthWrite: false
+  });
+  const points = new THREE.Points(geometry, material);
+  points.name = 'snow';
+  points.visible = false;
+  // The box is wider than the view, so never cull it as a whole.
+  points.frustumCulled = false;
+  scene.add(points);
+  return { points, positions, geometry, material, flakes, on: false, level: 0, time: 0 };
+}
+
+function updateSnow(viz, dt) {
+  viz.level += ((viz.on ? 1 : 0) - viz.level) * (1 - Math.exp(-3 * dt));
+  if (!viz.on && viz.level < 0.01) viz.level = 0;
+  viz.points.visible = viz.level > 0;
+  if (!viz.points.visible) return;
+  viz.material.opacity = SNOW.opacity * viz.level;
+  viz.time += dt;
+
+  const { positions, flakes } = viz;
+  const { top, bottom, halfWidth, sway } = SNOW;
+  for (let i = 0; i < flakes.length; i++) {
+    const f = flakes[i];
+    const k = i * 3;
+    positions[k] += Math.sin(viz.time * f.freq + f.phase) * sway * dt;
+    positions[k + 1] -= f.speed * dt;
+    positions[k + 2] += Math.cos(viz.time * f.freq * 0.8 + f.phase) * sway * 0.6 * dt;
+    if (positions[k + 1] < bottom) {
+      positions[k] = -halfWidth + Math.random() * halfWidth * 2;
+      positions[k + 1] = top;
+      positions[k + 2] = -halfWidth + Math.random() * halfWidth * 2;
+    }
+  }
+  viz.geometry.attributes.position.needsUpdate = true;
+}
+
+function initSnowToggle(scene) {
+  snowViz = createSnow(scene);
+  const btn = document.getElementById('btn-snow');
+  const set = (on) => {
+    snowViz.on = on;
+    if (christmasHat) christmasHat.visible = on;
+    placeWallpaperHat();
+    if (btn) {
+      btn.setAttribute('aria-pressed', String(on));
+      btn.textContent = on ? 'Stop snow' : 'Snow';
+    }
+    try { localStorage.setItem(SNOW.storageKey, on ? '1' : '0'); } catch (_) { /* not remembered */ }
+  };
+  btn?.addEventListener('click', () => set(!snowViz.on));
+  let saved = false;
+  try { saved = localStorage.getItem(SNOW.storageKey) === '1'; } catch (_) { /* default off */ }
+  set(saved);
+}
+
+// Christmas hat on the man in the "City at night" wallpaper, shown with the
+// snow. The wallpaper is a CSS cover image, so the hat (#wallpaper-hat, drawn
+// in wallpaper pixels) is placed with the same cover maths each time the view
+// changes size. image/pos must match city_bg.jpg and its CSS "center 75%".
+const WALLPAPER_HAT = {
+  imageW: 2560,
+  imageH: 1603,
+  posX: 0.5,
+  posY: 0.75,
+  anchor: [335, 1012],         // brim centre on the head, wallpaper pixels
+  box: [-150, -210, 300, 240]  // the SVG's viewBox
+};
+
+function placeWallpaperHat() {
+  const container = document.getElementById('canvas3d-container');
+  const hat = document.getElementById('wallpaper-hat');
+  if (!container || !hat) return;
+  const show = container.dataset.bg === 'city' && Boolean(snowViz && snowViz.on);
+  hat.style.display = show ? 'block' : 'none';
+  if (!show) return;
+
+  const { imageW, imageH, posX, posY, anchor, box } = WALLPAPER_HAT;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  const s = Math.max(w / imageW, h / imageH);
+  const offX = (w - imageW * s) * posX;
+  const offY = (h - imageH * s) * posY;
+  hat.style.left = `${offX + (anchor[0] + box[0]) * s}px`;
+  hat.style.top = `${offY + (anchor[1] + box[1]) * s}px`;
+  hat.style.width = `${box[2] * s}px`;
+  hat.style.height = `${box[3] * s}px`;
+}
+
+// "background" dropdown on the 3D tab: sets data-bg on the view, and the CSS
+// picks the image. The renderer clears to transparent, so it shows through.
+const BACKGROUND_STORAGE_KEY = 'sfi-3d-background';
+
+function initBackgroundSelect(container) {
+  const select = document.getElementById('sel-3d-background');
+  if (!select) return;
+  const apply = (value) => {
+    if (![...select.options].some((o) => o.value === value)) value = select.options[0].value;
+    select.value = value;
+    container.dataset.bg = value;
+    placeWallpaperHat();
+  };
+  select.addEventListener('change', () => {
+    apply(select.value);
+    try { localStorage.setItem(BACKGROUND_STORAGE_KEY, select.value); } catch (_) { /* not remembered */ }
+  });
+  let saved = null;
+  try { saved = localStorage.getItem(BACKGROUND_STORAGE_KEY); } catch (_) { /* default */ }
+  apply(saved || select.value);
+  // The cover image rescales with the view, so the wallpaper hat follows it.
+  if (typeof ResizeObserver === 'function') new ResizeObserver(placeWallpaperHat).observe(container);
+}
+
 export function initSfiDemo() {
   const container = document.getElementById('canvas3d-container');
   if (!container || !window.THREE) return;
+  initBackgroundSelect(container);
 
   const btnPattern = document.getElementById('btn-pattern');
   const btnResetTrace = document.getElementById('btn-reset-trace');
   const btnZeroGimbal = document.getElementById('btn-zero-gimbal');
   const gimbalZeroStatus = document.getElementById('gimbal-zero-status');
-  btnPattern?.addEventListener('click', () => {
-    autoPattern = !autoPattern;
-    btnPattern.style.opacity = autoPattern ? '1' : '0.5';
-  });
+  btnPattern?.addEventListener('click', () => setAutoPattern(!autoPattern));
+  setAutoPattern(autoPattern);
 
   btnResetTrace?.addEventListener('click', () => {
     resetPlotLines();
@@ -431,6 +961,9 @@ export function initSfiDemo() {
 
   btnZeroGimbal?.addEventListener('click', () => {
     gimbalZeroAngles = { ...liveSfiAngles };
+    // Both sides from the same instant, so the two radars share one rest.
+    legacyZeroAngles = { alpha: liveLegacy.alpha, beta: liveLegacy.beta };
+    legacyRestMagMt = liveLegacy.magMt;
     if (gimbalZeroStatus) {
       gimbalZeroStatus.textContent =
         `Zero captured: α ${gimbalZeroAngles.alpha.toFixed(1)}°, β ${gimbalZeroAngles.beta.toFixed(1)}°`;
@@ -492,6 +1025,8 @@ export function initSfiDemo() {
   const hemiLight = new THREE.HemisphereLight(0xb0d0ff, 0x334455, 0.6);
   scene.add(hemiLight);
 
+  initSnowToggle(scene);
+
   const MODEL_URL = 'resources/1317-500-JoystickDemonstratorMLX90396.glb';
   const DOME_WORLD_RADIUS = 5.2;
 
@@ -503,7 +1038,13 @@ export function initSfiDemo() {
   let isDraggingKnob = false;
 
   function setupMouseInteractions(interactiveObj) {
-    container.addEventListener('mousedown', (e) => {
+    // Pointer events in the capture phase: OrbitControls preventDefaults its
+    // pointerdown, which cancels the compatibility mousedown, so a mousedown
+    // listener here never fired and the knob could not be dragged. Capturing
+    // also lets a knob grab disable the orbit before OrbitControls sees it.
+    container.addEventListener('pointerdown', (e) => {
+      // Only presses on the 3D view itself (not the logo overlay).
+      if (e.target !== renderer.domElement) return;
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
@@ -512,17 +1053,19 @@ export function initSfiDemo() {
       if ((interactiveObj && raycaster.intersectObject(interactiveObj, true).length > 0) || e.shiftKey) {
         isDraggingKnob = true;
         controls.enabled = false;
-        autoPattern = false;
+        // While live the board drives the knob, so leave Auto-Pattern as it
+        // is for when the stream stops.
+        if (!isLiveHardwareConnected) setAutoPattern(false);
       }
-    });
+    }, true);
 
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener('pointermove', (e) => {
       if (!isDraggingKnob) return;
       targetJoyX = Math.max(-1, Math.min(1, (((e.clientX - renderer.domElement.getBoundingClientRect().left) / container.clientWidth) * 2 - 1) * 1.5));
       targetJoyY = Math.max(-1, Math.min(1, (-((e.clientY - renderer.domElement.getBoundingClientRect().top) / container.clientHeight) * 2 + 1) * 1.5));
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('pointerup', () => {
       if (isDraggingKnob) {
         isDraggingKnob = false;
         controls.enabled = true;
@@ -556,6 +1099,14 @@ export function initSfiDemo() {
         ioBoard.visible = false;
       } else {
         console.warn('[CAD GLB] Melexis IO board node not found; nothing hidden.');
+      }
+
+      const coilFormer = model.getObjectByName('1317-Coils45mm-1');
+      if (coilFormer) {
+        addCoilWindings(coilFormer);
+        coilFieldViz = addCoilFieldLines(coilFormer);
+      } else {
+        console.warn('[CAD GLB] Coil former node not found; no windings drawn.');
       }
 
       // Reparent the moving joystick parts (as whole top-level nodes) into the
@@ -629,6 +1180,7 @@ export function initSfiDemo() {
       controls.update();
       camera.position.set(size.x * 1.5, yCenter + size.y * 0.8, size.z * 2.1);
       camera.lookAt(controls.target);
+      addSfiSticker(model, camera.position, renderer);
 
       if (loadingHint) loadingHint.textContent = 'Fixed XYZ view | Scroll: Zoom';
 
@@ -649,6 +1201,7 @@ export function initSfiDemo() {
 
       const knob = joyAssembly.getObjectByName('1317-JoystickButton-1') || joyAssembly;
       setupMouseInteractions(knob);
+      if (knob !== joyAssembly) addChristmasHat(knob, joyAssembly, joyRestPosition);
 
       // The CAD magnet at the M3-rod tip is the marker now — no extra dot/trail.
     } catch (err) {
@@ -758,7 +1311,7 @@ export function initSfiDemo() {
     // offset to measured data would fake the very comparison the demo shows.
     // (This read a `coilActive` flag that nothing ever set, so the simulated
     // disturbance never appeared; coilView is the state setCoilState owns.)
-    const liveData = isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.p0Raw;
+    const liveData = isLiveHardwareConnected && liveHardwarePacket && liveHardwarePacket.absRaw;
     const simStray = coilView.active && !liveData;
     let noiseX = simStray ? 6.2 + (Math.random() - 0.5) * 0.6 : 0;
     let noiseY = simStray ? -5.8 + (Math.random() - 0.5) * 0.6 : 0;
@@ -784,9 +1337,9 @@ export function initSfiDemo() {
     let mlxDBzY = simDiffR * Math.sin(simThetaY);
 
     if (liveData) {
-      stdBx = liveHardwarePacket.p0Raw.x / SINGLE_PIXEL_LSB_PER_MT;
-      stdBy = liveHardwarePacket.p0Raw.y / SINGLE_PIXEL_LSB_PER_MT;
-      stdBz = liveHardwarePacket.p0Raw.z / SINGLE_PIXEL_LSB_PER_MT;
+      stdBx = liveHardwarePacket.absRaw.x / SINGLE_PIXEL_LSB_PER_MT;
+      stdBy = liveHardwarePacket.absRaw.y / SINGLE_PIXEL_LSB_PER_MT;
+      stdBz = liveHardwarePacket.absRaw.z / SINGLE_PIXEL_LSB_PER_MT;
 
       const lsbPerMtMmNow = lsbPerMtMm();
       mlxDBx = liveHardwarePacket.diffRaw.x / lsbPerMtMmNow;
@@ -835,12 +1388,43 @@ export function initSfiDemo() {
     const tiltY = gimbalInput.valid ? gimbalInput.y * 90 : 0;
     liveSfiAngles = { alpha: angleAlpha, beta: angleBeta };
 
-    const joyPosTxt = document.getElementById('joy-pos-text');
-    if (joyPosTxt) {
-      const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
-      const pressed = pressMag >= pressThresholdMtMm;
-      joyPosTxt.innerText = `Tilt X: ${tiltX.toFixed(1)}° | Tilt Y: ${tiltY.toFixed(1)}° | Press: ${pressed ? 'PUSHED' : '\u2014'} (${pressMag.toFixed(1)} mT/mm)`;
+    // The stray-sensitive side through the same steps: its own calibrated
+    // alpha/beta, parked at 90° without a magnet, measured from its own zero.
+    const stdHasSignal = sfi1px.signalStrength > NO_MAG_STD_MT;
+    const stdAlpha = stdHasSignal ? sfi1px.alphaDeg : 90;
+    const stdBeta = stdHasSignal ? sfi1px.betaDeg : 90;
+    const legacyGimbal = calculateDifferentialGimbalInput(
+      stdAlpha,
+      stdBeta,
+      legacyZeroAngles.alpha,
+      legacyZeroAngles.beta,
+      GIMBAL_FULL_SCALE_DEG
+    );
+    const legacyTiltX = legacyGimbal.valid ? legacyGimbal.x * 90 : 0;
+    const legacyTiltY = legacyGimbal.valid ? legacyGimbal.y * 90 : 0;
+    const legacyMagMt = Math.hypot(displayStdBx, displayStdBy, displayStdBz);
+    liveLegacy = { alpha: stdAlpha, beta: stdBeta, magMt: legacyMagMt };
+
+    // Legacy push, live: |B| rising above its rest reading (the first live
+    // frame, until Zero Position captures one), smoothed like the knob's press.
+    // A stray field that raises |B| reads as a push here, as it would on a real
+    // single-point sensor. The simulation has no rest reading of its own, so
+    // there both plots take the simulated push.
+    let legacyAxial = joyZ;
+    if (liveData) {
+      if (legacyRestMagMt === null) legacyRestMagMt = Math.hypot(stdBx, stdBy, stdBz);
+      const legacyPushed = legacyMagMt - legacyRestMagMt >= LEGACY_PUSH_MT;
+      legacyPress += ((legacyPushed ? 1 : 0) - legacyPress) * smoothing;
+      legacyAxial = legacyPress;
     }
+
+    // Each field has its own fixed-width span, so the line does not shift.
+    const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
+    const pressed = pressMag >= pressThresholdMtMm;
+    setTextIfChanged('joy-tilt-x', `${tiltX.toFixed(1)}°`);
+    setTextIfChanged('joy-tilt-y', `${tiltY.toFixed(1)}°`);
+    setTextIfChanged('joy-press-state', pressed ? 'PUSHED' : '—');
+    setTextIfChanged('joy-press-mag', pressMag.toFixed(1));
 
     if (isLiveHardwareConnected && liveHardwarePacket?.hasDifferential) {
       const pressMag = Math.hypot(displayMlxDBz, displayMlxDBzY);
@@ -913,16 +1497,16 @@ export function initSfiDemo() {
         const lastStd = stdTraceHistory[stdTraceHistory.length - 1];
         const lastMlx = mlxTraceHistory[mlxTraceHistory.length - 1];
 
-        // Both magnet heads ride the same gimbal arc. `axial` is the shared
-        // press component, so a push slides each head down its tilted axis;
-        // the raw Z values stay in the readout boxes instead of being a fake
-        // height. The channel pair remains the horizontal projection.
+        // Both magnet heads ride the same gimbal arc. `axial` is each side's
+        // own push (legacyAxial, joyZ), so a push slides the head down its
+        // tilted axis; the raw Z values stay in the readout boxes instead of
+        // being a fake height. The channel pair remains the horizontal projection.
         if (!lastStd || Math.abs(lastStd.x - displayStdBx) > 0.05 || Math.abs(lastStd.y - displayStdBy) > 0.05
-            || Math.abs((lastStd.axial || 0) - joyZ) > 0.02) {
-          stdTraceHistory.push({ 
-            x: displayStdBx, 
-            y: displayStdBy, 
-            axial: joyZ,
+            || Math.abs((lastStd.axial || 0) - legacyAxial) > 0.02) {
+          stdTraceHistory.push({
+            x: displayStdBx,
+            y: displayStdBy,
+            axial: legacyAxial,
             rawZ: displayStdBz 
           });
         }
@@ -949,9 +1533,9 @@ export function initSfiDemo() {
         if (stdPlot) update3DPlot(stdPlot, stdTraceHistory, true);
         if (mlxPlot) update3DPlot(mlxPlot, mlxTraceHistory, false);
 
-        // Both dials are scaled so the full-scale value reaches the rim: 16 mT
-        // of in-plane field, 60 degrees of tilt.
-        drawRadar(radarCtxStd, displayStdBx, displayStdBy, '#ef4444', RADAR_STD_FULL_MT);
+        // The same tilt dial on both sides (60° to the rim), each fed its own
+        // tilt, so any difference between them comes from the sensor data.
+        drawTiltRadar(radarCtxStd, legacyTiltX, legacyTiltY, '#ef4444');
         drawTiltRadar(radarCtxMlx, tiltX, tiltY, '#10b981');
       }
     } else if (activeTab === 'tab-idle' && mainSceneObj) {
@@ -960,6 +1544,8 @@ export function initSfiDemo() {
       // ticks can skip every other frame depending on where the timing lands,
       // which shows up as judder rather than a smooth 30 fps.
       controls.update();
+      if (coilFieldViz) updateCoilField(coilFieldViz, deltaSeconds);
+      if (snowViz) updateSnow(snowViz, deltaSeconds);
       renderer.render(scene, camera);
     }
   }
@@ -1022,6 +1608,12 @@ function initRadarCanvases() {
 // The radars are drawn in CSS pixels on a backing store scaled by the device
 // pixel ratio, so they stay sharp on a high-DPI presentation screen; the draw
 // functions read the CSS size back through radarGeometry().
+// Writes only when the text differs, so a steady value causes no relayout.
+function setTextIfChanged(id, text) {
+  const el = document.getElementById(id);
+  if (el && el.textContent !== text) el.textContent = text;
+}
+
 function resizeRadarCanvases() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   [[radarCanvasStd, radarCtxStd], [radarCanvasMlx, radarCtxMlx]].forEach(([can, ctx]) => {
@@ -1046,82 +1638,14 @@ function radarGeometry(ctx) {
   return { w, h, cx: w / 2, cy: h / 2, radius: Math.min(w, h) / 2 - 25 * k, k };
 }
 
-// `label` used to be passed in ('LEGACY 3D HALL') but was never drawn - the card
-// badge already names the plot - so the parameter is gone.
-function drawRadar(ctx, curX, curY, themeColor, maxScale = RADAR_STD_FULL_MT) {
-  if (!ctx || !ctx.canvas) return;
-  const { w, h, cx, cy, radius, k } = radarGeometry(ctx);
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Background Reticle
-  ctx.fillStyle = '#030816';
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 1;
-  for (let r = 0.25; r <= 1.0; r += 0.25) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
-  ctx.stroke();
-
-  ctx.fillStyle = '#64748b';
-  ctx.font = `${Math.round(10 * k)}px monospace`;
-  ctx.textAlign = 'center';
-  ctx.fillText('90° (+Y)', cx, cy - radius + 14 * k);
-  ctx.fillText('270° (-Y)', cx, cy + radius - 8 * k);
-  // Side labels anchored inside the rim, so they never cross the dial's edge.
-  ctx.textAlign = 'right';
-  ctx.fillText('0° (+X)', cx + radius - 6 * k, cy - 6 * k);
-  ctx.textAlign = 'left';
-  ctx.fillText('180° (-X)', cx - radius + 6 * k, cy - 6 * k);
-
-  // (The old dashed "simulation target" reticle was removed: it duplicated the
-  // needle on a second, unsmoothed path and could spill past the rim.)
-
-  // Measured vector (Solid arrow) with boundary clamping
-  const measuredDist = Math.hypot(curX, curY);
-  const clampedMeasuredDist = Math.min(measuredDist, maxScale);
-  const measuredScale = measuredDist > 0 ? (clampedMeasuredDist / measuredDist) : 1;
-  const measuredPxX = cx + ((curX * measuredScale) / maxScale) * radius;
-  const measuredPxY = cy - ((curY * measuredScale) / maxScale) * radius;
-
-  ctx.strokeStyle = themeColor;
-  ctx.lineWidth = 2.5 * k;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(measuredPxX, measuredPxY);
-  ctx.stroke();
-
-  ctx.fillStyle = themeColor;
-  ctx.shadowColor = themeColor;
-  ctx.shadowBlur = 10 * k;
-  ctx.beginPath();
-  ctx.arc(measuredPxX, measuredPxY, 5.5 * k, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-}
-
-// The frame centre is α/β = 90°; a 90° change reaches the radar rim.
-// Radar full-scale. Both dials are more sensitive than before: the needle was
-// only reaching the middle of the disc because the full scale was well above
-// the values actually seen. 16 mT of in-plane field / 60 deg of tilt now reach
-// the rim at full stick deflection.
-const RADAR_STD_FULL_MT = 16.0;
+// Radar full-scale: 60 degrees of tilt reaches the rim at full stick deflection.
 const RADAR_TILT_FULL_DEG = 60.0;
 
-// Differential radar: a TILT scope, not an angle dial. The needle plots the
-// same (tiltX, tiltY) pair that drives the dome, so the dial and the model can
-// never disagree: centre = neutral, +60° reaches the rim on each axis. alpha and
-// beta stay in the readout box as numbers. (The old version plotted the raw
+// Both radars: a TILT scope, not an angle dial. On the SFI side the needle
+// plots the same (tiltX, tiltY) pair that drives the dome, so the dial and the
+// model can never disagree; the legacy side gets its own tilt the same way.
+// Centre = neutral, +60° reaches the rim on each axis. alpha and beta stay in
+// the readout boxes as numbers. (The old version plotted the raw
 // alpha/beta angles through (90 - a)/90, which folded +/- onto one needle and
 // pointed somewhere unrelated to the stick.)
 function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
@@ -1130,7 +1654,7 @@ function drawTiltRadar(ctx, tiltXDeg, tiltYDeg, themeColor) {
   const xOf = (v) => v / RADAR_TILT_FULL_DEG;
   const yOf = (v) => v / RADAR_TILT_FULL_DEG;
 
-  // Clamp to the circular rim (same boundary behaviour as the legacy drawRadar).
+  // Clamp to the circular rim.
   const clampPoint = (vx, vy) => {
     const dist = Math.hypot(vx, vy);
     const s = dist > 1 ? 1 / dist : 1;
