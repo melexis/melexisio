@@ -51,7 +51,7 @@ The terminal probes for each catalog source in turn and falls through to `:SYST:
 three implement, so connecting works without telling it which board is attached.
 
 The full protocol contract — framing, prompt parsing, probe order, per-firmware divergences — is
-in [.claude/skills/melexis-scpi/SKILL.md](.claude/skills/melexis-scpi/SKILL.md).
+in the `scpi-host` skill of the `mlx-scpi` plugin (marketplace `ces/claude` on gitlab.melexis.com).
 
 ## STM32 DFU Tool
 
