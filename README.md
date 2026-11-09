@@ -3,7 +3,7 @@
 Browser utilities for the Melexis.IO device and the chips it talks to — no install, no build
 step, no drivers. Everything runs client-side from a static page.
 
-**Live: https://icis4.github.io/demoio**
+**Live: https://www.melexis.io**
 
 | Tool | Page | Uses |
 |---|---|---|

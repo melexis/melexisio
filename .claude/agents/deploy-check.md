@@ -1,27 +1,27 @@
 ---
 name: deploy-check
-description: Checks whether the site will still work once deployed to GitHub Pages under
-  /demoio — relative paths, the service worker's file list, the manifest, and the absence of
-  a build step. Use before pushing to master, when adding or renaming a page, and on any
-  change to service-worker.js or manifest.webmanifest.
+description: Checks whether the site will still work once deployed to GitHub Pages at
+  www.melexis.io — relative paths, the service worker's file list, the manifest, and the
+  absence of a build step. Use before pushing to master, when adding or renaming a page, and
+  on any change to service-worker.js or manifest.webmanifest.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 
 You check whether a change survives deployment. Read and report only — do not modify files.
 
-Two facts drive everything here: the site is served from a **subdirectory**
-(`icis4.github.io/demoio`, not the root), and there is **no build step** — files reach the
-browser exactly as they sit in the repo, straight from `master`.
+Two facts drive everything here: the site is served from the root of **www.melexis.io**, and
+there is **no build step** — files reach the browser exactly as they sit in the repo, straight
+from `master`.
 
 Start with `git status --short` and `git diff`.
 
 ## The checks
 
 **Relative paths.** Everything must be `./something` or `something`, never `/something`.
-A leading slash points at `icis4.github.io/` and 404s in production while working
-perfectly on `localhost:3000` — which is why this defect never shows up in local
-testing. Check `href`, `src`, `fetch`, the service worker registration, and the
+A leading slash happens to work at the root of `www.melexis.io`, but it breaks everywhere
+else the same tree is opened from: a bench server under a subdirectory, and a board serving
+its own page. Check `href`, `src`, `fetch`, the service worker registration, and the
 manifest's `start_url` / `scope`.
 
 **The `SHELL` list in `service-worker.js`.** This is a list that drifts out of sync every
