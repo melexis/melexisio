@@ -1,0 +1,8 @@
+# AI review is not used in this repository. This only stops CodeRabbit from
+# reviewing on its own until the app is removed from the repo in the org settings.
+reviews:
+  auto_review:
+    enabled: false
+  review_status: false
+chat:
+  auto_reply: false
