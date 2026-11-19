@@ -620,6 +620,74 @@
             margin: 0;
         }
 
+        /* Controls under the chart: what is plotted, against which curve, and
+           how the axes are scaled. */
+        .chart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.9rem;
+            margin-top: 0.6rem;
+        }
+
+        .chart-controls label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--mx-text-muted, rgba(255, 255, 255, 0.72));
+        }
+
+        /* The page-wide .form-select rule paints black text, unreadable on the
+           dark surface; these follow the theme instead. */
+        .chart-controls select.form-select {
+            width: auto;
+            min-width: 8rem;
+            color: var(--clr-text, #fff);
+            background-color: var(--clr-surface-2, #0b2c3a);
+            border-color: var(--clr-border, rgba(255, 255, 255, 0.3));
+        }
+
+        .chart-controls select.form-select:focus {
+            color: var(--clr-text, #fff);
+        }
+
+        .chart-controls select option {
+            color: var(--clr-text, #fff);
+            background: var(--clr-surface-2, #0b2c3a);
+        }
+
+        .chart-controls .btn-outline-secondary {
+            border: 1px solid var(--clr-border, rgba(255, 255, 255, 0.3));
+        }
+
+        .curve-info {
+            font-size: 0.82rem;
+            color: var(--mx-text-muted, rgba(255, 255, 255, 0.72));
+            overflow-wrap: anywhere;
+        }
+
+        .custom-curve {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+            gap: 0.4rem 0.6rem;
+            margin-top: 0.6rem;
+        }
+
+        .custom-curve label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            margin: 0;
+            font-size: 0.78rem;
+            color: var(--mx-text-muted, rgba(255, 255, 255, 0.72));
+        }
+
+        .custom-curve input[type="number"] {
+            width: 100%;
+        }
+
         #debugLog {
             color: var(--mx-text) !important;
             background: var(--mx-black) !important;
@@ -773,6 +841,34 @@
                         <div class="chart-container">
                             <canvas id="pressureChart" style="width: 100%; display: block; margin: 0; padding: 0;"></canvas>
                         </div>
+                        <div class="chart-controls">
+                            <label>Values
+                                <select id="valueMode" class="form-select form-select-sm">
+                                    <option value="raw">Raw values</option>
+                                    <option value="decoded" selected>Decoded values</option>
+                                </select>
+                            </label>
+                            <label>Sensor version
+                                <select id="sensorVersion" class="form-select form-select-sm"></select>
+                            </label>
+                            <button id="btnFixedScale" type="button" class="btn btn-outline-secondary btn-sm"
+                                aria-pressed="false">Fixed scale</button>
+                            <button id="btnClearChart" type="button" class="btn btn-outline-secondary btn-sm">Clear chart</button>
+                            <span id="curveInfo" class="curve-info"></span>
+                        </div>
+                        <div id="customCurve" class="custom-curve" hidden>
+                            <label>P1 [bar]<input type="number" step="any" class="form-control form-control-sm" data-key="P1"></label>
+                            <label>P2 [bar]<input type="number" step="any" class="form-control form-control-sm" data-key="P2"></label>
+                            <label>Out1 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="Out1"></label>
+                            <label>Out2 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="Out2"></label>
+                            <label>T1 [°C]<input type="number" step="any" class="form-control form-control-sm" data-key="T1"></label>
+                            <label>T2 [°C]<input type="number" step="any" class="form-control form-control-sm" data-key="T2"></label>
+                            <label>TMED1 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="TMED1"></label>
+                            <label>TMED2 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="TMED2"></label>
+                            <label>TDEV1 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="TDEV1"></label>
+                            <label>TDEV2 [LSB]<input type="number" step="any" class="form-control form-control-sm" data-key="TDEV2"></label>
+                            <label>Resolution [bit]<input type="number" step="1" min="8" max="16" class="form-control form-control-sm" data-key="default_resolution"></label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -838,18 +934,37 @@
             const ctx = document.getElementById('pressureChart');
             if (!ctx) return;
 
+            /* What the chart plots: pressure on the left axis, the media (NTC) and
+               device temperatures on the right one. TMED is the NTC field of the
+               frame, TDEV the chip's own temperature. Every sample keeps its raw
+               counts and the output widths it was read at, so switching between raw
+               and decoded values, or to another sensor version, redraws the history
+               instead of starting over. */
+            const SERIES = {
+                p:   { label: 'P',    color: '#65BBA9', axis: 'y' },
+                ntc: { label: 'TMED', color: '#9FC3E7', axis: 'y1' },
+                dev: { label: 'TDEV', color: '#F0883E', axis: 'y1' },
+            };
+            const AXIS_TEXT = 'rgba(255, 255, 255, 0.82)';
+            const TICK_TEXT = 'rgba(255, 255, 255, 0.72)';
+            const GRID = 'rgba(255, 255, 255, 0.10)';
+
+            const samples = [];
             const data = {
                 labels: [],
-                datasets: [{
-                    label: 'Pressure (raw counts)',
+                datasets: Object.entries(SERIES).map(([key, s]) => ({
+                    key,
+                    label: s.label,
                     data: [],
-                    borderColor: '#65BBA9',
-                    backgroundColor: 'rgba(101, 187, 169, 0.18)',
+                    yAxisID: s.axis,
+                    borderColor: s.color,
+                    backgroundColor: s.color,
+                    borderWidth: 2,
                     tension: 0.25,
-                    pointRadius: 2,
-                    pointBackgroundColor: '#65BBA9',
-                    pointBorderColor: '#65BBA9',
-                }]
+                    pointRadius: 0,
+                    spanGaps: true,
+                    hidden: key !== 'p',
+                }))
             };
 
             let chart = null;
@@ -860,26 +975,40 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
                         scales: {
-                                x: {
-                                    title: { display: true, text: 'Time', color: 'rgba(255, 255, 255, 0.82)' },
-                                    ticks: { color: 'rgba(255, 255, 255, 0.72)' },
-                                    grid: { color: 'rgba(255, 255, 255, 0.10)' }
-                                },
-                                y: {
-                                    title: { display: true, text: 'counts', color: 'rgba(255, 255, 255, 0.82)' },
-                                    ticks: { color: 'rgba(255, 255, 255, 0.72)' },
-                                    grid: { color: 'rgba(255, 255, 255, 0.10)' }
-                                }
+                            x: {
+                                title: { display: true, text: 'Time', color: AXIS_TEXT },
+                                ticks: { color: TICK_TEXT, maxRotation: 0, autoSkip: true },
+                                grid: { color: GRID }
+                            },
+                            y: {
+                                position: 'left',
+                                title: { display: true, text: 'Pressure', color: AXIS_TEXT },
+                                ticks: { color: TICK_TEXT },
+                                grid: { color: GRID }
+                            },
+                            // Only the primary grid: two sets of lines that never line up read as noise.
+                            y1: {
+                                position: 'right',
+                                display: false,
+                                title: { display: true, text: 'Temperature', color: AXIS_TEXT },
+                                ticks: { color: TICK_TEXT },
+                                grid: { drawOnChartArea: false }
+                            }
                         },
                         layout: {
                             padding: { left: 0, right: 0, top: 0, bottom: 0 }
                         },
                         plugins: {
-                                legend: {
-                                    display: true,
-                                    labels: { color: 'rgba(255, 255, 255, 0.86)' }
-                                },
+                            legend: {
+                                display: true,
+                                labels: {
+                                    color: 'rgba(255, 255, 255, 0.86)',
+                                    // A temperature the chip is not sending has no place in the legend.
+                                    filter: (item, chartData) => !chartData.datasets[item.datasetIndex].hidden,
+                                }
+                            },
                             tooltip: { enabled: true }
                         }
                     }
@@ -892,49 +1021,289 @@
             let timer = null;
             let timerCallback = null;
             let t0 = Date.now();
-            const maxPoints = 50;
+            const maxPoints = 100;
             let pointsPerSecond = 5; // default
-            const randPsi = (prev) => {
-                const base = prev ?? 32;
-                const jitter = (Math.random() - 0.5) * 2.0; // ±1.0
-                const next = Math.max(25, Math.min(45, base + jitter));
-                return Number(next.toFixed(2));
-            };
-
-            function addPoint() {
-                const elapsed = Math.floor((Date.now() - t0) / 1000);
-                const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-                const ss = String(elapsed % 60).padStart(2, '0');
-                const label = `${mm}:${ss}`;
-                const arr = data.datasets[0].data;
-                const nextVal = randPsi(arr.length ? arr[arr.length - 1] : undefined);
-                data.labels.push(label);
-                arr.push(nextVal);
-                if (arr.length > maxPoints) {
-                    data.labels.shift();
-                    arr.shift();
-                }
-                if (chart) chart.update('none');
-            }
 
             function intervalMsFromRate() {
                 return Math.max(50, Math.floor(1000 / pointsPerSecond));
             }
 
-            function addPointValue(value) {
+            /* ---- Transfer curves -------------------------------------------------
+               The sensor versions come from sensors.ini next to this page, so adding
+               one is an edit to that file and not to this code. The copy below is
+               only what the page falls back on when the file cannot be fetched
+               (opened from disk, or offline before the worker cached it). */
+            const CURVE_KEYS = ['P1', 'P2', 'Out1', 'Out2', 'T1', 'T2', 'TDEV1', 'TDEV2', 'TMED1', 'TMED2', 'default_resolution'];
+            const FALLBACK_SENSORS_INI = `
+[PressureSensorInfo_BAL-000]
+P1 = 0
+P2 = 10
+Out1 = 193
+Out2 = 3896
+T1 = -64
+T2 = 192
+TDEV1 = 0
+TDEV2 = 4096
+TMED1 = 0
+TMED2 = 4096
+default_resolution = 12`;
+            const CUSTOM = 'custom';
+            const STORE_SENSOR = 'mlx90835.sensorVersion';
+            const STORE_CUSTOM = 'mlx90835.customCurve';
+            const STORE_MODE = 'mlx90835.valueMode';
+            const storeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+            const storeSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage off */ } };
+
+            let sensors = {};          // version -> curve
+            let customCurve = null;
+            let valueMode = storeGet(STORE_MODE) === 'raw' ? 'raw' : 'decoded';
+            let fixedScale = false;
+            let sensorVersion = null;
+
+            function parseSensorsIni(text) {
+                const out = {};
+                let current = null;
+                for (const rawLine of String(text).split(/\r?\n/)) {
+                    const line = rawLine.replace(/[;#].*$/, '').trim();
+                    if (!line) continue;
+                    const section = line.match(/^\[\s*PressureSensorInfo_(.+?)\s*\]$/i);
+                    if (section) {
+                        current = {};
+                        out[section[1]] = current;
+                        continue;
+                    }
+                    if (line.startsWith('[')) { current = null; continue; }
+                    const kv = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
+                    if (!kv || !current) continue;
+                    const key = CURVE_KEYS.find(k => k.toLowerCase() === kv[1].toLowerCase());
+                    const value = Number(kv[2]);
+                    if (key && Number.isFinite(value)) current[key] = value;
+                }
+                for (const [name, curve] of Object.entries(out)) {
+                    if (!validCurve(curve)) {
+                        console.warn(`sensors.ini: [PressureSensorInfo_${name}] is incomplete and was left out`);
+                        delete out[name];
+                    }
+                }
+                return out;
+            }
+
+            function validCurve(c) {
+                return c && CURVE_KEYS.every(k => Number.isFinite(c[k]))
+                    && c.Out1 !== c.Out2 && c.TMED1 !== c.TMED2 && c.TDEV1 !== c.TDEV2;
+            }
+
+            const activeCurve = () => (sensorVersion === CUSTOM ? customCurve : sensors[sensorVersion]) || null;
+
+            /* The curve is written for default_resolution bits; a chip set to another
+               width is brought to that one first (a shift by the difference), so the
+               same curve holds whatever the output configuration. */
+            const toCurveBits = (raw, bits, curve) =>
+                Number.isFinite(bits) ? raw * Math.pow(2, curve.default_resolution - bits) : raw;
+            const line = (x, x1, x2, y1, y2) => y1 + (x - x1) * (y2 - y1) / (x2 - x1);
+
+            function decodePressure(raw, bits, curve = activeCurve()) {
+                if (!curve || !Number.isFinite(raw)) return null;
+                return line(toCurveBits(raw, bits, curve), curve.Out1, curve.Out2, curve.P1, curve.P2);
+            }
+
+            function decodeTemperature(raw, bits, which, curve = activeCurve()) {
+                if (!curve || !Number.isFinite(raw)) return null;
+                const [o1, o2] = which === 'dev' ? [curve.TDEV1, curve.TDEV2] : [curve.TMED1, curve.TMED2];
+                return line(toCurveBits(raw, bits, curve), o1, o2, curve.T1, curve.T2);
+            }
+
+            function describeCurve(name, c) {
+                if (!c) return 'No transfer curve: decoded values unavailable';
+                return `${name}: P [${c.P1}..${c.P2} bar → ${c.Out1}..${c.Out2} LSB] | `
+                    + `T [${c.T1}..${c.T2} °C → TMED ${c.TMED1}..${c.TMED2}, TDEV ${c.TDEV1}..${c.TDEV2} LSB] @ ${c.default_resolution} bit`;
+            }
+
+            function describeRaw() {
+                const cfg = outputConfig;
+                if (!cfg) return 'Raw sensor output [LSB] (output widths not read yet)';
+                const parts = [`P:${cfg.pressureBits}b`];
+                if (cfg.ntcBytes) parts.push(`TMED:${cfg.ntcBits}b`);
+                if (cfg.devBytes) parts.push(`TDEV:${cfg.devBits}b`);
+                return `Raw sensor output [LSB] (${parts.join(', ')})`;
+            }
+
+            const sensorSelect = document.getElementById('sensorVersion');
+            const modeSelect = document.getElementById('valueMode');
+            const scaleBtn = document.getElementById('btnFixedScale');
+            const customBox = document.getElementById('customCurve');
+            const curveInfo = document.getElementById('curveInfo');
+
+            function fillSensorSelect() {
+                if (!sensorSelect) return;
+                const names = Object.keys(sensors);
+                sensorSelect.replaceChildren(
+                    ...names.map(n => new Option(n, n)),
+                    new Option('Custom…', CUSTOM)
+                );
+                const saved = storeGet(STORE_SENSOR);
+                sensorVersion = (saved === CUSTOM || names.includes(saved)) ? saved : (names[0] ?? CUSTOM);
+                sensorSelect.value = sensorVersion;
+            }
+
+            function loadCustomCurve() {
+                let saved = null;
+                try { saved = JSON.parse(storeGet(STORE_CUSTOM) || 'null'); } catch { saved = null; }
+                const seed = Object.values(sensors)[0] || parseSensorsIni(FALLBACK_SENSORS_INI)['BAL-000'];
+                customCurve = { ...seed, ...(saved && typeof saved === 'object' ? saved : {}) };
+                for (const input of customBox?.querySelectorAll('input[data-key]') ?? []) {
+                    input.value = customCurve[input.dataset.key] ?? '';
+                }
+            }
+
+            function readCustomInputs() {
+                const next = { ...customCurve };
+                for (const input of customBox?.querySelectorAll('input[data-key]') ?? []) {
+                    next[input.dataset.key] = input.value === '' ? NaN : Number(input.value);
+                }
+                const ok = validCurve(next);
+                for (const input of customBox?.querySelectorAll('input[data-key]') ?? []) {
+                    input.classList.toggle('is-invalid', !Number.isFinite(next[input.dataset.key]));
+                }
+                if (ok) {
+                    customCurve = next;
+                    storeSet(STORE_CUSTOM, JSON.stringify(next));
+                }
+                return ok;
+            }
+
+            async function loadSensors() {
+                let text = null;
+                try {
+                    const res = await fetch('sensors.ini', { cache: 'no-cache' });
+                    if (res.ok) text = await res.text();
+                } catch { /* opened from disk or offline */ }
+                sensors = parseSensorsIni(text ?? FALLBACK_SENSORS_INI);
+                if (!Object.keys(sensors).length) sensors = parseSensorsIni(FALLBACK_SENSORS_INI);
+                fillSensorSelect();
+                loadCustomCurve();
+                applyChartSettings();
+            }
+
+            /* ---- Drawing -------------------------------------------------------- */
+            function bitsOf(sample, key) {
+                return key === 'p' ? sample.pBits : (key === 'ntc' ? sample.ntcBits : sample.devBits);
+            }
+
+            function valueOf(sample, key) {
+                const raw = sample[key];
+                if (!Number.isFinite(raw)) return null;
+                if (valueMode === 'raw') return raw;
+                const bits = bitsOf(sample, key);
+                return key === 'p' ? decodePressure(raw, bits) : decodeTemperature(raw, bits, key);
+            }
+
+            function applyScales() {
+                if (!chart) return;
+                const { y, y1 } = chart.options.scales;
+                const curve = activeCurve();
+                const decoded = valueMode === 'decoded' && curve;
+                y.title.text = decoded ? 'Pressure [bar]' : 'Pressure [LSB]';
+                y1.title.text = decoded ? 'Temperature [°C]' : 'Temperature [LSB]';
+                const tempsShown = data.datasets.some(d => d.yAxisID === 'y1' && !d.hidden);
+                y1.display = tempsShown;
+                let pRange = null;
+                let tRange = null;
+                if (fixedScale) {
+                    if (decoded) {
+                        pRange = [Math.min(curve.P1, curve.P2), Math.max(curve.P1, curve.P2)];
+                        tRange = [Math.min(curve.T1, curve.T2), Math.max(curve.T1, curve.T2)];
+                    } else {
+                        // The whole output range of each field at the width it is configured for.
+                        const pBits = outputConfig?.pressureBits ?? curve?.default_resolution ?? 16;
+                        const tBits = Math.max(outputConfig?.ntcBytes ? outputConfig.ntcBits : 0,
+                            outputConfig?.devBytes ? outputConfig.devBits : 0) || (curve?.default_resolution ?? 16);
+                        pRange = [0, Math.pow(2, pBits) - 1];
+                        tRange = [0, Math.pow(2, tBits) - 1];
+                    }
+                }
+                y.min = pRange?.[0];
+                y.max = pRange?.[1];
+                y1.min = tRange?.[0];
+                y1.max = tRange?.[1];
+            }
+
+            function redraw() {
+                data.labels = samples.map(s => s.label);
+                for (const ds of data.datasets) {
+                    ds.data = samples.map(s => valueOf(s, ds.key));
+                    const unit = valueMode === 'decoded' && activeCurve()
+                        ? (ds.key === 'p' ? '[bar]' : '[°C]') : '[LSB]';
+                    ds.label = `${SERIES[ds.key].label} ${unit}`;
+                    /* A temperature is drawn when the chip is configured to send it;
+                       before the configuration is known, when samples carry one. */
+                    if (ds.key !== 'p') {
+                        ds.hidden = outputConfig
+                            ? !(ds.key === 'ntc' ? outputConfig.ntcBytes : outputConfig.devBytes)
+                            : !samples.some(s => Number.isFinite(s[ds.key]));
+                    }
+                }
+                applyScales();
+                if (chart) chart.update('none');
+            }
+
+            function applyChartSettings() {
+                if (modeSelect) modeSelect.value = valueMode;
+                if (scaleBtn) {
+                    scaleBtn.setAttribute('aria-pressed', String(fixedScale));
+                    scaleBtn.classList.toggle('btn-primary', fixedScale);
+                    scaleBtn.classList.toggle('btn-outline-secondary', !fixedScale);
+                }
+                if (customBox) customBox.hidden = sensorVersion !== CUSTOM;
+                if (curveInfo) {
+                    curveInfo.textContent = valueMode === 'raw'
+                        ? describeRaw()
+                        : describeCurve(sensorVersion === CUSTOM ? 'Custom' : sensorVersion, activeCurve());
+                }
+                redraw();
+                refreshReadings();
+            }
+
+            function addSample(frame) {
                 const elapsed = Math.floor((Date.now() - t0) / 1000);
                 const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
                 const ss = String(elapsed % 60).padStart(2, '0');
-                const label = `${mm}:${ss}`;
-                const arr = data.datasets[0].data;
-                data.labels.push(label);
-                arr.push(Number(value));
-                if (arr.length > maxPoints) {
-                    data.labels.shift();
-                    arr.shift();
-                }
-                if (chart) chart.update('none');
+                samples.push({
+                    label: `${mm}:${ss}`,
+                    p: frame.pressure,
+                    ntc: frame.ntc,
+                    dev: frame.dev,
+                    pBits: outputConfig?.pressureBits,
+                    ntcBits: outputConfig?.ntcBits,
+                    devBits: outputConfig?.devBits,
+                });
+                if (samples.length > maxPoints) samples.shift();
+                redraw();
             }
+
+            function clearChart() {
+                samples.length = 0;
+                redraw();
+            }
+
+            modeSelect?.addEventListener('change', () => {
+                valueMode = modeSelect.value === 'raw' ? 'raw' : 'decoded';
+                storeSet(STORE_MODE, valueMode);
+                applyChartSettings();
+            });
+            sensorSelect?.addEventListener('change', () => {
+                sensorVersion = sensorSelect.value;
+                storeSet(STORE_SENSOR, sensorVersion);
+                applyChartSettings();
+            });
+            scaleBtn?.addEventListener('click', () => {
+                fixedScale = !fixedScale;
+                applyChartSettings();
+            });
+            document.getElementById('btnClearChart')?.addEventListener('click', clearChart);
+            customBox?.addEventListener('input', () => {
+                if (readCustomInputs()) applyChartSettings();
+            });
 
             let isSpiConnected = false;
             let spiPollInFlight = false;
@@ -1018,25 +1387,12 @@
                 };
             }
 
-            /* One transfer function serves both temperatures — the datasheet draws them
-               in a single figure — at 0.125 °C per count for a 10-bit output, and
-               proportionally finer as the output widens. The vendor GUI carries a
-               separate formula for the device temperature (220*(raw-1)/4093-55); it
-               puts a chip sitting on a bench at 120 °C, while this one puts it at 28,
-               so it is not the one this part uses. The application engineer says the
-               conversion changed a few times between samples, for both temperatures,
-               and is checking which one this sample was built with — so this stays
-               the reading that matches the bench until they answer. */
-            const temperatureCelsius = (raw, bits) => raw / (8 * Math.pow(2, bits - 10)) - 73.15;
-
-            /* The default transfer curve of the MLX90835GXP-AAA-001: 193 counts at
-               0 bar, 3896 at 10 bar. A part calibrated differently needs its own
-               numbers, so counts remain what the chart plots and this is only shown
-               beside them. On the bench it put a stationary chip at 953 hPa against a
-               barometer reading the same. */
-            const TRANSFER_CURVE = { zero: 193, top: 3896, topBar: 10 };
-            const pressureHectopascal = (counts) =>
-                (counts - TRANSFER_CURVE.zero) * TRANSFER_CURVE.topBar * 1000 / (TRANSFER_CURVE.top - TRANSFER_CURVE.zero);
+            /* Pressure and both temperatures are decoded with the transfer curve of
+               the sensor version picked under the chart (sensors.ini). The earlier
+               fixed formulas (raw/8 - 73.15 for 10 bit, the AAA-001 curve for
+               pressure) are gone: the application engineers' proposal gives each
+               version its own curve for all three, and their numbers reproduce the
+               vendor GUI (TMED 1459 LSB at 12 bit -> 27.19 °C). */
 
             function describeOutputConfig(cfg) {
                 const parts = [`pressure ${cfg.pressureBits}-bit`];
@@ -1163,6 +1519,8 @@
                 return null;
             }
 
+            let lastFrame = null;
+
             function setPressure(counts) {
                 const el = document.getElementById('pressureValue');
                 const note = document.getElementById('pressureCounts');
@@ -1172,16 +1530,25 @@
                     if (note) note.textContent = '';
                     return;
                 }
-                el.textContent = `${pressureHectopascal(counts).toFixed(0)} hPa`;
-                el.title = 'hPa from the AAA-001 default curve, not from this chip\u2019s calibration';
-                if (note) note.textContent = `${counts} counts`;
+                const bar = decodePressure(counts, outputConfig?.pressureBits);
+                el.textContent = bar === null ? `${counts} LSB` : `${bar.toFixed(3)} bar`;
+                el.title = bar === null ? '' : `decoded with the ${sensorVersion === CUSTOM ? 'custom' : sensorVersion} transfer curve`;
+                if (note) note.textContent = bar === null ? '' : `${counts} LSB`;
+            }
+
+            // The panel follows the curve too, so a change of sensor version shows at once.
+            function refreshReadings() {
+                if (!lastFrame) return;
+                setTemperature(lastFrame);
+                setPressure(lastFrame.pressure);
             }
 
             function plotFrame(frame) {
+                lastFrame = frame;
                 setChipStatusDecoded('0x' + frame.status.toString(16).toUpperCase().padStart(2, '0'), frame.status);
                 setTemperature(frame);
                 setPressure(frame.pressure);
-                addPointValue(frame.pressure);
+                addSample(frame);
             }
 
             async function pollI2cReadAndPlot() {
@@ -1743,24 +2110,22 @@
             function setTemperature(frame) {
                 const el = document.getElementById('tempValue');
                 if (!el) return;
-                if (!outputConfig) {
-                    el.textContent = Number.isFinite(frame?.ntc) ? `${frame.ntc} counts` : '–';
-                    return;
-                }
+                const reading = (name, raw, bits, which) => {
+                    const c = decodeTemperature(raw, bits, which);
+                    return c === null ? `${name} ${raw} LSB` : `${name} ${c.toFixed(2)} °C · ${raw} LSB`;
+                };
                 const readings = [];
-                if (outputConfig.devBytes && Number.isFinite(frame.dev)) {
-                    readings.push(`device ${temperatureCelsius(frame.dev, outputConfig.devBits).toFixed(1)} °C · ${frame.dev} counts`);
-                }
-                if (outputConfig.ntcBytes && Number.isFinite(frame.ntc)) {
-                    readings.push(`NTC ${temperatureCelsius(frame.ntc, outputConfig.ntcBits).toFixed(1)} °C · ${frame.ntc} counts`);
-                }
+                const hasNtc = outputConfig ? outputConfig.ntcBytes : true;
+                const hasDev = outputConfig ? outputConfig.devBytes : false;
+                if (hasNtc && Number.isFinite(frame?.ntc)) readings.push(reading('TMED', frame.ntc, outputConfig?.ntcBits, 'ntc'));
+                if (hasDev && Number.isFinite(frame?.dev)) readings.push(reading('TDEV', frame.dev, outputConfig?.devBits, 'dev'));
                 el.replaceChildren(...readings.map((text) => {
                     const line = document.createElement('span');
                     line.textContent = text;
                     return line;
                 }));
                 if (!readings.length) el.textContent = '–';
-                el.title = 'the NTC reading means nothing unless a thermistor is wired to the chip';
+                el.title = 'TMED is the NTC input: it means nothing unless a thermistor is wired to the chip';
             }
 
             async function readOutputConfig(bus) {
@@ -1780,6 +2145,7 @@
                     const summary = describeOutputConfig(outputConfig);
                     debugPrint(`Output configuration 0x${word.toString(16).toUpperCase().padStart(4, '0')}: ${summary}`);
                     setOutputSummary(summary, `REG2_PRS_TEMP_DATA_FILTER = 0x${word.toString(16).toUpperCase().padStart(4, '0')}`);
+                    applyChartSettings();
                 } catch (e) {
                     debugPrint(`Output configuration read failed: ${String(e?.message || e)}`);
                 }
@@ -2403,11 +2769,19 @@
             window.crc8Mlx90835 = crc8Mlx90835;
 
             function exportCsv() {
-                const rows = [['time', 'pressure_raw']];
-                const labels = data.labels;
-                const values = data.datasets[0].data;
-                for (let i = 0; i < values.length; i++) {
-                    rows.push([labels[i] ?? '', String(values[i])]);
+                const curveName = sensorVersion === CUSTOM ? 'custom' : sensorVersion;
+                const rows = [['time', 'pressure_lsb', 'tmed_lsb', 'tdev_lsb',
+                    'pressure_bar', 'tmed_c', 'tdev_c', 'sensor_version']];
+                const fmt = (v, digits) => (v === null || v === undefined || !Number.isFinite(v) ? '' : v.toFixed(digits));
+                for (const smp of samples) {
+                    rows.push([
+                        smp.label,
+                        fmt(smp.p, 0), fmt(smp.ntc, 0), fmt(smp.dev, 0),
+                        fmt(decodePressure(smp.p, smp.pBits), 4),
+                        fmt(decodeTemperature(smp.ntc, smp.ntcBits, 'ntc'), 3),
+                        fmt(decodeTemperature(smp.dev, smp.devBits, 'dev'), 3),
+                        curveName ?? '',
+                    ]);
                 }
                 const csvContent = rows.map(r => r.map(field => {
                     const s = String(field);
@@ -2426,6 +2800,7 @@
             }
 
             document.getElementById('btnExportCsv')?.addEventListener('click', exportCsv);
+            void loadSensors();
 
             // Update connection badge
             const badge = document.getElementById('connStatus');
