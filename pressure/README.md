@@ -57,6 +57,16 @@ npx http-server -p 5500 .
 
 Note: Exact controls depend on your connected hardware and adapter capabilities.
 
+## Measurements chart (mlx90835.html)
+- **Values** — *Raw values* plots the counts the chip sends [LSB]; *Decoded values* plots pressure [bar] and temperature [°C] through the selected transfer curve.
+- Pressure is on the left axis; TMED (the NTC / media temperature) and TDEV (device temperature) share the right axis and appear only when REG2 enables them.
+- **Sensor version** — the default transfer curves from `sensors.ini`; *Custom…* takes a curve typed in by hand (kept in the browser).
+- **Fixed scale** — raw: the full output range of each field at its configured width; decoded: P1..P2 and T1..T2 of the curve. Off: auto scale.
+- Export CSV writes both the raw counts and the decoded values.
+
+### Adding a sensor version (`sensors.ini`)
+Copy a `[PressureSensorInfo_<version>]` section in `sensors.ini`, rename it and change the numbers — no code change needed. `Out*`, `TMED*` and `TDEV*` are counts at `default_resolution` bits; a chip configured for a different output width is bit-shifted to that width before the curve is applied.
+
 ## CLI Script (Terminal)
 A minimal I²C read example is provided at `mipterminal/i2c_read.js`.
 
