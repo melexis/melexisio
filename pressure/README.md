@@ -61,7 +61,8 @@ Note: Exact controls depend on your connected hardware and adapter capabilities.
 - **Values** — *Raw values* plots the counts the chip sends [LSB]; *Decoded values* plots pressure [bar] and temperature [°C] through the selected transfer curve.
 - Pressure is on the left axis; TMED (the NTC / media temperature) and TDEV (device temperature) share the right axis and appear only when REG2 enables them.
 - **Sensor version** — the default transfer curves from `sensors.ini`; *Custom…* takes a curve typed in by hand (kept in the browser).
-- **Fixed scale** — raw: the full output range of each field at its configured width; decoded: P1..P2 and T1..T2 of the curve. Off: auto scale.
+- **Fixed scale** (on by default) — raw: the full output range of each field at its configured width; decoded: P1..P2 and T1..T2 of the curve. Off: auto scale.
+- **Chip status** — the reset and error flags are cleared on Start, and again whenever a frame comes back with one set (a reset also re-enters continuous mode).
 - Export CSV writes both the raw counts and the decoded values.
 
 ### Adding a sensor version (`sensors.ini`)

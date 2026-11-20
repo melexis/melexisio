@@ -780,7 +780,6 @@
             </div>
             <div class="toolbar-actions">
                 <button id="btnConnect" class="btn btn-success btn-sm">Connect</button>
-                <button id="btnConnectBle" class="btn btn-outline-success btn-sm">Bluetooth</button>
                 <button id="btnDisconnect" class="btn btn-outline-secondary btn-sm" disabled>Disconnect</button>
                 <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">Refresh</button>
                 <button id="btnHelp" class="btn btn-outline-info btn-sm">Help</button>
@@ -852,7 +851,7 @@
                                 <select id="sensorVersion" class="form-select form-select-sm"></select>
                             </label>
                             <button id="btnFixedScale" type="button" class="btn btn-outline-secondary btn-sm"
-                                aria-pressed="false">Fixed scale</button>
+                                aria-pressed="true">Fixed scale</button>
                             <button id="btnClearChart" type="button" class="btn btn-outline-secondary btn-sm">Clear chart</button>
                             <span id="curveInfo" class="curve-info"></span>
                         </div>
@@ -1057,7 +1056,7 @@ default_resolution = 12`;
             let sensors = {};          // version -> curve
             let customCurve = null;
             let valueMode = storeGet(STORE_MODE) === 'raw' ? 'raw' : 'decoded';
-            let fixedScale = false;
+            let fixedScale = true;     // auto scale only when toggled off
             let sensorVersion = null;
 
             function parseSensorsIni(text) {
@@ -1551,6 +1550,29 @@ default_resolution = 12`;
                 addSample(frame);
             }
 
+            /* Reset (0x80), comm error (0x08) and exec error (0x04) stay set in the
+               status byte until cleared, so one bad exchange kept showing under Chip
+               status for the rest of the run. Every frame carries the status, so the
+               poll clears them as soon as one shows up. A reset also means the chip
+               restarted and left continuous mode, so that is entered again. Throttled,
+               so a chip that keeps flagging does not double the bus traffic. */
+            const STICKY_FLAGS = 0x8C;
+            const FLAG_CLEAR_INTERVAL_MS = 1000;
+            let lastFlagClear = 0;
+            async function clearStickyFlags(bus, status) {
+                if (!(status & STICKY_FLAGS)) return;
+                const now = Date.now();
+                if (now - lastFlagClear < FLAG_CLEAR_INTERVAL_MS) return;
+                lastFlagClear = now;
+                debugPrint(`${bus} status ${hexByte(status)} (${summariseStatus(status)}): clearing flags.`);
+                if (status & 0x80) {
+                    if (bus === 'I2C') await setI2cContinuousMode('after reset');
+                    else await setSpiContinuousMode('after reset');
+                } else {
+                    await sendChipCommand(bus, Mlx90835Command.CLEAR_ERROR_FLAGS);
+                }
+            }
+
             async function pollI2cReadAndPlot() {
                 if (i2cPollInFlight) return;
                 if (!isI2cConnected) return;
@@ -1565,7 +1587,10 @@ default_resolution = 12`;
                         return;
                     }
                     const frame = readFrame(bytes, 'I2C');
-                    if (frame) plotFrame(frame);
+                    if (frame) {
+                        plotFrame(frame);
+                        await clearStickyFlags('I2C', frame.status);
+                    }
                 } catch (e) {
                     debugPrint(`${cmd} failed: ${String(e?.message || e)}`);
                 } finally {
@@ -1588,7 +1613,10 @@ default_resolution = 12`;
                         return;
                     }
                     const frame = readFrame(bytes, 'SPI');
-                    if (frame) plotFrame(frame);
+                    if (frame) {
+                        plotFrame(frame);
+                        await clearStickyFlags('SPI', frame.status);
+                    }
                 } catch (e) {
                     debugPrint(`${cmd} failed: ${String(e?.message || e)}`);
                 } finally {
@@ -2496,70 +2524,10 @@ default_resolution = 12`;
                 }
             }
 
-            /* The same firmware answers over BLE, and everything above scpi_command()
-               is the same either way; js/serial-port.js explains the device side. */
-            async function connectBluetooth() {
-                try {
-                    clearDebugLog();
-                    deviceLost = false;
-                    resetFrameSync();
-                    outputConfig = null;
-                    setOutputSummary('–');
-                    setTemperature(null);
-                    setPressure(NaN);
-                    debugPrint('--- CONNECT (Bluetooth) ---');
-
-                    const decoder = new TextDecoder();
-                    link = await window.melexisSerial.connectBluetooth({
-                        onData: (bytes) => {
-                            serialRxBuffer += decoder.decode(bytes, { stream: true });
-                            notifySerialWaiters();
-                        },
-                        onDisconnect: () => {
-                            debugPrint('The board went out of range or switched off.');
-                            void disconnectSerial();
-                        },
-                    });
-
-                    const btnC = document.getElementById('btnConnect');
-                    const btnD = document.getElementById('btnDisconnect');
-                    const badge = document.getElementById('connStatus');
-                    if (btnC) btnC.disabled = true;
-                    if (document.getElementById('btnConnectBle')) document.getElementById('btnConnectBle').disabled = true;
-                    if (btnD) { btnD.disabled = false; btnD.classList.remove('disabled', 'btn-outline-secondary'); btnD.classList.add('btn-success'); }
-                    if (badge) { badge.className = 'badge text-bg-success'; badge.textContent = 'Connected'; }
-                    debugPrint(`Connected to ${link.name} over Bluetooth.`);
-
-                    try {
-                        await scpi_command('*IDN?', { timeoutMs: 5000, idleMs: 500, terminatorRegex: /\s*\)>/, allowIdleReturn: true });
-                    } catch (e) {
-                        debugPrint(`IDN failed: ${String(e?.message || e)}`);
-                    }
-
-                    const i2c = await tryI2cHandshake();
-                    if (i2c && i2c.notPresent) {
-                        if (await startSpiFallback()) await readOutputConfig('SPI');
-                    } else if (i2c && i2c.ok) {
-                        await readOutputConfig('I2C');
-                    }
-                } catch (err) {
-                    if (String(err?.name) === 'NotFoundError') { debugPrint('No device selected.'); return; }
-                    debugPrint(`Bluetooth connection failed: ${String(err?.message || err)}`);
-                    const hint = window.melexisSerial.bluetoothHint(err);
-                    if (hint) debugPrint(hint);
-                    await disconnectSerial();
-                }
-            }
-
             async function disconnectSerial() {
                 try {
                     debugPrint('--- DISCONNECT ---');
                     stopStream();
-                    if (link?.kind === 'ble') {
-                        const going = link;
-                        link = null;            // before closing: the handler must stay quiet
-                        going.close();
-                    }
                     link = null;
                     await stopSerialPump();
                     if (writer) {
@@ -2591,8 +2559,6 @@ default_resolution = 12`;
                     const btnD = document.getElementById('btnDisconnect');
                     const badge = document.getElementById('connStatus');
                     if (btnC) { btnC.disabled = false; btnC.classList.remove('disabled', 'btn-secondary'); btnC.classList.add('btn-success'); }
-                    const btnBle = document.getElementById('btnConnectBle');
-                    if (btnBle) btnBle.disabled = false;
                     if (btnD) { btnD.disabled = true; btnD.classList.add('disabled'); btnD.classList.remove('btn-success'); btnD.classList.add('btn-outline-secondary'); }
                     if (badge) { badge.className = 'badge text-bg-secondary'; badge.textContent = 'Disconnected'; }
                     claim.release();
@@ -2723,7 +2689,6 @@ default_resolution = 12`;
 
             // Hook up buttons (top bar)
             document.getElementById('btnConnect')?.addEventListener('click', connectSerial);
-            document.getElementById('btnConnectBle')?.addEventListener('click', connectBluetooth);
 
             /* Only a handover from Detect connects by itself; opened on its own this
                page waits for the button, which asks which port to use. Another tab
@@ -2749,8 +2714,12 @@ default_resolution = 12`;
                 if (port && writer && inputStream && (isI2cConnected || isSpiConnected)) {
                     const bus = isI2cConnected ? 'I2C' : 'SPI';
                     try {
+                        // Clears the reset and error flags before entering continuous mode.
                         if (isI2cConnected) await setI2cContinuousMode('start');
                         else await setSpiContinuousMode('start');
+                        lastFlagClear = Date.now();
+                        const status = await readStatusByte(bus);
+                        if (Number.isFinite(status)) setChipStatusDecoded(hexByte(status), status);
                     } catch (e) {
                         debugPrint(`${bus} set continuous mode failed: ${String(e?.message || e)}`);
                         return;
