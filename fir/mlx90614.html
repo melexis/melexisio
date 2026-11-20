@@ -33,7 +33,8 @@
       flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
     }
     .top-toolbar h1 { margin: 0; font-size: clamp(1.6rem, 2.6vw, 2.2rem); }
-    .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .port-filter { margin: 0 4px 0 0; font-size: .75rem; color: var(--clr-text-muted); }
 
     .card { border: 1px solid var(--clr-border); border-radius: var(--radius-lg); background: var(--clr-surface); }
     .card h2 { margin: 0 0 14px; color: var(--clr-text-muted); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
@@ -112,6 +113,10 @@
         <div class="text-secondary" style="font-size:.8125rem">Single and dual zone thermometer in TO-39</div>
       </div>
       <div class="toolbar-actions">
+        <div class="form-check port-filter" title="Ticked: the port picker lists Melexis IO boards only. Unticked: every serial port, for an ST-Link or another device.">
+          <input id="portFilter" class="form-check-input" type="checkbox" data-port-filter checked>
+          <label class="form-check-label" for="portFilter">Melexis.io</label>
+        </div>
         <button id="btnConnect" class="btn btn-sm btn-primary">Connect</button>
         <button id="btnConnectBle" class="btn btn-sm btn-outline-primary">Bluetooth</button>
         <button id="btnStream" class="btn btn-sm btn-outline-secondary" disabled>Start</button>
@@ -763,7 +768,7 @@
 
       try {
         // A press of Connect always asks; only the handover arrives with a port.
-        state.port = existingPort ?? await navigator.serial.requestPort();
+        state.port = existingPort ?? await window.melexisSerial.requestPort();
         await state.port.open(window.melexisSerial.lineOptions(state.port));
         state.writer = state.port.writable.getWriter();
         state.link = { kind: "serial", write: (bytes) => state.writer.write(bytes) };
@@ -779,6 +784,8 @@
       } catch (error) {
         if (error && error.name === "NotFoundError") {
           log("Port selection cancelled.");
+          const hint = window.melexisSerial.pickerHint();
+          if (hint) log(hint);
         } else {
           log(`Connect failed: ${await claim.reason(error)}`);
           ui.chartEmpty.textContent = "No MLX90614 answered on SMBus. Check wiring and the slave address.";

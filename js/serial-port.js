@@ -200,6 +200,50 @@
     return id;
   }
 
+  /* ---- Which port to offer ----
+   *
+   * Chrome's picker lists every serial port on the machine — Bluetooth
+   * incoming ports, headsets, debug consoles — and the board is one line among
+   * them. Filtering on its vid:pid leaves it alone in the list. Other devices
+   * this suite talks to (an ST-Link, an ESP32 devkit) are still reachable: the
+   * operator unticks "Melexis.io" beside Connect, and the choice is remembered
+   * for every page on this origin.
+   */
+  const MELEXIS_IO = { usbVendorId: 0x03e9, usbProductId: 0x0041 };
+  const ALL_PORTS_KEY = "melexisio.allPorts";
+
+  function listAllPorts() {
+    try { return localStorage.getItem(ALL_PORTS_KEY) === "1"; } catch { return false; }
+  }
+
+  function setListAllPorts(on) {
+    try { localStorage.setItem(ALL_PORTS_KEY, on ? "1" : "0"); } catch { /* storage unavailable */ }
+  }
+
+  function requestPort() {
+    return listAllPorts()
+      ? navigator.serial.requestPort()
+      : navigator.serial.requestPort({ filters: [MELEXIS_IO] });
+  }
+
+  /* A filtered picker with nothing in it and a cancelled one both end in
+     NotFoundError, so the page cannot tell which happened. It says what the
+     filter hid instead, once, and only when the filter was on. */
+  function pickerHint() {
+    return listAllPorts()
+      ? null
+      : "Only Melexis IO boards are listed. For another serial device, untick "
+        + "\"Melexis.io\" beside Connect.";
+  }
+
+  /* Every page carries the same toggle beside Connect, ticked while the picker
+     is filtered to the board; this script loads after the markup, so it wires
+     them here rather than in each page. */
+  for (const box of document.querySelectorAll("input[data-port-filter]")) {
+    box.checked = !listAllPorts();
+    box.addEventListener("change", () => setListAllPorts(!box.checked));
+  }
+
   /* ---- How to open the port ----
    *
    * Detect is where a session starts and where the line is chosen, so it hands
@@ -441,6 +485,10 @@
 
   window.melexisSerial = {
     describe,
+    requestPort,
+    pickerHint,
+    listAllPorts,
+    setListAllPorts,
     connectBluetooth,
     bluetoothHint,
     connectWebSocket,
