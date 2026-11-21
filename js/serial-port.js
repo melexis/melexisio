@@ -176,7 +176,6 @@
      mis-pick. */
   const KNOWN = {
     "03e9:0041": "Melexis IO",
-    "03e9:0043": "Melexis IO (fir-lan, ECM)",
     "03e9:0044": "Melexis IO (fir-lan, RNDIS)",
     "0483:374e": "ST-Link virtual port",
     "10c4:ea60": "ESP32 devkit (CP210x bridge)",
@@ -211,10 +210,10 @@
    * operator unticks "Melexis.io" beside Connect, and the choice is remembered
    * for every page on this origin.
    */
-  /* 0x0041 is the board with its terminal alone; the fir-lan firmware has a
-     network beside it and enumerates as 0x0043 (CDC-ECM) or 0x0044 (RNDIS),
+  /* 0x0041 is the board, with fir-lan's network (CDC-ECM) beside the
+     terminal or without it; 0x0044 is fir-lan switched to RNDIS for Windows,
      the same terminal on the same serial port. */
-  const MELEXIS_IO = [0x0041, 0x0043, 0x0044].map((usbProductId) => ({ usbVendorId: 0x03e9, usbProductId }));
+  const MELEXIS_IO = [0x0041, 0x0044].map((usbProductId) => ({ usbVendorId: 0x03e9, usbProductId }));
   const ALL_PORTS_KEY = "melexisio.allPorts";
 
   function listAllPorts() {
