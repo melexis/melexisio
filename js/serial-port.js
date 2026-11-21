@@ -176,6 +176,7 @@
      mis-pick. */
   const KNOWN = {
     "03e9:0041": "Melexis IO",
+    "03e9:0044": "Melexis IO (fir-lan, RNDIS)",
     "0483:374e": "ST-Link virtual port",
     "10c4:ea60": "ESP32 devkit (CP210x bridge)",
     "1a86:7523": "ESP32 devkit (CH340 bridge)",
@@ -209,7 +210,10 @@
    * operator unticks "Melexis.io" beside Connect, and the choice is remembered
    * for every page on this origin.
    */
-  const MELEXIS_IO = { usbVendorId: 0x03e9, usbProductId: 0x0041 };
+  /* 0x0041 is the board, with fir-lan's network (CDC-ECM) beside the
+     terminal or without it; 0x0044 is fir-lan switched to RNDIS for Windows,
+     the same terminal on the same serial port. */
+  const MELEXIS_IO = [0x0041, 0x0044].map((usbProductId) => ({ usbVendorId: 0x03e9, usbProductId }));
   const ALL_PORTS_KEY = "melexisio.allPorts";
 
   function listAllPorts() {
@@ -223,7 +227,7 @@
   function requestPort() {
     return listAllPorts()
       ? navigator.serial.requestPort()
-      : navigator.serial.requestPort({ filters: [MELEXIS_IO] });
+      : navigator.serial.requestPort({ filters: MELEXIS_IO });
   }
 
   /* A filtered picker with nothing in it and a cancelled one both end in
