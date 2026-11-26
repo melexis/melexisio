@@ -249,6 +249,14 @@
      * Over USB there is nothing to save, so the thinning only applies to BLE. */
     const AMBIENT_EVERY = 5;
     const EE_EMISSIVITY = 0x24;          // EEPROM 0x04
+    const EE_CONFIG1 = 0x25;             // EEPROM 0x05
+
+    /* The sensor refreshes its RAM once per FIR cycle, Config Register 1 bits
+     * 10..8 (datasheet, EEPROM table): reading faster only reads the same value
+     * again. Single zone, dual zone, in ms, for FIR 128, 256, 512 and 1024. The
+     * datasheet gives no rate for FIR below 128 ("not recommended"); those get
+     * the 128 figure. The IIR filter adds settling time, not refreshes. */
+    const REFRESH_MS = { 4: [36, 53], 5: [44, 53], 6: [60, 90], 7: [93, 138] };
     const HISTORY = 240;
 
     /* PEC is a CRC-8 with x^8 + x^2 + x + 1 over every byte of the transaction,
@@ -288,6 +296,7 @@
       sinceAmbient: 0,
       hoverIndex: -1,
       lastSampleAt: 0,
+      refreshMs: 0,        // the sensor's refresh period, from Config Register 1
     };
 
     function log(message) {
@@ -392,8 +401,14 @@
       state.dualZone = second !== null;
       ui.infoZones.textContent = state.dualZone ? "Dual" : "Single";
 
-      log(`Emissivity ${emissivity.toFixed(3)}, ${state.dualZone ? "dual" : "single"} zone.`);
+      const fir = (await smbusRead(EE_CONFIG1) >> 8) & 0x7;
+      state.refreshMs = (REFRESH_MS[fir] || REFRESH_MS[4])[state.dualZone ? 1 : 0];
+
+      log(`Emissivity ${emissivity.toFixed(3)}, ${state.dualZone ? "dual" : "single"} zone, ` +
+          `FIR ${8 << fir}: a new reading every ${state.refreshMs} ms.`);
     }
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     async function readSample() {
       const thin = state.link?.kind === "ble";
@@ -573,8 +588,12 @@
     async function streamLoop() {
       while (state.streaming) {
         try {
+          const started = performance.now();
           const { object, ambient } = await readSample();
           addSample(object, ambient);
+          /* One read per refresh of the sensor, not as fast as the link goes */
+          const wait = (state.refreshMs || 0) - (performance.now() - started);
+          if (wait > 0) await sleep(wait);
         } catch (error) {
           if (!state.streaming) break;
           log(`Reading failed: ${error.message}`);
